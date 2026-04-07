@@ -121,6 +121,31 @@
                             </div>
                         </div>
 
+                        @if($payment->transfer_receipt ?? null)
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <strong>Transfer receipt:</strong>
+                                <p class="mb-2">
+                                    @php
+                                        $receiptUrl = asset('storage/' . $payment->transfer_receipt);
+                                        $ext = strtolower(pathinfo($payment->transfer_receipt, PATHINFO_EXTENSION));
+                                        $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true);
+                                    @endphp
+                                    <a href="{{ $receiptUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                                        <i class="ti ti-file me-1"></i>View receipt
+                                    </a>
+                                    @if($isImage)
+                                        <span class="ms-2">
+                                            <a href="{{ $receiptUrl }}" target="_blank" rel="noopener" class="d-inline-block mt-2">
+                                                <img src="{{ $receiptUrl }}" alt="Receipt" class="rounded border" style="max-height: 120px; max-width: 200px; object-fit: contain;">
+                                            </a>
+                                        </span>
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                        @endif
+
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <strong>Created At:</strong>

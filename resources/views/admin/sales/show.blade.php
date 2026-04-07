@@ -17,7 +17,7 @@
                 </a>
             </li>
             <li>
-                <a href="javascript:void(0);" onclick="window.print()" data-bs-toggle="tooltip" data-bs-placement="top" title="Print">
+                <a href="{{ route('sales.print', ['id' => $sale->id, 'return' => 'show']) }}" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-placement="top" title="Thermal print" onclick="if(this.dataset.opened){event.preventDefault();return false;}this.dataset.opened='1';setTimeout(function(el){el.dataset.opened='';},6000,this);">
                     <i data-feather="printer" class="feather-rotate-ccw"></i>
                 </a>
             </li>
@@ -163,6 +163,9 @@
                                 <td>
                                     @php
                                         $item = $saleItem->item;
+                                        $entryType = (string) ($saleItem->entry_type ?? '');
+                                        $isTemporary = $entryType === 'temporary';
+                                        $isPlaceholder = $entryType === 'placeholder';
                                         $itemName = $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'N/A';
                                         if ($item->partnumber_item) {
                                             $itemName = $item->partnumber_item->name ?? $itemName;
@@ -170,13 +173,35 @@
                                         if ($item->category) {
                                             $itemName .= ' - ' . $item->category->name;
                                         }
+                                        if ($isTemporary) {
+                                            $itemName = $saleItem->temporary_item_name ?: ($saleItem->voice_transcript ?: 'Temporary item');
+                                        } elseif ($isPlaceholder) {
+                                            $itemName = $saleItem->line_note ?: 'Placeholder line';
+                                        }
                                     @endphp
+                                    @if($isTemporary)
+                                        <span class="badge bg-warning text-dark me-1">TEMPORARY</span>
+                                    @elseif($isPlaceholder)
+                                        <span class="badge bg-info text-dark me-1">PLACEHOLDER</span>
+                                    @endif
                                     <h6>{{ $itemName }}</h6>
-                                    @if($item->bar_code)
+                                    @if($isTemporary && $saleItem->temporary_quality)
+                                        <small class="text-muted d-block">Quality: {{ $saleItem->temporary_quality }}</small>
+                                    @endif
+                                    @if($isTemporary && $saleItem->line_note)
+                                        <small class="text-muted d-block">Note: {{ $saleItem->line_note }}</small>
+                                    @endif
+                                    @if($item->bar_code && ! $isTemporary && ! $isPlaceholder)
                                         <small class="text-muted">Barcode: {{ $item->bar_code }}</small>
                                     @endif
                                     @if($saleItem->warranty)
                                         <small class="text-muted">Warranty: {{ $saleItem->warranty }}</small>
+                                    @endif
+                                    @if($isTemporary)
+                                        <div class="mt-2">
+                                            <a href="{{ route('all.items.create.new') }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">Create inventory item</a>
+                                            <span class="small text-muted ms-1">— add the real product, then adjust this sale if needed.</span>
+                                        </div>
                                     @endif
                                 </td>
                                 <td class="text-gray-9 fw-medium text-end">{{ number_format($saleItem->quantity, 2) }} {{ $saleItem->unit ?? 'pcs' }}</td>
@@ -345,8 +370,8 @@
     </div>
     <!-- /Sale Invoice -->
 
-    <div class="d-flex justify-content-center align-items-center mb-4">
-        <a href="javascript:void(0);" onclick="window.print()" class="btn btn-primary d-flex justify-content-center align-items-center me-2">
+    <div class="d-flex justify-content-center align-items-center mb-4 flex-wrap gap-2">
+        <a href="{{ route('sales.print', ['id' => $sale->id, 'return' => 'show']) }}" target="_blank" rel="noopener" class="btn btn-primary d-flex justify-content-center align-items-center" onclick="if(this.dataset.opened){event.preventDefault();return false;}this.dataset.opened='1';setTimeout(function(el){el.dataset.opened='';},6000,this);">
             <i class="ti ti-printer me-2"></i>Print Invoice
         </a>
         <a href="{{ route('sales.download.pdf', $sale->id) }}" class="btn btn-secondary d-flex justify-content-center align-items-center border me-2" target="_blank">

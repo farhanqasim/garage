@@ -93,6 +93,9 @@
 <body>
     <div class="header">
         <h1>Supplier Ledger Report</h1>
+        @if(!empty($date_from) || !empty($date_to))
+        <p style="margin: 5px 0 0 0; font-size: 14px; color: #555;">Period: {{ $date_from ?? '—' }} to {{ $date_to ?? '—' }}</p>
+        @endif
     </div>
     
     <div class="info-section">
@@ -114,19 +117,19 @@
         <table>
             <tr>
                 <th>Opening Balance:</th>
-                <td><strong>{{ number_format($opening_balance, 2) }}</strong></td>
+                <td><strong>{{ number_format($opening_balance, 0) }}</strong></td>
             </tr>
             <tr>
                 <th>Total Debit:</th>
-                <td class="text-danger">{{ number_format($total_debit, 2) }}</td>
+                <td class="text-danger">{{ number_format($total_debit, 0) }}</td>
             </tr>
             <tr>
                 <th>Total Credit:</th>
-                <td class="text-success">{{ number_format($total_credit, 2) }}</td>
+                <td class="text-success">{{ number_format($total_credit, 0) }}</td>
             </tr>
             <tr>
                 <th>Ending Balance:</th>
-                <td class="text-primary"><strong>{{ number_format($ending_balance, 2) }}</strong></td>
+                <td class="text-primary"><strong>{{ number_format($ending_balance, 0) }}</strong></td>
             </tr>
             <tr>
                 <th>Balance Type:</th>
@@ -156,7 +159,7 @@
                 <td colspan="6"><strong>Opening Balance</strong></td>
                 <td class="text-end">-</td>
                 <td class="text-end">-</td>
-                <td class="text-end"><strong>{{ number_format($opening_balance, 2) }}</strong></td>
+                <td class="text-end"><strong>{{ number_format($opening_balance, 0) }}</strong></td>
             </tr>
             
             @foreach($transactions as $trans)
@@ -167,18 +170,18 @@
                 <td>{{ $trans['reference'] }}</td>
                 <td>{{ $trans['description'] }}</td>
                 <td>{{ $trans['branch'] }}</td>
-                <td class="text-end">{{ number_format($trans['debit'], 2) }}</td>
-                <td class="text-end">{{ number_format($trans['credit'], 2) }}</td>
-                <td class="text-end"><strong>{{ number_format($trans['balance'], 2) }}</strong></td>
+                <td class="text-end">{{ number_format($trans['debit'], 0) }}</td>
+                <td class="text-end">{{ number_format($trans['credit'], 0) }}</td>
+                <td class="text-end"><strong>{{ number_format($trans['balance'], 0) }}</strong></td>
             </tr>
             @endforeach
             
             <!-- Footer Row -->
             <tr class="footer-row">
                 <td colspan="6" class="text-end"><strong>Totals:</strong></td>
-                <td class="text-end"><strong>{{ number_format($total_debit, 2) }}</strong></td>
-                <td class="text-end"><strong>{{ number_format($total_credit, 2) }}</strong></td>
-                <td class="text-end"><strong>{{ number_format($ending_balance, 2) }}</strong></td>
+                <td class="text-end"><strong>{{ number_format($total_debit, 0) }}</strong></td>
+                <td class="text-end"><strong>{{ number_format($total_credit, 0) }}</strong></td>
+                <td class="text-end"><strong>{{ number_format($ending_balance, 0) }}</strong></td>
             </tr>
         </tbody>
     </table>

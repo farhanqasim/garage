@@ -18,6 +18,7 @@ class Payment extends Model
         'direction',
         'payment_date',
         'transaction_id',
+        'transfer_receipt',
         'amount',
         'currency',
         'status',
@@ -59,15 +60,15 @@ class Payment extends Model
     public function sales()
     {
         return $this->belongsToMany(Sale::class, 'sale_payments')
-                    ->withPivot('allocated_amount')
-                    ->withTimestamps();
+            ->withPivot('allocated_amount')
+            ->withTimestamps();
     }
 
     public function purchases()
     {
         return $this->belongsToMany(Purchase::class, 'purchase_payments')
-                    ->withPivot('allocated_amount')
-                    ->withTimestamps();
+            ->withPivot('allocated_amount')
+            ->withTimestamps();
     }
 
     public function bankTransactions()

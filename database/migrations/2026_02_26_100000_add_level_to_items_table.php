@@ -12,20 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('items', function (Blueprint $table) {
-            if (!Schema::hasColumn('items', 'level')) {
+            if (! Schema::hasColumn('items', 'level')) {
                 $table->unsignedBigInteger('level')->nullable();
             }
         });
-        // Add foreign key only if levels table exists and column was added
-        if (Schema::hasTable('levels') && Schema::hasColumn('items', 'level')) {
-            Schema::table('items', function (Blueprint $table) {
-                try {
-                    $table->foreign('level')->references('id')->on('levels')->onDelete('set null');
-                } catch (\Exception $e) {
-                    // Ignore if foreign already exists or column type doesn't match
-                }
-            });
-        }
+        // Skip foreign key to avoid errno 150 (type/engine mismatch); level column still works for references
+        // if (Schema::hasTable('levels') && Schema::hasColumn('items', 'level')) {
+        //     Schema::table('items', function (Blueprint $table) {
+        //         $table->foreign('level')->references('id')->on('levels')->onDelete('set null');
+        //     });
+        // }
     }
 
     /**

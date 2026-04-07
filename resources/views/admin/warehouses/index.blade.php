@@ -34,9 +34,23 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php $previousBranchDisplay = null; $rowNum = 0; @endphp
                         @forelse($warehouses as $index => $warehouse)
+                        @php
+                            $currentBranchDisplay = $warehouse->branch
+                                ? ($warehouse->branch->branch_name . ($warehouse->branch->branch_code ? ' (' . $warehouse->branch->branch_code . ')' : ''))
+                                : '—';
+                        @endphp
+                        @if($index === 0 || $currentBranchDisplay !== $previousBranchDisplay)
+                            @if($index > 0)
+                                <tr class="branch-separator"><td colspan="7" class="p-0"></td></tr>
+                            @endif
+                            <tr class="branch-header-row"><td colspan="7" class="branch-header-cell">{{ $currentBranchDisplay }}</td></tr>
+                            @php $previousBranchDisplay = $currentBranchDisplay; @endphp
+                        @endif
+                        @php $rowNum++; @endphp
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ ($warehouses->currentPage() - 1) * $warehouses->perPage() + $rowNum }}</td>
                             <td>
                                 <strong>{{ $warehouse->warehouse_name }}</strong>
                             </td>
@@ -92,5 +106,23 @@
         </div>
     </div>
 </div>
+
+<style>
+    tr.branch-separator td {
+        height: 1.25rem;
+        border: none;
+        background: #f8f9fa;
+        vertical-align: middle;
+    }
+    tr.branch-header-row td.branch-header-cell {
+        font-size: 1.15rem;
+        font-weight: 700;
+        padding: 0.5rem 0.75rem;
+        background: #e9ecef;
+        border-top: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+        color: #212529;
+    }
+</style>
 @endsection
 

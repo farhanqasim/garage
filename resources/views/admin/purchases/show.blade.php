@@ -7,6 +7,21 @@
     $printMode = $print_mode ?? false;
     $printFormat = $print_format ?? 'a4';
     $printViewClass = $printMode ? 'print-view print-' . $printFormat : '';
+    // Safe return target for Close (X): same app only (open redirect protection)
+    $safeReturnUrl = null;
+    $rawReturn = request()->query('return_url');
+    if (is_string($rawReturn) && $rawReturn !== '') {
+        $rawReturn = trim($rawReturn);
+        if (\Illuminate\Support\Str::startsWith($rawReturn, '/') && !\Illuminate\Support\Str::startsWith($rawReturn, '//')) {
+            $safeReturnUrl = url($rawReturn);
+        } else {
+            $appUrl = rtrim((string) config('app.url'), '/');
+            if ($appUrl !== '' && \Illuminate\Support\Str::startsWith($rawReturn, $appUrl)) {
+                $safeReturnUrl = $rawReturn;
+            }
+        }
+    }
+    $purchaseListUrl = route('all_purchases');
 @endphp
 <div class="content {{ $printMode ? 'print-only-content' : '' }}">
     @if($printMode)
@@ -51,7 +66,17 @@
                 </a>
             </li>
         </ul>
-        <div class="page-btn">
+        <div class="page-btn d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            @if($safeReturnUrl)
+                <a href="{{ $safeReturnUrl }}" class="btn btn-outline-secondary" title="{{ __('Close') }}" aria-label="{{ __('Close') }}">
+                    <i class="ti ti-x fs-20"></i>
+                </a>
+            @else
+                <button type="button" class="btn btn-outline-secondary" title="{{ __('Close') }}" aria-label="{{ __('Close') }}"
+                    onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = @json($purchaseListUrl); }">
+                    <i class="ti ti-x fs-20"></i>
+                </button>
+            @endif
             <a href="{{ route('all_purchases') }}" class="btn btn-primary">
                 <i data-feather="arrow-left" class="me-2"></i>Back to Invoices
             </a>
@@ -169,6 +194,21 @@
                                 @endif
                             </div>
                         @endif
+                        @if(!$printMode && $purchase->payments->isNotEmpty())
+                            @php $paymentsWithReceipt = $purchase->payments->filter(fn($p) => !empty($p->transfer_receipt)); @endphp
+                            @if($paymentsWithReceipt->isNotEmpty())
+                                <div class="mt-3 no-print">
+                                    <p class="mb-1 small"><strong>Payment receipts:</strong></p>
+                                    @foreach($paymentsWithReceipt as $pay)
+                                        <p class="mb-1 small">
+                                            <a href="{{ asset('storage/' . $pay->transfer_receipt) }}" target="_blank" rel="noopener" class="text-primary">
+                                                <i class="ti ti-file me-1"></i>View receipt (Rs {{ number_format($pay->amount, 0) }})
+                                            </a>
+                                        </p>
+                                    @endforeach
+                                </div>
+                            @endif
+                        @endif
                     </div>
                 </div>
             </div>
@@ -274,6 +314,21 @@
                                             <a href="{{ route('purchases.temporary.edit', $purchaseItem->item_id) }}" class="btn btn-sm btn-outline-primary ms-1" target="_blank">Convert or Edit</a>
                                         </div>
                                     @endif
+                                    @php
+                                        $itemVoiceUrl = null;
+                                        if ($item && ! empty(trim((string) ($item->voice_path ?? '')))) {
+                                            $vp = trim((string) $item->voice_path);
+                                            $itemVoiceUrl = preg_match('#^https?://#i', $vp) ? $vp : asset(ltrim($vp, '/'));
+                                        }
+                                    @endphp
+                                    @if($itemVoiceUrl)
+                                        <div class="mt-2 purchase-invoice-voice-wrap">
+                                            <span class="text-muted small d-block mb-1">Voice note</span>
+                                            <audio controls preload="metadata" class="w-100 purchase-invoice-voice-audio" style="max-width: 280px; max-height: 40px;">
+                                                <source src="{{ $itemVoiceUrl }}">
+                                            </audio>
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="text-gray-9 fw-medium text-end">Rs {{ number_format($purchaseItem->rate, 0) }}</td>
                                 <td class="text-gray-9 fw-medium text-end">Rs {{ number_format($purchaseItem->discount, 0) }}</td>
@@ -361,6 +416,20 @@
                             <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->shipping, 2) }}</p>
                         </div>
                     </div>
+                    @endif
+                    @php
+                        $rentPaidShow = (float) ($purchase->rent_paid ?? 0);
+                        $chargeRentShow = \Illuminate\Support\Facades\Schema::hasColumn('purchases', 'charge_rent_to_supplier')
+                            ? (bool) $purchase->charge_rent_to_supplier
+                            : true;
+                    @endphp
+                    @if($rentPaidShow > 0)
+                    <p class="fs-12 text-center mt-2 mb-1 px-2" style="color:#9a3412;">
+                        <span class="fw-semibold">Rent paid:</span> Rs {{ number_format($rentPaidShow, 2) }}
+                        @if(!$chargeRentShow)
+                            <span class="text-muted d-block small mt-1">(Internal only — not included in supplier payable)</span>
+                        @endif
+                    </p>
                     @endif
                     <p class="fs-12 text-center mt-2">
                         Amount in Words : <span class="text-dark">

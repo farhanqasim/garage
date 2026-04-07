@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Warehouse;
-use App\Models\WarehouseItem;
 use App\Models\Branch;
 use App\Models\Item;
+use App\Models\Warehouse;
+use App\Models\WarehouseItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 
 class WarehouseController extends Controller
 {
@@ -19,7 +18,7 @@ class WarehouseController extends Controller
     public function create()
     {
         $user = Auth::user();
-        
+
         // Show all active branches in dropdown
         if ($user->role === 'admin') {
             $branches = Branch::where('status', 'active')
@@ -46,8 +45,9 @@ class WarehouseController extends Controller
         $count = Warehouse::count();
         do {
             $count++;
-            $code = 'WH-' . str_pad((string) $count, 3, '0', STR_PAD_LEFT);
+            $code = 'WH-'.str_pad((string) $count, 3, '0', STR_PAD_LEFT);
         } while (Warehouse::where('warehouse_code', $code)->exists());
+
         return response()->json(['code' => $code]);
     }
 
@@ -57,7 +57,7 @@ class WarehouseController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        
+
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'warehouse_name' => 'required|string|max:255',
@@ -84,7 +84,7 @@ class WarehouseController extends Controller
             $count = Warehouse::count();
             do {
                 $count++;
-                $warehouseCode = 'WH-' . str_pad((string) $count, 3, '0', STR_PAD_LEFT);
+                $warehouseCode = 'WH-'.str_pad((string) $count, 3, '0', STR_PAD_LEFT);
             } while (Warehouse::where('warehouse_code', $warehouseCode)->exists());
         }
 
@@ -113,13 +113,13 @@ class WarehouseController extends Controller
     public function getByBranch($branchId)
     {
         $warehouse = Warehouse::where('branch_id', $branchId)->first();
-        
-        if (!$warehouse) {
+
+        if (! $warehouse) {
             return response()->json(['error' => 'Warehouse not found'], 404);
         }
-        
+
         $itemsCount = WarehouseItem::where('warehouse_id', $warehouse->id)->count();
-        
+
         return response()->json([
             'id' => $warehouse->id,
             'warehouse_name' => $warehouse->warehouse_name,
@@ -136,6 +136,7 @@ class WarehouseController extends Controller
         $warehouses = Warehouse::where('branch_id', $branchId)
             ->orderBy('id', 'asc')
             ->get(['id', 'warehouse_name', 'warehouse_code']);
+
         return response()->json($warehouses);
     }
 
@@ -145,20 +146,23 @@ class WarehouseController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         if ($user->role === 'admin') {
-            // Admin can see all warehouses (sequence by id)
+            // Branch-wise: order by branch name, then warehouse name
             $warehouses = Warehouse::with(['branch', 'items'])
-                ->orderBy('id', 'asc')
+                ->join('branches', 'warehouses.branch_id', '=', 'branches.id')
+                ->select('warehouses.*')
+                ->orderBy('branches.branch_name', 'asc')
+                ->orderBy('warehouses.warehouse_name', 'asc')
                 ->paginate(20);
         } else {
             // User can only see their branch warehouse
             $branchId = session('selected_branch_id');
-            if (!$branchId) {
+            if (! $branchId) {
                 return redirect()->route('all.branches')
                     ->with('error', 'Please select a branch first.');
             }
-            
+
             $warehouses = Warehouse::where('branch_id', $branchId)
                 ->with(['branch', 'items'])
                 ->orderBy('id', 'asc')
@@ -206,7 +210,7 @@ class WarehouseController extends Controller
         } else {
             $branchId = session('selected_branch_id');
             $branches = Branch::where('status', 'active')
-                ->when($branchId, fn($q) => $q->where('id', $branchId))
+                ->when($branchId, fn ($q) => $q->where('id', $branchId))
                 ->orderBy('branch_name', 'asc')
                 ->get();
         }
@@ -229,7 +233,7 @@ class WarehouseController extends Controller
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'warehouse_name' => 'required|string|max:255',
-            'warehouse_code' => 'nullable|string|max:255|unique:warehouses,warehouse_code,' . $id,
+            'warehouse_code' => 'nullable|string|max:255|unique:warehouses,warehouse_code,'.$id,
             'address' => 'nullable|string',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:255',
@@ -278,15 +282,15 @@ class WarehouseController extends Controller
         }
 
         $branchId = $warehouse->branch_id;
-        
-        $purchasedItemIds = \App\Models\PurchaseItem::whereHas('purchase', function($query) use ($branchId) {
+
+        $purchasedItemIds = \App\Models\PurchaseItem::whereHas('purchase', function ($query) use ($branchId) {
             $query->where('branch_id', $branchId);
         })->distinct()->pluck('item_id');
-        
+
         $existingWarehouseItemIds = WarehouseItem::where('warehouse_id', $id)->pluck('item_id');
-        
+
         $itemIds = $purchasedItemIds->merge($existingWarehouseItemIds)->unique();
-        
+
         $items = Item::with(['partnumber_item', 'category'])
             ->where('is_active', 1)
             ->whereIn('id', $itemIds)

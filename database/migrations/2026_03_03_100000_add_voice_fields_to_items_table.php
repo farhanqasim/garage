@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('items', function (Blueprint $table) {
-            $table->string('voice_path')->nullable()->after('notes');
-            $table->text('voice_transcript')->nullable()->after('voice_path');
+            if (! Schema::hasColumn('items', 'voice_path')) {
+                $table->string('voice_path')->nullable();
+            }
+            if (! Schema::hasColumn('items', 'voice_transcript')) {
+                $table->text('voice_transcript')->nullable();
+            }
         });
     }
 

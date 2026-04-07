@@ -72,6 +72,20 @@
                 </div>
                 <div class="row g-2">
                     <div class="col-md-6">
+                        <label class="form-label small mb-0 fw-bold">Customer Type</label>
+                        @php
+                            $customerType = old('customer_type', $customer->customer_type ?? 'retail');
+                            $idSuffix = $customer->id ?? 'x';
+                        @endphp
+                        <div class="btn-group w-100" role="group" aria-label="Customer Type">
+                            <input type="radio" class="btn-check" name="customer_type" id="customer_type_retail_{{ $idSuffix }}" value="retail" {{ $customerType === 'retail' ? 'checked' : '' }}>
+                            <label class="btn btn-outline-primary btn-sm" for="customer_type_retail_{{ $idSuffix }}">Retail</label>
+
+                            <input type="radio" class="btn-check" name="customer_type" id="customer_type_wholesaler_{{ $idSuffix }}" value="wholesaler" {{ $customerType === 'wholesaler' ? 'checked' : '' }}>
+                            <label class="btn btn-outline-primary btn-sm" for="customer_type_wholesaler_{{ $idSuffix }}">Wholesaler</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
                         <label for="company" class="form-label small mb-0">Company</label>
                         <input type="text" name="company" value="{{ old('company', $customer->company) }}" class="form-control form-control-sm">
                     </div>

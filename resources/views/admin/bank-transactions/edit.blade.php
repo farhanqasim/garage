@@ -152,7 +152,7 @@
 
                     @if($bankTransaction->reconciled)
                         <div class="alert alert-info">
-                            <strong>Reconciled:</strong> This transaction was reconciled on {{ $bankTransaction->reconciled_at->format('Y-m-d H:i') }} 
+                            <strong>Tallied:</strong> This transaction was tallied on {{ $bankTransaction->reconciled_at->format('Y-m-d H:i') }} 
                             @if($bankTransaction->reconciledBy)
                                 by {{ $bankTransaction->reconciledBy->name }}
                             @endif

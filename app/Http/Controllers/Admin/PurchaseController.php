@@ -3,39 +3,185 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Purchase;
-use App\Models\PurchaseItem;
-use App\Models\PurchaseCart;
-use App\Models\Supplier;
-use App\Models\Item;
-use App\Models\Category;
+use App\Models\BankAccount;
 use App\Models\CarManufacturer;
-use App\Models\PartNumber;
-use App\Models\Technology;
-use App\Models\Grade;
-use App\Models\Volt;
+use App\Models\Category;
 use App\Models\Cca;
-use App\Models\Warehouse;
-use App\Models\WarehouseItem;
+use App\Models\ClaimWarehouseItem;
+use App\Models\Grade;
+use App\Models\Group;
+use App\Models\Item;
+use App\Models\PartNumber;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
-use App\Models\BankAccount;
-use App\Models\Group;
+use App\Models\Purchase;
+use App\Models\PurchaseCart;
+use App\Models\PurchaseItem;
 use App\Models\PurchasePayment;
+use App\Models\Supplier;
+use App\Models\Technology;
 use App\Models\User;
+use App\Models\Volt;
+use App\Models\Warehouse;
+use App\Models\WarehouseItem;
+use App\Services\TranscribeService;
+use App\Support\ItemProductTypeLabel;
+use App\Support\VehicleYearSearch;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
-use Carbon\Carbon;
-use App\Services\TranscribeService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
 
 class PurchaseController extends Controller
 {
+    /** System supplier used for the home “Demand” flow (one per branch). */
+    private const DEMAND_SUPPLIER_COMPANY = 'Demand-Required';
+
+    /**
+     * Public URL for an item voice recording (relative storage path or already absolute URL).
+     */
+    protected function itemVoicePublicUrl(?string $path): ?string
+    {
+        if ($path === null) {
+            return null;
+        }
+        $path = trim((string) $path);
+        if ($path === '') {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        return asset(ltrim($path, '/'));
+    }
+
+    /**
+     * All gallery image public URLs for an item (primary image + JSON images column), deduped in order.
+     */
+    protected function itemGalleryPublicUrlsFromModel(?Item $item): array
+    {
+        if (! $item) {
+            return [];
+        }
+        $seen = [];
+        $out = [];
+        $paths = [];
+        try {
+            $main = $item->getRawOriginal('image');
+        } catch (\Throwable $e) {
+            $main = null;
+        }
+        if ($main !== null && $main !== '') {
+            $paths[] = (string) $main;
+        }
+        $rawImages = null;
+        try {
+            $rawImages = $item->getRawOriginal('images');
+        } catch (\Throwable $e) {
+            $rawImages = null;
+        }
+        if ($rawImages !== null && $rawImages !== '') {
+            $decoded = is_array($rawImages) ? $rawImages : json_decode((string) $rawImages, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $p) {
+                    if ($p !== null && $p !== '') {
+                        $paths[] = (string) $p;
+                    }
+                }
+            }
+        }
+        foreach ($paths as $p) {
+            $u = preg_match('#^https?://#i', $p) ? $p : asset(ltrim($p, '/'));
+            if ($u !== '' && ! isset($seen[$u])) {
+                $seen[$u] = true;
+                $out[] = $u;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Ensure session has selected branch for purchase screens (shared by create / demand entry).
+     */
+    protected function ensurePurchaseSessionBranch(): void
+    {
+        if (session('selected_branch_id')) {
+            return;
+        }
+        $user = auth()->user();
+        $branch = null;
+        if ($user && $user->branch_id) {
+            $branch = \App\Models\Branch::where('id', $user->branch_id)->where('status', 'active')->first();
+        }
+        if ($user && ! $branch && method_exists($user, 'assignedBranches')) {
+            $branch = $user->assignedBranches()->where('status', 'active')->first();
+        }
+        if ($branch) {
+            session([
+                'selected_branch_id' => $branch->id,
+                'selected_branch_name' => $branch->branch_name,
+                'selected_branch_code' => $branch->branch_code ?? '',
+            ]);
+        }
+    }
+
+    /**
+     * Find or create the branch-scoped “Demand-Required” supplier.
+     */
+    protected function firstOrCreateDemandSupplier(int $branchId): Supplier
+    {
+        $company = self::DEMAND_SUPPLIER_COMPANY;
+        $existing = Supplier::where('company', $company)->where('branch_id', $branchId)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        return Supplier::create([
+            'company' => $company,
+            'names' => [$company],
+            'phones' => [],
+            'password' => Hash::make(Str::random(16)),
+            'is_temporary' => false,
+            'created_by' => auth()->id(),
+            'branch_id' => $branchId,
+        ]);
+    }
+
+    /**
+     * Home “Demand”: open the latest demand PO for this branch for editing, or a new PO with Demand-Required supplier.
+     */
+    public function demand()
+    {
+        $this->ensurePurchaseSessionBranch();
+        $branchId = (int) (session('selected_branch_id') ?? 0);
+        if ($branchId <= 0) {
+            return redirect()->route('home')->with('warning', 'Please set an active branch before using Demand.');
+        }
+
+        $supplier = $this->firstOrCreateDemandSupplier($branchId);
+
+        $latest = Purchase::query()
+            ->where('supplier_id', $supplier->id)
+            ->where('branch_id', $branchId)
+            ->where('is_purchase_order', true)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($latest) {
+            return redirect()->route('purchases.edit', $latest->id);
+        }
+
+        return redirect()->route('purchases.create', ['demand' => 1]);
+    }
+
     /**
      * Build battery-type display sequence: Product • Plate • Amperes • Company (e.g. GL50 • 11PL • 38AH • AGS).
      * Returns null if item is not battery or no parts available.
@@ -53,11 +199,11 @@ class PurchaseController extends Controller
         }
         $plate = $item->plate_item ? trim((string) ($item->plate_item->name ?? '')) : '';
         if ($plate !== '') {
-            $parts[] = str_contains(strtoupper($plate), 'PL') ? $plate : $plate . 'PL';
+            $parts[] = str_contains(strtoupper($plate), 'PL') ? $plate : $plate.'PL';
         }
         $amperes = $item->amphors_item ? trim((string) ($item->amphors_item->name ?? '')) : '';
         if ($amperes !== '') {
-            $parts[] = str_contains(strtoupper($amperes), 'AH') ? $amperes : $amperes . 'AH';
+            $parts[] = str_contains(strtoupper($amperes), 'AH') ? $amperes : $amperes.'AH';
         }
         $company = $item->company_item ? trim((string) ($item->company_item->name ?? '')) : '';
         if ($company !== '' && stripos($company, 'dummy') === false) {
@@ -66,6 +212,44 @@ class PurchaseController extends Controller
         if ($parts === []) {
             return null;
         }
+
+        return implode(' • ', $parts);
+    }
+
+    /**
+     * Build oil-type display sequence: Grade • Level • Company • X LITER CAN (e.g. 20W 50 • G • KIXX • 5 LITER CAN).
+     * Returns null if item is not oil or no parts available.
+     */
+    protected function buildOilSequenceDisplayName(Item $item): ?string
+    {
+        $type = strtolower(trim((string) ($item->type ?? '')));
+        if ($type !== 'oil') {
+            return null;
+        }
+        $parts = [];
+        $grade = $item->grade_item ? trim((string) ($item->grade_item->name ?? '')) : '';
+        if ($grade !== '' && stripos($grade, 'dummy') === false) {
+            $parts[] = $grade;
+        }
+        $level = $item->level_item ? trim((string) ($item->level_item->name ?? '')) : '';
+        if ($level !== '' && stripos($level, 'dummy') === false) {
+            $parts[] = $level;
+        }
+        $company = $item->company_item ? trim((string) ($item->company_item->name ?? '')) : '';
+        if ($company !== '' && stripos($company, 'dummy') === false) {
+            $parts[] = $company;
+        }
+        $unitInfo = $this->getItemUnitDisplayForSearch($item);
+        $unitName = $item->unit_item ? trim((string) ($item->unit_item->name ?? $item->unit_item->short_name ?? '')) : '';
+        $isCan = (stripos($unitName, 'can') !== false);
+        $literPerCan = $unitInfo['liter_per_can'] ?? null;
+        if ($isCan && $literPerCan > 0) {
+            $literal = (floor($literPerCan) == $literPerCan) ? (int) $literPerCan : number_format($literPerCan, 1, '.', '');
+            $parts[] = $literal.' LITER CAN';
+        } elseif ($parts === []) {
+            return null;
+        }
+
         return implode(' • ', $parts);
     }
 
@@ -73,37 +257,32 @@ class PurchaseController extends Controller
     {
         $purchases = Purchase::with(['supplier', 'items.item', 'items.verifiedBy'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(50);
+
         return view('admin.purchases.index', compact('purchases'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $suppliers = Supplier::orderBy('created_at', 'desc')->get();
-        $branches = \App\Models\Branch::where('status', 'active')->get();
-        $units = \App\Models\Unit::where('status', 'active')->orderBy('name')->get();
+        $this->ensurePurchaseSessionBranch();
 
-        // Session mein jo branch login waqt set hui (e.g. Barki) wahi yahan dikhao. Sirf jab session empty ho tab user ki branch set karo.
-        if (!session('selected_branch_id')) {
-            $user = auth()->user();
-            $branch = null;
-            if ($user->branch_id) {
-                $branch = \App\Models\Branch::where('id', $user->branch_id)->where('status', 'active')->first();
-            }
-            if (!$branch && method_exists($user, 'assignedBranches')) {
-                $branch = $user->assignedBranches()->where('status', 'active')->first();
-            }
-            if ($branch) {
-                session([
-                    'selected_branch_id' => $branch->id,
-                    'selected_branch_name' => $branch->branch_name,
-                    'selected_branch_code' => $branch->branch_code ?? '',
-                ]);
-            }
+        $demandMode = $request->boolean('demand');
+        $demandSupplierId = null;
+        $branchId = (int) (session('selected_branch_id') ?? 0);
+        if ($demandMode && $branchId > 0) {
+            $demandSupplierId = $this->firstOrCreateDemandSupplier($branchId)->id;
         }
 
-        $groups = Group::orderBy('name')->get();
-        return view('admin.purchases.create', compact('suppliers', 'branches', 'units', 'groups'));
+        $suppliers = Supplier::orderBy('created_at', 'desc')->get();
+        $branches = \App\Models\Branch::where('status', 'active')->orderBy('branch_name', 'asc')->get();
+        $units = \App\Models\Unit::where('status', 'active')->orderBy('name')->get();
+
+        $groups = Group::orderBy('name')->withCount('phoneNumbers')->get();
+        $isDemandPurchaseFlow = $demandMode;
+
+        return view('admin.purchases.create', compact(
+            'suppliers', 'branches', 'units', 'groups', 'demandMode', 'demandSupplierId', 'isDemandPurchaseFlow'
+        ));
     }
 
     /**
@@ -121,6 +300,7 @@ class PurchaseController extends Controller
                 'has_access' => (bool) ($user->claim_return_enabled ?? false),
             ];
         });
+
         return response()->json($list);
     }
 
@@ -129,7 +309,7 @@ class PurchaseController extends Controller
      */
     public function toggleClaimReturnAccess(Request $request)
     {
-        if (!auth()->user()->hasAnyRole(['Super Admin', 'Admin', 'Manager'])) {
+        if (! auth()->user()->hasAnyRole(['Super Admin', 'Admin', 'Manager'])) {
             return response()->json(['success' => false], 403);
         }
         $request->validate([
@@ -139,6 +319,7 @@ class PurchaseController extends Controller
         $user = User::findOrFail($request->user_id);
         $user->claim_return_enabled = filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN);
         $user->save();
+
         return response()->json(['success' => true, 'enabled' => (bool) $user->claim_return_enabled]);
     }
 
@@ -148,7 +329,7 @@ class PurchaseController extends Controller
     public function getPurchaseCart(Request $request)
     {
         $userId = auth()->id();
-        $rows = PurchaseCart::with(['item.product_item', 'item.plate_item', 'item.amphors_item', 'item.company_item', 'item.partnumber_item', 'warehouse'])
+        $rows = PurchaseCart::with(['item.product_item', 'item.plate_item', 'item.amphors_item', 'item.company_item', 'item.partnumber_item', 'item.category', 'warehouse'])
             ->where('user_id', $userId)
             ->orderBy('id')
             ->get();
@@ -174,16 +355,16 @@ class PurchaseController extends Controller
                 } else {
                     $pn = $row->item->partnumber_item;
                     $raw = $row->item->short_disc ?? $row->item->pro_dis ?? ($pn ? $pn->name : null);
-                    $itemName = $raw ? trim(strip_tags($raw)) : ($row->item->bar_code ?? 'Item #' . $row->item_id);
+                    $itemName = $raw ? trim(strip_tags($raw)) : ($row->item->bar_code ?? 'Item #'.$row->item_id);
                     if ($itemName === '') {
-                        $itemName = $row->item->bar_code ?? 'Item #' . $row->item_id;
+                        $itemName = $row->item->bar_code ?? 'Item #'.$row->item_id;
                     }
                 }
             } else {
-                $itemName = 'Item #' . $row->item_id;
+                $itemName = 'Item #'.$row->item_id;
             }
             $warehouseName = $row->warehouse
-                ? ($row->warehouse->warehouse_name . ($row->warehouse->warehouse_code ? ' (' . $row->warehouse->warehouse_code . ')' : ''))
+                ? $row->warehouse->warehouse_name
                 : null;
             $item = [
                 'item_id' => $row->item_id,
@@ -201,6 +382,15 @@ class PurchaseController extends Controller
             if ($row->item && $row->item->image) {
                 $item['image'] = str_starts_with($row->item->image, 'http') ? $row->item->image : asset($row->item->image);
             }
+            if ($row->item && ! empty(trim((string) ($row->item->voice_path ?? '')))) {
+                $item['voice_url'] = $this->itemVoicePublicUrl($row->item->voice_path);
+            }
+            if ($row->item) {
+                $gallery = $this->itemGalleryPublicUrlsFromModel($row->item);
+                if ($gallery !== []) {
+                    $item['images'] = $gallery;
+                }
+            }
             if (Schema::hasColumn('purchase_cart', 'entry_type')) {
                 $item['entry_type'] = $row->entry_type ?? 'purchase';
             }
@@ -208,6 +398,35 @@ class PurchaseController extends Controller
                 $item['retail_price'] = $row->retail_price !== null ? (float) $row->retail_price : null;
                 $item['retail_price_base'] = $row->retail_price_base !== null ? (float) $row->retail_price_base : null;
                 $item['retail_pct'] = $row->retail_pct !== null ? (float) $row->retail_pct : null;
+            }
+            // Item master prices for labels (not on cart row). Omit zeros so JS can fall through to retail.
+            if ($row->item) {
+                $ms = $row->item->sale_price;
+                if ($ms !== null && $ms !== '' && (float) $ms > 0) {
+                    $item['sale_price'] = (float) $ms;
+                    $item['item_master_sale_price'] = (float) $ms;
+                }
+                $mr = $row->item->retail_price;
+                if ($mr !== null && $mr !== '' && (float) $mr > 0) {
+                    $item['item_master_retail_price'] = (float) $mr;
+                }
+                $ts = $row->item->total_sale_price ?? null;
+                if ($ts !== null && $ts !== '' && (float) $ts > 0) {
+                    $item['total_sale_price'] = (float) $ts;
+                }
+                $spb = $row->item->sale_price_per_base ?? null;
+                if ($spb !== null && $spb !== '' && (float) $spb > 0) {
+                    $item['sale_price_per_base'] = (float) $spb;
+                }
+                if ($row->item->category) {
+                    $cn = trim((string) ($row->item->category->name ?? ''));
+                    if ($cn !== '') {
+                        $item['category_name'] = $cn;
+                    }
+                }
+            }
+            if (Schema::hasColumn('purchase_cart', 'demand_user_name') && $row->demand_user_name !== null && trim((string) $row->demand_user_name) !== '') {
+                $item['demand_user_name'] = trim((string) $row->demand_user_name);
             }
             $items[] = $item;
         }
@@ -226,6 +445,7 @@ class PurchaseController extends Controller
             'supplier_id' => $supplierId,
             'items' => $items,
         ];
+
         return response()->json($cart);
     }
 
@@ -234,7 +454,7 @@ class PurchaseController extends Controller
      */
     public function updatePurchaseCart(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'branch_id' => 'nullable|exists:branches,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
             'items' => 'nullable|array',
@@ -250,9 +470,24 @@ class PurchaseController extends Controller
             'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
             'items.*.tax_amount' => 'nullable|numeric|min:0',
-            'items.*.total' => 'nullable|numeric|min:0',
+            'items.*.total' => 'nullable|numeric',
             'items.*.entry_type' => 'nullable|string|in:purchase,return,scrap,claim,claim_send,damage',
+            'items.*.demand_user_name' => 'nullable|string|max:191',
         ]);
+
+        $itemsForValidation = $validated['items'] ?? [];
+        $entryTypesThatAllowNegativeTotal = ['scrap', 'claim_send', 'damage'];
+        foreach ($itemsForValidation as $index => $item) {
+            $total = array_key_exists('total', $item) ? (float) $item['total'] : 0.0;
+            $entryType = isset($item['entry_type']) ? strtolower(trim((string) $item['entry_type'])) : 'purchase';
+            if ($total < 0 && ! in_array($entryType, $entryTypesThatAllowNegativeTotal, true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    "items.$index.total" => [
+                        'Total cannot be negative unless entry type is Scrap, Claim Send, or Damage.',
+                    ],
+                ]);
+            }
+        }
 
         $userId = auth()->id();
         $branchId = $request->input('branch_id');
@@ -287,6 +522,10 @@ class PurchaseController extends Controller
                 $data['retail_price_base'] = isset($it['retail_price_base']) && $it['retail_price_base'] !== '' && $it['retail_price_base'] !== null ? (float) $it['retail_price_base'] : null;
                 $data['retail_pct'] = isset($it['retail_pct']) && $it['retail_pct'] !== '' && $it['retail_pct'] !== null ? (float) $it['retail_pct'] : null;
             }
+            if (Schema::hasColumn('purchase_cart', 'demand_user_name')) {
+                $dn = isset($it['demand_user_name']) ? trim((string) $it['demand_user_name']) : '';
+                $data['demand_user_name'] = $dn !== '' ? $dn : null;
+            }
             PurchaseCart::create($data);
         }
 
@@ -295,35 +534,36 @@ class PurchaseController extends Controller
             'supplier_id' => $supplierId,
             'items' => $itemsInput,
         ];
+
         return response()->json(['success' => true, 'cart' => $cart]);
     }
-    
+
     /**
      * Search suppliers by phone number
      */
     public function searchSuppliersByPhone(Request $request)
     {
         $phone = $request->input('phone', '');
-        
+
         if (empty($phone)) {
             return response()->json([]);
         }
-        
-        $suppliers = Supplier::where(function($q) use ($phone) {
+
+        $suppliers = Supplier::where(function ($q) use ($phone) {
             $q->whereJsonContains('phones', $phone)
-              ->orWhereJsonContains('phones', '%' . $phone . '%');
+                ->orWhereJsonContains('phones', '%'.$phone.'%');
         })
-        ->orWhere(function($q) use ($phone) {
-            $q->where('phones', 'LIKE', "%{$phone}%");
-        })
-        ->limit(10)
-        ->get();
-        
+            ->orWhere(function ($q) use ($phone) {
+                $q->where('phones', 'LIKE', "%{$phone}%");
+            })
+            ->limit(10)
+            ->get();
+
         $results = [];
         foreach ($suppliers as $supplier) {
             $phones = is_array($supplier->phones) ? $supplier->phones : json_decode($supplier->phones, true) ?? [];
             $names = is_array($supplier->names) ? $supplier->names : json_decode($supplier->names, true) ?? [];
-            
+
             // Find matching phone
             $matchingPhone = '';
             foreach ($phones as $p) {
@@ -332,7 +572,7 @@ class PurchaseController extends Controller
                     break;
                 }
             }
-            
+
             $results[] = [
                 'id' => $supplier->id,
                 'name' => $names[0] ?? 'N/A',
@@ -342,7 +582,7 @@ class PurchaseController extends Controller
                 'area' => $supplier->area ?? '',
             ];
         }
-        
+
         return response()->json($results);
     }
 
@@ -368,6 +608,9 @@ class PurchaseController extends Controller
                 'items.*.discount' => 'nullable|numeric|min:0',
                 'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
                 'items.*.verified' => 'nullable|boolean',
+                'items.*.demand_user_name' => 'nullable|string|max:191',
+                'rent_paid' => 'nullable|numeric|min:0',
+                'charge_rent_to_supplier' => 'nullable|boolean',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $errors = $e->errors();
@@ -377,9 +620,10 @@ class PurchaseController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $message,
-                    'errors' => $errors
+                    'errors' => $errors,
                 ], 422);
             }
+
             return redirect()->back()->withInput()->withErrors($errors);
         }
 
@@ -388,15 +632,15 @@ class PurchaseController extends Controller
             $isPurchaseOrder = $request->boolean('is_purchase_order', false);
             if ($isPurchaseOrder) {
                 $poCount = Purchase::where('invoice_no', 'like', 'PO-%')->count();
-                $invoiceNo = 'PO-' . str_pad($poCount, 5, '0', STR_PAD_LEFT);
+                $invoiceNo = 'PO-'.str_pad($poCount + 1, 5, '0', STR_PAD_LEFT);
             } else {
-                $invoiceNo = 'PUR-' . date('Y') . '-' . str_pad((Purchase::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
+                $invoiceNo = 'PUR-'.date('Y').'-'.str_pad((Purchase::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
             }
 
             $subtotal = 0;
             foreach ($request->items as $item) {
                 $itemModel = Item::find($item['item_id']);
-                if (!$itemModel) {
+                if (! $itemModel) {
                     throw new \Exception("Item not found: {$item['item_id']}");
                 }
 
@@ -416,8 +660,20 @@ class PurchaseController extends Controller
 
             $orderTax = floatval($request->order_tax ?? 0);
             $discount = floatval($request->discount ?? 0);
+            $rentPaid = floatval($request->rent_paid ?? 0);
             $shipping = floatval($request->shipping ?? 0);
-            $grandTotal = $subtotal + $orderTax - $discount + $shipping;
+            $chargeRentToSupplier = Schema::hasColumn('purchases', 'charge_rent_to_supplier')
+                ? $request->boolean('charge_rent_to_supplier')
+                : true;
+            $rentAppliedToSupplierBill = ($chargeRentToSupplier && $rentPaid > 0) ? $rentPaid : 0;
+            $grandTotal = $subtotal + $orderTax - $discount - $rentAppliedToSupplierBill + $shipping;
+
+            $subtotal = round($subtotal, 2);
+            $orderTax = round($orderTax, 2);
+            $discount = round($discount, 2);
+            $rentPaid = round($rentPaid, 2);
+            $shipping = round($shipping, 2);
+            $grandTotal = round($grandTotal, 2);
 
             try {
                 $purchaseDate = Carbon::createFromFormat('d/m/Y', $request->purchase_date)->format('Y-m-d');
@@ -425,11 +681,12 @@ class PurchaseController extends Controller
                 $purchaseDate = Carbon::parse($request->purchase_date)->format('Y-m-d');
             }
 
-            $purchase = Purchase::create([
+            $purchaseRow = [
                 'invoice_no' => $invoiceNo,
                 'is_purchase_order' => $isPurchaseOrder,
                 'po_status' => $isPurchaseOrder ? 'draft' : null,
                 'branch_id' => $request->branch_id,
+                'user_id' => auth()->id(),
                 'supplier_id' => $request->supplier_id,
                 'purchase_date' => $purchaseDate,
                 'reference' => $request->reference,
@@ -437,10 +694,15 @@ class PurchaseController extends Controller
                 'subtotal' => $subtotal,
                 'order_tax' => $orderTax,
                 'discount' => $discount,
+                'rent_paid' => $rentPaid,
                 'shipping' => $shipping,
                 'grand_total' => $grandTotal,
                 'description' => $request->description,
-            ]);
+            ];
+            if (Schema::hasColumn('purchases', 'charge_rent_to_supplier')) {
+                $purchaseRow['charge_rent_to_supplier'] = $chargeRentToSupplier;
+            }
+            $purchase = Purchase::create($purchaseRow);
 
             foreach ($request->items as $item) {
                 $itemModel = Item::findOrFail($item['item_id']);
@@ -449,22 +711,34 @@ class PurchaseController extends Controller
                 $discount = floatval($item['discount'] ?? 0);
                 $taxPercentage = floatval($item['tax_percentage'] ?? 0);
                 $entryType = $item['entry_type'] ?? 'purchase';
-                $isReturn = in_array($entryType, ['return', 'scrap', 'claim_send', 'damage'], true);
-                $stockQty = $isReturn ? -$quantity : $quantity;
+                $isClaimIn = ($entryType === 'claim');
+                $isClaimSend = ($entryType === 'claim_send');
+                $isReturn = in_array($entryType, ['return', 'scrap', 'damage'], true);
+                // Stock movement direction differs from financial sign:
+                // - Scrap In (entry_type = 'scrap' in purchases UI) increases warehouse stock.
+                // - Return/damage decrease warehouse stock.
+                $isStockOut = in_array($entryType, ['return', 'damage'], true);
+                $stockQty = $isStockOut ? -$quantity : $quantity;
 
                 $itemSubtotal = ($quantity * $rate) - $discount;
                 $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
                 $unitCost = $itemSubtotal / $quantity;
                 $totalCost = $itemSubtotal + $taxAmount;
 
-                $verified = !empty($item['verified']);
+                $discount = round($discount, 2);
+                $taxAmount = round($taxAmount, 2);
+                $unitCost = round($unitCost, 2);
+                $totalCost = round($totalCost, 2);
+
+                $verified = ! empty($item['verified']);
                 $orderedQty = $quantity;
                 $receivedQty = $isPurchaseOrder ? 0 : null;
                 $warehouseId = (int) ($item['warehouse_id'] ?? 0);
-                PurchaseItem::create([
+                $piRow = [
                     'purchase_id' => $purchase->id,
                     'purchase_order_item_id' => isset($item['purchase_order_item_id']) ? (int) $item['purchase_order_item_id'] : null,
                     'item_id' => $item['item_id'],
+                    'entry_type' => $entryType,
                     'warehouse_id' => $warehouseId ?: null,
                     'quantity' => $quantity,
                     'ordered_quantity' => $isPurchaseOrder ? $orderedQty : null,
@@ -478,53 +752,109 @@ class PurchaseController extends Controller
                     'total_cost' => $totalCost,
                     'verified_by' => $verified ? auth()->id() : null,
                     'verified_at' => $verified ? now() : null,
-                ]);
+                ];
+                if (Schema::hasColumn('purchase_items', 'demand_user_name')) {
+                    $dn = isset($item['demand_user_name']) ? trim((string) $item['demand_user_name']) : '';
+                    $piRow['demand_user_name'] = $dn !== '' ? $dn : null;
+                }
+                PurchaseItem::create($piRow);
                 $warehouse = $warehouseId ? Warehouse::find($warehouseId) : null;
                 // If no warehouse on item, use first warehouse of purchase branch so stock is still updated
-                if (!$warehouse && !$isPurchaseOrder && $request->branch_id) {
+                if (! $warehouse && ! $isPurchaseOrder && $request->branch_id) {
                     $warehouse = Warehouse::where('branch_id', $request->branch_id)->orderBy('id')->first();
                 }
-                if (!$isPurchaseOrder && $warehouse) {
-                    $warehouseItem = WarehouseItem::lockForUpdate()
-                        ->where('warehouse_id', $warehouse->id)
-                        ->where('item_id', $item['item_id'])
-                        ->first();
 
-                    if ($warehouseItem) {
-                        $warehouseItem->quantity += $stockQty;
-                        $warehouseItem->quantity = max(0, $warehouseItem->quantity);
-                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
-                        $warehouseItem->save();
-                    } elseif (!$isReturn) {
-                        WarehouseItem::create([
-                            'warehouse_id' => $warehouse->id,
-                            'item_id' => $item['item_id'],
-                            'quantity' => $quantity,
-                            'reserved_quantity' => 0,
-                            'available_quantity' => $quantity,
-                        ]);
+                // Stock movement rules (claim stock is isolated from new stock)
+                if (! $isPurchaseOrder && $warehouse) {
+                    if ($isClaimIn || $isClaimSend) {
+                        $claimItem = ClaimWarehouseItem::lockForUpdate()
+                            ->where('warehouse_id', $warehouse->id)
+                            ->where('item_id', $item['item_id'])
+                            ->first();
+                        if (! $claimItem) {
+                            $claimItem = ClaimWarehouseItem::create([
+                                'warehouse_id' => $warehouse->id,
+                                'item_id' => $item['item_id'],
+                                'quantity' => 0,
+                                'reserved_quantity' => 0,
+                                'available_quantity' => 0,
+                            ]);
+                            $claimItem = ClaimWarehouseItem::lockForUpdate()->find($claimItem->id);
+                        }
+                        $delta = $isClaimSend ? -$quantity : $quantity;
+                        $newQty = (float) ($claimItem->quantity ?? 0) + $delta;
+                        if ($newQty < 0) {
+                            $available = (float) ($claimItem->quantity ?? 0);
+                            $required = (float) $quantity;
+                            throw new \Exception("Insufficient CLAIM stock for item '{$itemModel->bar_code}'. Available: {$available}, Required: {$required}");
+                        }
+                        $claimItem->quantity = $newQty;
+                        $claimItem->save();
+                    } else {
+                        $warehouseItem = WarehouseItem::lockForUpdate()
+                            ->where('warehouse_id', $warehouse->id)
+                            ->where('item_id', $item['item_id'])
+                            ->first();
+
+                        if ($warehouseItem) {
+                            // Enforce no-negative stock: before stock-out (return/damage),
+                            // validate available quantity (quantity - reserved_quantity).
+                            if ($stockQty < 0) {
+                                $available = (float) ($warehouseItem->quantity ?? 0) - (float) ($warehouseItem->reserved_quantity ?? 0);
+                                $required = (float) $quantity; // request qty is positive
+                                if ($available + 0.000001 < $required) {
+                                    throw new \Exception("Insufficient stock for item '{$itemModel->bar_code}'. Available: {$available}, Required: {$required}");
+                                }
+                            }
+                            $warehouseItem->quantity += $stockQty;
+                            $warehouseItem->quantity = max(0, $warehouseItem->quantity);
+                            $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                            $warehouseItem->save();
+                        } elseif ($stockQty > 0) {
+                            WarehouseItem::create([
+                                'warehouse_id' => $warehouse->id,
+                                'item_id' => $item['item_id'],
+                                'quantity' => $quantity,
+                                'reserved_quantity' => 0,
+                                'available_quantity' => $quantity,
+                            ]);
+                        }
                     }
                 }
+                // If Scrap In cannot resolve a warehouse, do not let the bill save partially.
+                if (! $isPurchaseOrder && ! $warehouse && $entryType === 'scrap') {
+                    throw new \Exception('Scrap In requires a warehouse for the selected branch (warehouse row missing).');
+                }
 
-                if (!$isPurchaseOrder) {
+                if (! $isPurchaseOrder && ! $isClaimIn && ! $isClaimSend) {
                     $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) + $stockQty);
                 }
                 if (isset($item['retail_price']) && $item['retail_price'] !== '' && $item['retail_price'] !== null && is_numeric($item['retail_price'])) {
                     $itemModel->retail_price = (float) $item['retail_price'];
                 }
+                // Persist purchase rate to item master so next time item is opened, latest saved rate is shown
+                if (! $isReturn && ! $isClaimIn && ! $isClaimSend) {
+                    $itemModel->packing_purchase_rate = $rate;
+                }
                 $itemModel->save();
             }
 
             // When saving a Bill (not PO), update PO line received quantities and PO status
-            if (!$isPurchaseOrder) {
+            if (! $isPurchaseOrder) {
                 $updatedPoIds = [];
                 foreach ($request->items as $item) {
                     $poLineId = isset($item['purchase_order_item_id']) ? (int) $item['purchase_order_item_id'] : 0;
-                    if ($poLineId <= 0) continue;
+                    if ($poLineId <= 0) {
+                        continue;
+                    }
                     $receivedQty = floatval($item['quantity'] ?? 0);
-                    if ($receivedQty <= 0) continue;
+                    if ($receivedQty <= 0) {
+                        continue;
+                    }
                     $poLine = PurchaseItem::find($poLineId);
-                    if (!$poLine || !$poLine->purchase_id) continue;
+                    if (! $poLine || ! $poLine->purchase_id) {
+                        continue;
+                    }
                     $ordered = (float) ($poLine->ordered_quantity ?? $poLine->quantity ?? 0);
                     $currentReceived = (float) ($poLine->received_quantity ?? 0);
                     $newReceived = min($ordered, $currentReceived + $receivedQty);
@@ -534,15 +864,21 @@ class PurchaseController extends Controller
                 }
                 foreach (array_keys($updatedPoIds) as $poId) {
                     $po = Purchase::find($poId);
-                    if (!$po || !$po->is_purchase_order) continue;
+                    if (! $po || ! $po->is_purchase_order) {
+                        continue;
+                    }
                     $po->refresh();
                     $allCompleted = true;
                     $anyReceived = false;
                     foreach ($po->items as $line) {
                         $ordered = (float) ($line->ordered_quantity ?? $line->quantity ?? 0);
                         $received = (float) ($line->received_quantity ?? 0);
-                        if ($received > 0) $anyReceived = true;
-                        if ($ordered > 0 && $received < $ordered) $allCompleted = false;
+                        if ($received > 0) {
+                            $anyReceived = true;
+                        }
+                        if ($ordered > 0 && $received < $ordered) {
+                            $allCompleted = false;
+                        }
                     }
                     if ($allCompleted && $anyReceived) {
                         $po->po_status = 'completed';
@@ -558,23 +894,49 @@ class PurchaseController extends Controller
             // Create payment(s): support multiple payments (cash + bank) or single payment
             $paymentsInput = $request->input('payments', []);
             if (is_array($paymentsInput) && count($paymentsInput) > 0) {
+                // Validate bank entries: each must have Transaction ID or transfer receipt
+                foreach ($paymentsInput as $idx => $p) {
+                    $methodId = $p['payment_method_id'] ?? null;
+                    $amount = floatval($p['amount'] ?? 0);
+                    $bankAccountId = ! empty($p['bank_account_id']) ? $p['bank_account_id'] : null;
+                    if (! $methodId || $amount <= 0 || ! $bankAccountId) {
+                        continue;
+                    }
+                    $paymentMethod = PaymentMethod::find($methodId);
+                    if ($paymentMethod && $paymentMethod->requires_bank_account) {
+                        $transactionId = trim((string) ($p['transaction_id'] ?? ''));
+                        $hasReceipt = $request->hasFile("payments.{$idx}.transfer_receipt");
+                        if ($transactionId === '' && ! $hasReceipt) {
+                            throw new \Exception('Please enter Transaction ID or attach transfer receipt for bank payment.');
+                        }
+                    }
+                }
                 $totalPayments = 0;
                 foreach ($paymentsInput as $idx => $p) {
                     $methodId = $p['payment_method_id'] ?? null;
                     $amount = floatval($p['amount'] ?? 0);
-                    if (!$methodId || $amount <= 0) continue;
+                    if (! $methodId || $amount <= 0) {
+                        continue;
+                    }
                     $totalPayments += $amount;
                     $paymentMethod = PaymentMethod::findOrFail($methodId);
-                    $bankAccountId = !empty($p['bank_account_id']) ? $p['bank_account_id'] : null;
+                    $bankAccountId = ! empty($p['bank_account_id']) ? $p['bank_account_id'] : null;
                     $transactionId = $p['transaction_id'] ?? null;
-                    if ($paymentMethod->requires_bank_account && !$bankAccountId) {
+                    if ($paymentMethod->requires_bank_account && ! $bankAccountId) {
                         throw new \Exception('Bank account is required for bank transfer payment.');
                     }
                     if ($bankAccountId) {
                         $bankAccount = BankAccount::find($bankAccountId);
-                        if (!$bankAccount || !$bankAccount->status) {
+                        if (! $bankAccount || ! $bankAccount->status) {
                             throw new \Exception('Selected bank account is not available.');
                         }
+                    }
+                    $transferReceiptPath = null;
+                    if ($request->hasFile("payments.{$idx}.transfer_receipt")) {
+                        $file = $request->file("payments.{$idx}.transfer_receipt");
+                        $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
+                        $filename = 'payment_'.uniqid().'_'.time().'.'.($ext ?: 'bin');
+                        $transferReceiptPath = $file->storeAs('payment_receipts', $filename, 'public');
                     }
                     $payment = Payment::create([
                         'user_id' => auth()->id(),
@@ -586,6 +948,7 @@ class PurchaseController extends Controller
                         'direction' => 'out',
                         'payment_date' => $request->payment_date ?? $purchaseDate,
                         'transaction_id' => $transactionId,
+                        'transfer_receipt' => $transferReceiptPath,
                         'status' => 'paid',
                         'paid_at' => now(),
                         'notes' => "Payment for Purchase #{$purchase->invoice_no}",
@@ -608,23 +971,42 @@ class PurchaseController extends Controller
                         ]);
                     }
                 }
-                if ($totalPayments > $grandTotal) {
-                    throw new \Exception("Total payment amount (Rs " . number_format($totalPayments, 2) . ") cannot exceed grand total (Rs " . number_format($grandTotal, 2) . ").");
+                $grandTotalRounded = round($grandTotal, 2);
+                $totalPaymentsRounded = round($totalPayments, 2);
+                $advanceAmount = max(0, $totalPaymentsRounded - $grandTotalRounded);
+                if (Schema::hasColumn('purchases', 'advance_amount')) {
+                    $purchase->update(['advance_amount' => round($advanceAmount, 2)]);
                 }
             } elseif ($request->filled('payment_method_id') && $request->payment_amount > 0) {
                 $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
-                $paymentAmount = floatval($request->payment_amount);
-                if ($paymentAmount > $grandTotal) {
-                    throw new \Exception("Payment amount (Rs " . number_format($paymentAmount, 2) . ") cannot exceed grand total (Rs " . number_format($grandTotal, 2) . ").");
+                $paymentAmount = round(floatval($request->payment_amount), 2);
+                $grandTotalRounded = round($grandTotal, 2);
+                $advanceAmount = max(0, $paymentAmount - $grandTotalRounded);
+                if ($paymentAmount > 0 && Schema::hasColumn('purchases', 'advance_amount')) {
+                    $purchase->update(['advance_amount' => round($advanceAmount, 2)]);
                 }
-                if ($paymentMethod->requires_bank_account && !$request->bank_account_id) {
+                if ($paymentMethod->requires_bank_account && ! $request->bank_account_id) {
                     throw new \Exception('Bank account is required for this payment method.');
+                }
+                if ($paymentMethod->requires_bank_account && $request->bank_account_id) {
+                    $tid = trim((string) ($request->payment_transaction_id ?? ''));
+                    $hasReceipt = $request->hasFile('payment_transfer_receipt');
+                    if ($tid === '' && ! $hasReceipt) {
+                        throw new \Exception('Please enter Transaction ID or attach transfer receipt for bank payment.');
+                    }
                 }
                 if ($request->bank_account_id) {
                     $bankAccount = BankAccount::find($request->bank_account_id);
-                    if (!$bankAccount || !$bankAccount->status) {
+                    if (! $bankAccount || ! $bankAccount->status) {
                         throw new \Exception('Selected bank account is not available.');
                     }
+                }
+                $transferReceiptPath = null;
+                if ($request->hasFile('payment_transfer_receipt')) {
+                    $file = $request->file('payment_transfer_receipt');
+                    $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
+                    $filename = 'payment_'.uniqid().'_'.time().'.'.($ext ?: 'bin');
+                    $transferReceiptPath = $file->storeAs('payment_receipts', $filename, 'public');
                 }
                 $payment = Payment::create([
                     'user_id' => auth()->id(),
@@ -636,6 +1018,7 @@ class PurchaseController extends Controller
                     'direction' => 'out',
                     'payment_date' => $request->payment_date ?? $purchaseDate,
                     'transaction_id' => $request->payment_transaction_id ?? null,
+                    'transfer_receipt' => $transferReceiptPath,
                     'status' => 'paid',
                     'paid_at' => now(),
                     'notes' => $request->payment_notes ?? "Payment for Purchase #{$purchase->invoice_no}",
@@ -649,7 +1032,7 @@ class PurchaseController extends Controller
                     \App\Models\BankTransaction::create([
                         'bank_account_id' => $request->bank_account_id,
                         'transaction_date' => $request->payment_date ?? $purchaseDate,
-                        'description' => "Purchase Payment - Invoice #{$purchase->invoice_no}" . ($request->payment_notes ? " - {$request->payment_notes}" : ''),
+                        'description' => "Purchase Payment - Invoice #{$purchase->invoice_no}".($request->payment_notes ? " - {$request->payment_notes}" : ''),
                         'amount' => $paymentAmount,
                         'type' => 'debit',
                         'statement_reference' => $request->payment_transaction_id ?? $purchase->invoice_no,
@@ -678,23 +1061,24 @@ class PurchaseController extends Controller
                         ['id' => $purchase->id]
                     );
                 }
+
                 return response()->json($payload);
             }
-            
+
             return redirect()->route('all_purchases')->with('success', 'Purchase created successfully');
         } catch (\Exception $e) {
             DB::rollBack();
-            
-            $errorMessage = 'Failed to create purchase: ' . $e->getMessage();
-            
+
+            $errorMessage = 'Failed to create purchase: '.$e->getMessage();
+
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ], 500);
             }
-            
+
             return redirect()->back()->withInput()->with('error', $errorMessage);
         }
     }
@@ -702,7 +1086,7 @@ class PurchaseController extends Controller
     public function show($id)
     {
         $purchase = Purchase::with([
-            'supplier', 'branch',
+            'supplier', 'branch', 'payments',
             'items.item.partnumber_item',
             'items.item.product_item',
             'items.item.category',
@@ -716,7 +1100,7 @@ class PurchaseController extends Controller
         ])->findOrFail($id);
         $printMode = request('print') === '1';
         $printFormat = strtolower(request('format', 'a4'));
-        if (!in_array($printFormat, ['thermal', 'a4'], true)) {
+        if (! in_array($printFormat, ['thermal', 'a4'], true)) {
             $printFormat = 'a4';
         }
         $verifiedUserNames = $purchase->items->filter(fn ($i) => $i->verified_by)->map(fn ($i) => $i->verifiedBy ? $i->verifiedBy->name : null)->filter()->unique()->values()->all();
@@ -730,6 +1114,7 @@ class PurchaseController extends Controller
             'verified_user_names' => $verifiedUserNames,
             'all_verified' => $allVerified,
         ];
+
         return view('admin.purchases.show', $data);
     }
 
@@ -737,13 +1122,14 @@ class PurchaseController extends Controller
     {
         $item = \App\Models\PurchaseItem::where('id', $id)->firstOrFail();
         $purchase = $item->purchase;
-        if (!$purchase) {
+        if (! $purchase) {
             return response()->json(['success' => false, 'message' => 'Purchase not found'], 404);
         }
         $verified = filter_var($request->input('verified'), FILTER_VALIDATE_BOOLEAN);
         $item->verified_by = $verified ? auth()->id() : null;
         $item->verified_at = $verified ? now() : null;
         $item->save();
+
         return response()->json([
             'success' => true,
             'verified' => $verified,
@@ -754,13 +1140,13 @@ class PurchaseController extends Controller
     public function convertToSale($id)
     {
         $purchase = Purchase::with(['items.item', 'branch'])->findOrFail($id);
-        
+
         // Store purchase data in session to pre-fill sales form
         session([
             'purchase_to_sale' => [
                 'purchase_id' => $purchase->id,
                 'branch_id' => $purchase->branch_id,
-                'items' => $purchase->items->map(function($item) {
+                'items' => $purchase->items->map(function ($item) {
                     return [
                         'item_id' => $item->item_id,
                         'quantity' => $item->quantity,
@@ -778,63 +1164,63 @@ class PurchaseController extends Controller
                 'shipping' => $purchase->shipping,
                 'grand_total' => $purchase->grand_total,
                 'reference' => $purchase->reference,
-            ]
+            ],
         ]);
-        
+
         return redirect()->route('create_sale')->with('success', 'Purchase items loaded. Please select a customer to create sale.');
     }
 
     public function pdf($id)
     {
         $purchase = Purchase::with(['items.item', 'supplier', 'branch'])->findOrFail($id);
-    
+
         // Logo handling
         $logoUrl = setting_value('logo') ?: asset('assets/img/logo.svg');
         $logoData = null;
         if ($logoPath = setting_value('logo')) {
             $fullPath = str_replace(url('/'), public_path(), $logoPath);
             if (file_exists($fullPath)) {
-                $logoData = 'data:image/' . pathinfo($fullPath, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($fullPath));
+                $logoData = 'data:image/'.pathinfo($fullPath, PATHINFO_EXTENSION).';base64,'.base64_encode(file_get_contents($fullPath));
             }
         }
-    
+
         // Signature handling
         $signatureData = null;
         if ($signatureUrl = setting_value('signature')) {
             $signaturePath = str_replace(url('/'), public_path(), $signatureUrl);
-            if (!file_exists($signaturePath)) {
-                $signaturePath = public_path(str_replace(url('/') . '/', '', $signatureUrl));
+            if (! file_exists($signaturePath)) {
+                $signaturePath = public_path(str_replace(url('/').'/', '', $signatureUrl));
             }
             if (file_exists($signaturePath)) {
                 $ext = strtolower(pathinfo($signaturePath, PATHINFO_EXTENSION));
                 $mime = $ext === 'png' ? 'png' : ($ext === 'jpg' || $ext === 'jpeg' ? 'jpeg' : 'svg+xml');
-                $signatureData = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($signaturePath));
+                $signatureData = 'data:image/'.$mime.';base64,'.base64_encode(file_get_contents($signaturePath));
             }
         }
-    
+
         $data = [
-            'purchase'     => $purchase,
-            'logoData'     => $logoData,
-            'logoUrl'      => $logoUrl,
-            'companyName'  => setting_value('logo_text', 'MUBARAK TRADERS'),
-            'helpline'     => setting_value('helpline', '+92-335-08-999-08'),
-            'address'      => setting_value('address', ''),
-            'city'         => setting_value('city', ''),
-            'state'        => setting_value('state', ''),
-            'zip'          => setting_value('zip', ''),
-            'country'      => setting_value('country', ''),
-            'signatureData'=> $signatureData,
+            'purchase' => $purchase,
+            'logoData' => $logoData,
+            'logoUrl' => $logoUrl,
+            'companyName' => setting_value('logo_text', 'MUBARAK TRADERS'),
+            'helpline' => setting_value('helpline', '+92-335-08-999-08'),
+            'address' => setting_value('address', ''),
+            'city' => setting_value('city', ''),
+            'state' => setting_value('state', ''),
+            'zip' => setting_value('zip', ''),
+            'country' => setting_value('country', ''),
+            'signatureData' => $signatureData,
         ];
-    
+
         $pdf = Pdf::loadView('admin.purchases.pdf', $data)
-                  ->setPaper('a4', 'portrait')
-                  ->setOptions([
-                      'isHtml5ParserEnabled' => true,
-                      'isRemoteEnabled'      => true,
-                      'defaultFont'          => 'DejaVu Sans',
-                  ]);
-    
-        return $pdf->download('Invoice-' . $purchase->invoice_no . '.pdf');
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
+            ]);
+
+        return $pdf->download('Invoice-'.$purchase->invoice_no.'.pdf');
     }
 
     /**
@@ -849,57 +1235,220 @@ class PurchaseController extends Controller
         if ($logoPath = setting_value('logo')) {
             $fullPath = str_replace(url('/'), public_path(), $logoPath);
             if (file_exists($fullPath)) {
-                $logoData = 'data:image/' . pathinfo($fullPath, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($fullPath));
+                $logoData = 'data:image/'.pathinfo($fullPath, PATHINFO_EXTENSION).';base64,'.base64_encode(file_get_contents($fullPath));
             }
         }
         $signatureData = null;
         if ($signatureUrl = setting_value('signature')) {
             $signaturePath = str_replace(url('/'), public_path(), $signatureUrl);
-            if (!file_exists($signaturePath)) {
-                $signaturePath = public_path(str_replace(url('/') . '/', '', $signatureUrl));
+            if (! file_exists($signaturePath)) {
+                $signaturePath = public_path(str_replace(url('/').'/', '', $signatureUrl));
             }
             if (file_exists($signaturePath)) {
                 $ext = strtolower(pathinfo($signaturePath, PATHINFO_EXTENSION));
                 $mime = $ext === 'png' ? 'png' : ($ext === 'jpg' || $ext === 'jpeg' ? 'jpeg' : 'svg+xml');
-                $signatureData = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($signaturePath));
+                $signatureData = 'data:image/'.$mime.';base64,'.base64_encode(file_get_contents($signaturePath));
             }
         }
         $data = [
-            'purchase'     => $purchase,
-            'logoData'     => $logoData,
-            'logoUrl'      => $logoUrl,
-            'companyName'  => setting_value('logo_text', 'MUBARAK TRADERS'),
-            'helpline'     => setting_value('helpline', '+92-335-08-999-08'),
-            'address'      => setting_value('address', ''),
-            'city'         => setting_value('city', ''),
-            'state'        => setting_value('state', ''),
-            'zip'          => setting_value('zip', ''),
-            'country'      => setting_value('country', ''),
-            'signatureData'=> $signatureData,
+            'purchase' => $purchase,
+            'logoData' => $logoData,
+            'logoUrl' => $logoUrl,
+            'companyName' => setting_value('logo_text', 'MUBARAK TRADERS'),
+            'helpline' => setting_value('helpline', '+92-335-08-999-08'),
+            'address' => setting_value('address', ''),
+            'city' => setting_value('city', ''),
+            'state' => setting_value('state', ''),
+            'zip' => setting_value('zip', ''),
+            'country' => setting_value('country', ''),
+            'signatureData' => $signatureData,
         ];
         $pdf = Pdf::loadView('admin.purchases.pdf', $data)
             ->setPaper('a4', 'portrait')
             ->setOptions([
                 'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled'      => true,
-                'defaultFont'          => 'DejaVu Sans',
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
             ]);
-        return $pdf->stream('Invoice-' . $purchase->invoice_no . '.pdf');
+
+        return $pdf->stream('Invoice-'.$purchase->invoice_no.'.pdf');
     }
 
     public function edit($id)
     {
-        $purchase = Purchase::with(['supplier', 'items.item', 'branch'])->findOrFail($id);
-        $suppliers = Supplier::orderBy('created_at', 'desc')->get();
-        $branches = \App\Models\Branch::where('status', 'active')->get();
-        
-        return view('admin.purchases.edit', compact('purchase', 'suppliers', 'branches'));
+        try {
+            $purchase = Purchase::with([
+                'supplier', 'branch', 'user',
+                'items.item.category', 'items.item.company_item', 'items.item.technology_item', 'items.item.quality_item', 'items.warehouse',
+                'payments.paymentMethod', 'payments.bankAccount',
+            ])->findOrFail($id);
+
+            $suppliers = Supplier::orderBy('created_at', 'desc')->get();
+            $branches = \App\Models\Branch::where('status', 'active')->orderBy('branch_name', 'asc')->get();
+            $units = \App\Models\Unit::where('status', 'active')->orderBy('name')->get();
+            $groups = Group::orderBy('name')->withCount('phoneNumbers')->get();
+
+            $purchaseItemsForJs = [];
+            $itemCounter = 0;
+            foreach ($purchase->items as $row) {
+                $item = $row->item;
+                if ($item) {
+                    $batterySeq = $this->buildBatterySequenceDisplayName($item);
+                    if ($batterySeq !== null) {
+                        $name = $batterySeq;
+                    } else {
+                        $raw = trim(strip_tags((string) ($item->short_disc ?? $item->pro_dis ?? '')));
+                        $name = $raw !== '' ? $raw : ($item->bar_code ?? ('Item #'.$row->item_id));
+                    }
+                } else {
+                    $name = 'Item #'.$row->item_id;
+                }
+                $warehouse = $row->warehouse;
+                $warehouseName = $warehouse ? $warehouse->warehouse_name : null;
+                $total = (float) $row->total_cost;
+                $demandUserForJs = null;
+                if (Schema::hasColumn('purchase_items', 'demand_user_name')) {
+                    $dn = trim((string) ($row->demand_user_name ?? ''));
+                    if ($dn !== '') {
+                        $demandUserForJs = $dn;
+                    } elseif ($purchase->is_purchase_order && $purchase->supplier && trim((string) ($purchase->supplier->company ?? '')) === self::DEMAND_SUPPLIER_COMPANY && $purchase->user) {
+                        $demandUserForJs = trim((string) ($purchase->user->name ?? '')) ?: null;
+                    }
+                }
+                $purchaseItemsForJs[] = [
+                    'id' => $itemCounter++,
+                    'item_id' => $row->item_id,
+                    'name' => $name,
+                    'warehouse_id' => $row->warehouse_id,
+                    'warehouse_name' => $warehouseName,
+                    'quantity' => (float) $row->quantity,
+                    'unit' => $row->unit ?? 'Unit',
+                    'rate' => (float) $row->rate,
+                    'discount' => (float) $row->discount,
+                    'tax_percentage' => (float) $row->tax_percentage,
+                    'tax_amount' => (float) $row->tax_amount,
+                    'total' => $total,
+                    'sale_price' => $item && $item->sale_price !== null && $item->sale_price !== '' && (float) $item->sale_price > 0
+                        ? (float) $item->sale_price
+                        : null,
+                    'item_master_sale_price' => $item && $item->sale_price !== null && $item->sale_price !== '' && (float) $item->sale_price > 0
+                        ? (float) $item->sale_price
+                        : null,
+                    'item_master_retail_price' => $item && $item->retail_price !== null && $item->retail_price !== '' && (float) $item->retail_price > 0
+                        ? (float) $item->retail_price
+                        : null,
+                    'total_sale_price' => $item && isset($item->total_sale_price) && $item->total_sale_price !== null && $item->total_sale_price !== '' && (float) $item->total_sale_price > 0
+                        ? (float) $item->total_sale_price
+                        : null,
+                    'sale_price_per_base' => $item && isset($item->sale_price_per_base) && $item->sale_price_per_base !== null && $item->sale_price_per_base !== '' && (float) $item->sale_price_per_base > 0
+                        ? (float) $item->sale_price_per_base
+                        : null,
+                    'retail_price' => $item && $item->retail_price !== null ? (float) $item->retail_price : null,
+                    'category_name' => ($item && $item->category && trim((string) ($item->category->name ?? '')) !== '')
+                        ? trim((string) $item->category->name)
+                        : null,
+                    'company_name' => ($item && $item->company_item && trim((string) ($item->company_item->name ?? '')) !== '')
+                        ? trim((string) $item->company_item->name)
+                        : null,
+                    'item_type' => $item && $item->type ? strtolower(trim((string) $item->type)) : null,
+                    'quality_name' => ($item && $item->quality_item && trim((string) ($item->quality_item->name ?? '')) !== '')
+                        ? trim((string) $item->quality_item->name)
+                        : null,
+                    'technology_name' => ($item && $item->technology_item && trim((string) ($item->technology_item->name ?? '')) !== '')
+                        ? trim((string) $item->technology_item->name)
+                        : null,
+                    'bar_code' => $item && $item->bar_code ? (string) $item->bar_code : null,
+                    'entry_type' => 'purchase',
+                    'verified' => ! empty($row->verified_by) ? 1 : 0,
+                    'image' => $item && $item->image ? (str_starts_with($item->image, 'http') ? $item->image : asset($item->image)) : null,
+                    /** Raw DB path (no accessor) so the UI can tell real photo vs empty when accessor returns default SVG. */
+                    'image_path' => $item ? $item->getRawOriginal('image') : null,
+                    'voice_url' => $item && ! empty(trim((string) ($item->voice_path ?? '')))
+                        ? $this->itemVoicePublicUrl($item->voice_path)
+                        : null,
+                    'images' => $item ? $this->itemGalleryPublicUrlsFromModel($item) : [],
+                    'demand_user_name' => $demandUserForJs,
+                ];
+            }
+
+            $purchasePaymentsForJs = [];
+            foreach ($purchase->payments as $payment) {
+                $method = $payment->paymentMethod;
+                $isCash = $method && strtolower((string) ($method->code ?? '')) === 'cash';
+                $receiptUrl = null;
+                if (! empty($payment->transfer_receipt)) {
+                    $receiptUrl = str_starts_with($payment->transfer_receipt, 'http') ? $payment->transfer_receipt : asset('storage/'.ltrim($payment->transfer_receipt, '/'));
+                }
+                $purchasePaymentsForJs[] = [
+                    'payment_id' => $payment->id,
+                    'payment_method_id' => $payment->payment_method_id,
+                    'amount' => (float) $payment->amount,
+                    'bank_account_id' => $payment->bank_account_id ?? null,
+                    'transaction_id' => $payment->transaction_id ?? '',
+                    'is_cash' => $isCash,
+                    'transfer_receipt_url' => $receiptUrl,
+                ];
+            }
+
+            $supplierMobile = '';
+            $phones = $purchase->supplier ? ($purchase->supplier->phones ?? null) : null;
+            if (is_array($phones) && count($phones) > 0) {
+                $first = reset($phones);
+                $supplierMobile = $first !== false ? (string) $first : '';
+            }
+            $purchaseDateFormatted = null;
+            if ($purchase->purchase_date !== null) {
+                try {
+                    $purchaseDateFormatted = \Carbon\Carbon::parse($purchase->purchase_date)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    // ignore
+                }
+            }
+            $purchaseForJs = [
+                'branch_id' => $purchase->branch_id ?? null,
+                'supplier_id' => $purchase->supplier_id ?? null,
+                'supplier_mobile' => $supplierMobile,
+                'purchase_date' => $purchaseDateFormatted,
+                'reference' => $purchase->reference ?? '',
+                'status' => $purchase->status ?? 'pending',
+                'discount' => (float) ($purchase->discount ?? 0),
+                'rent_paid' => (float) ($purchase->rent_paid ?? 0),
+                'charge_rent_to_supplier' => Schema::hasColumn('purchases', 'charge_rent_to_supplier')
+                    ? (bool) $purchase->charge_rent_to_supplier
+                    : true,
+                'order_tax' => (float) ($purchase->order_tax ?? 0),
+                'shipping' => (float) ($purchase->shipping ?? 0),
+            ];
+
+            $editMode = true;
+            $demandMode = false;
+            $demandSupplierId = null;
+            $isDemandPurchaseFlow = $purchase->is_purchase_order
+                && $purchase->supplier
+                && trim((string) ($purchase->supplier->company ?? '')) === self::DEMAND_SUPPLIER_COMPANY;
+
+            return view('admin.purchases.create', compact(
+                'purchase', 'suppliers', 'branches', 'units', 'groups',
+                'editMode', 'purchaseItemsForJs', 'purchasePaymentsForJs', 'purchaseForJs',
+                'demandMode', 'demandSupplierId', 'isDemandPurchaseFlow'
+            ));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404, 'Purchase not found.');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Purchase edit error: '.$e->getMessage(), [
+                'purchase_id' => $id,
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            abort(500, config('app.debug') ? $e->getMessage() : 'Unable to load purchase. Please try again.');
+        }
     }
 
     public function update(Request $request, $id)
     {
         $purchase = Purchase::with('items')->findOrFail($id);
-        
+
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'supplier_id' => 'required|exists:suppliers,id',
@@ -913,10 +1462,17 @@ class PurchaseController extends Controller
             'items.*.unit' => 'nullable|string',
             'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.demand_user_name' => 'nullable|string|max:191',
+            'rent_paid' => 'nullable|numeric|min:0',
+            'charge_rent_to_supplier' => 'nullable|boolean',
         ]);
 
-        $warehouse = Warehouse::where('branch_id', $request->branch_id)->first();
-        if (!$warehouse) {
+        $defaultWarehouse = Warehouse::where('branch_id', $request->branch_id)->first();
+        if (! $defaultWarehouse) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Warehouse not found for selected branch.'], 422);
+            }
+
             return redirect()->back()->withInput()->with('error', 'Warehouse not found for selected branch.');
         }
 
@@ -925,7 +1481,7 @@ class PurchaseController extends Controller
             $subtotal = 0;
             foreach ($request->items as $item) {
                 $itemModel = Item::find($item['item_id']);
-                if (!$itemModel) {
+                if (! $itemModel) {
                     throw new \Exception("Item not found: {$item['item_id']}");
                 }
 
@@ -933,18 +1489,30 @@ class PurchaseController extends Controller
                 $rate = floatval($item['rate']);
                 $discount = floatval($item['discount'] ?? 0);
                 $taxPercentage = floatval($item['tax_percentage'] ?? 0);
-                
+
                 $itemSubtotal = ($quantity * $rate) - $discount;
                 $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
                 $itemTotal = $itemSubtotal + $taxAmount;
-                
+
                 $subtotal += $itemTotal;
             }
 
             $orderTax = floatval($request->order_tax ?? 0);
             $discount = floatval($request->discount ?? 0);
+            $rentPaid = floatval($request->rent_paid ?? 0);
             $shipping = floatval($request->shipping ?? 0);
-            $grandTotal = $subtotal + $orderTax - $discount + $shipping;
+            $chargeRentToSupplier = Schema::hasColumn('purchases', 'charge_rent_to_supplier')
+                ? $request->boolean('charge_rent_to_supplier')
+                : true;
+            $rentAppliedToSupplierBill = ($chargeRentToSupplier && $rentPaid > 0) ? $rentPaid : 0;
+            $grandTotal = $subtotal + $orderTax - $discount - $rentAppliedToSupplierBill + $shipping;
+
+            $subtotal = round($subtotal, 2);
+            $orderTax = round($orderTax, 2);
+            $discount = round($discount, 2);
+            $rentPaid = round($rentPaid, 2);
+            $shipping = round($shipping, 2);
+            $grandTotal = round($grandTotal, 2);
 
             try {
                 $purchaseDate = Carbon::createFromFormat('d/m/Y', $request->purchase_date)->format('Y-m-d');
@@ -952,31 +1520,46 @@ class PurchaseController extends Controller
                 $purchaseDate = Carbon::parse($request->purchase_date)->format('Y-m-d');
             }
 
-            $oldBranchId = $purchase->branch_id;
-            $oldWarehouse = Warehouse::where('branch_id', $oldBranchId)->first();
+            // Reverse stock from old purchase items (use each item's warehouse_id when set)
+            foreach ($purchase->items as $oldItem) {
+                $oldEntryType = $oldItem->entry_type ?? 'purchase';
+                $oldIsClaimIn = ($oldEntryType === 'claim');
+                $oldIsClaimSend = ($oldEntryType === 'claim_send');
+                $oldWarehouseId = $oldItem->warehouse_id;
+                $oldWarehouse = $oldWarehouseId ? Warehouse::find($oldWarehouseId) : Warehouse::where('branch_id', $purchase->branch_id)->first();
+                if ($oldWarehouse) {
+                    if ($oldIsClaimIn || $oldIsClaimSend) {
+                        $claimItem = ClaimWarehouseItem::lockForUpdate()
+                            ->where('warehouse_id', $oldWarehouse->id)
+                            ->where('item_id', $oldItem->item_id)
+                            ->first();
+                        if ($claimItem) {
+                            $delta = $oldIsClaimSend ? floatval($oldItem->quantity) : -floatval($oldItem->quantity);
+                            $claimItem->quantity = max(0, floatval($claimItem->quantity ?? 0) + $delta);
+                            $claimItem->save();
+                        }
+                    } else {
+                        $warehouseItem = WarehouseItem::lockForUpdate()
+                            ->where('warehouse_id', $oldWarehouse->id)
+                            ->where('item_id', $oldItem->item_id)
+                            ->first();
 
-            if ($oldWarehouse) {
-                foreach ($purchase->items as $oldItem) {
-                    $warehouseItem = WarehouseItem::lockForUpdate()
-                        ->where('warehouse_id', $oldWarehouse->id)
-                        ->where('item_id', $oldItem->item_id)
-                        ->first();
-
-                    if ($warehouseItem) {
-                        $warehouseItem->quantity = max(0, $warehouseItem->quantity - floatval($oldItem->quantity));
-                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
-                        $warehouseItem->save();
+                        if ($warehouseItem) {
+                            $warehouseItem->quantity = max(0, $warehouseItem->quantity - floatval($oldItem->quantity));
+                            $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                            $warehouseItem->save();
+                        }
                     }
+                }
 
-                    $itemModel = Item::find($oldItem->item_id);
-                    if ($itemModel) {
-                        $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - floatval($oldItem->quantity));
-                        $itemModel->save();
-                    }
+                $itemModel = Item::find($oldItem->item_id);
+                if ($itemModel && ! $oldIsClaimIn && ! $oldIsClaimSend) {
+                    $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - floatval($oldItem->quantity));
+                    $itemModel->save();
                 }
             }
 
-            $purchase->update([
+            $updateRow = [
                 'branch_id' => $request->branch_id,
                 'supplier_id' => $request->supplier_id,
                 'purchase_date' => $purchaseDate,
@@ -985,10 +1568,15 @@ class PurchaseController extends Controller
                 'subtotal' => $subtotal,
                 'order_tax' => $orderTax,
                 'discount' => $discount,
+                'rent_paid' => $rentPaid,
                 'shipping' => $shipping,
                 'grand_total' => $grandTotal,
                 'description' => $request->description,
-            ]);
+            ];
+            if (Schema::hasColumn('purchases', 'charge_rent_to_supplier')) {
+                $updateRow['charge_rent_to_supplier'] = $chargeRentToSupplier;
+            }
+            $purchase->update($updateRow);
 
             $purchase->items()->delete();
 
@@ -998,16 +1586,33 @@ class PurchaseController extends Controller
                 $rate = floatval($item['rate']);
                 $discount = floatval($item['discount'] ?? 0);
                 $taxPercentage = floatval($item['tax_percentage'] ?? 0);
-                
+                $entryType = $item['entry_type'] ?? 'purchase';
+                $isClaimIn = ($entryType === 'claim');
+                $isClaimSend = ($entryType === 'claim_send');
+                $isReturn = in_array($entryType, ['return', 'scrap', 'damage'], true);
+                $isStockOut = in_array($entryType, ['return', 'damage'], true);
+                $warehouseId = ! empty($item['warehouse_id']) ? (int) $item['warehouse_id'] : null;
+                $itemWarehouse = $warehouseId ? Warehouse::find($warehouseId) : $defaultWarehouse;
+                if (! $itemWarehouse) {
+                    $itemWarehouse = $defaultWarehouse;
+                }
+
                 $itemSubtotal = ($quantity * $rate) - $discount;
                 $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
                 $unitCost = $itemSubtotal / $quantity;
                 $totalCost = $itemSubtotal + $taxAmount;
 
-                $verified = !empty($item['verified']);
-                PurchaseItem::create([
+                $discount = round($discount, 2);
+                $taxAmount = round($taxAmount, 2);
+                $unitCost = round($unitCost, 2);
+                $totalCost = round($totalCost, 2);
+
+                $verified = ! empty($item['verified']);
+                $piRowUp = [
                     'purchase_id' => $purchase->id,
                     'item_id' => $item['item_id'],
+                    'entry_type' => $entryType,
+                    'warehouse_id' => $itemWarehouse->id,
                     'quantity' => $quantity,
                     'unit' => $item['unit'] ?? null,
                     'rate' => $rate,
@@ -1018,47 +1623,255 @@ class PurchaseController extends Controller
                     'total_cost' => $totalCost,
                     'verified_by' => $verified ? auth()->id() : null,
                     'verified_at' => $verified ? now() : null,
-                ]);
+                ];
+                if (Schema::hasColumn('purchase_items', 'demand_user_name')) {
+                    $dn = isset($item['demand_user_name']) ? trim((string) $item['demand_user_name']) : '';
+                    $piRowUp['demand_user_name'] = $dn !== '' ? $dn : null;
+                }
+                PurchaseItem::create($piRowUp);
 
-                $warehouseItem = WarehouseItem::lockForUpdate()
-                    ->where('warehouse_id', $warehouse->id)
-                    ->where('item_id', $item['item_id'])
-                    ->first();
-
-                if ($warehouseItem) {
-                    $warehouseItem->quantity += $quantity;
-                    $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
-                    $warehouseItem->save();
+                // Stock movement rules (claim stock is isolated from new stock)
+                if ($isClaimIn || $isClaimSend) {
+                    $claimItem = ClaimWarehouseItem::lockForUpdate()
+                        ->where('warehouse_id', $itemWarehouse->id)
+                        ->where('item_id', $item['item_id'])
+                        ->first();
+                    if (! $claimItem) {
+                        $claimItem = ClaimWarehouseItem::create([
+                            'warehouse_id' => $itemWarehouse->id,
+                            'item_id' => $item['item_id'],
+                            'quantity' => 0,
+                            'reserved_quantity' => 0,
+                            'available_quantity' => 0,
+                        ]);
+                        $claimItem = ClaimWarehouseItem::lockForUpdate()->find($claimItem->id);
+                    }
+                    $delta = $isClaimSend ? -$quantity : $quantity;
+                    $newQty = (float) ($claimItem->quantity ?? 0) + $delta;
+                    if ($newQty < 0) {
+                        $available = (float) ($claimItem->quantity ?? 0);
+                        $required = (float) $quantity;
+                        throw new \Exception("Insufficient CLAIM stock for item '{$itemModel->bar_code}'. Available: {$available}, Required: {$required}");
+                    }
+                    $claimItem->quantity = $newQty;
+                    $claimItem->save();
                 } else {
-                    WarehouseItem::create([
-                        'warehouse_id' => $warehouse->id,
-                        'item_id' => $item['item_id'],
-                        'quantity' => $quantity,
-                        'reserved_quantity' => 0,
-                        'available_quantity' => $quantity,
-                    ]);
+                    $stockQty = $isStockOut ? -$quantity : $quantity;
+                    $warehouseItem = WarehouseItem::lockForUpdate()
+                        ->where('warehouse_id', $itemWarehouse->id)
+                        ->where('item_id', $item['item_id'])
+                        ->first();
+
+                    if ($warehouseItem) {
+                        // Enforce no-negative stock: before stock-out (return/damage),
+                        // validate available quantity (quantity - reserved_quantity).
+                        if ($stockQty < 0) {
+                            $available = (float) ($warehouseItem->quantity ?? 0) - (float) ($warehouseItem->reserved_quantity ?? 0);
+                            $required = (float) $quantity; // request qty is positive
+                            if ($available + 0.000001 < $required) {
+                                throw new \Exception("Insufficient stock for item '{$itemModel->bar_code}'. Available: {$available}, Required: {$required}");
+                            }
+                        }
+                        $warehouseItem->quantity += $stockQty;
+                        $warehouseItem->quantity = max(0, $warehouseItem->quantity);
+                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                        $warehouseItem->save();
+                    } elseif ($stockQty > 0) {
+                        WarehouseItem::create([
+                            'warehouse_id' => $itemWarehouse->id,
+                            'item_id' => $item['item_id'],
+                            'quantity' => $quantity,
+                            'reserved_quantity' => 0,
+                            'available_quantity' => $quantity,
+                        ]);
+                    }
                 }
 
-                $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
+                if (! $isClaimIn && ! $isClaimSend) {
+                    $itemModel->on_hand = ($itemModel->on_hand ?? 0) + ($isReturn ? -$quantity : $quantity);
+                }
+                // Persist purchase rate to item master so next time item is opened, latest saved rate is shown
+                if (! $isReturn && ! $isClaimIn && ! $isClaimSend) {
+                    $itemModel->packing_purchase_rate = $rate;
+                }
                 $itemModel->save();
             }
 
+            // Sync payments (cash + bank): same logic as store – update by payment_id, create new, remove unlinked
+            $paymentsInput = $request->input('payments_json');
+            if (is_string($paymentsInput)) {
+                $decoded = json_decode($paymentsInput, true);
+                $paymentsInput = is_array($decoded) ? $decoded : [];
+            } elseif (! is_array($paymentsInput)) {
+                $paymentsInput = $request->input('payments', []);
+                $paymentsInput = is_array($paymentsInput) ? $paymentsInput : [];
+            }
+            $paymentsInput = array_values($paymentsInput);
+
+            if (count($paymentsInput) > 0) {
+                foreach ($paymentsInput as $idx => $p) {
+                    $methodId = $p['payment_method_id'] ?? null;
+                    $amount = floatval($p['amount'] ?? 0);
+                    $bankAccountId = ! empty($p['bank_account_id']) ? $p['bank_account_id'] : null;
+                    if (! $methodId || $amount <= 0) {
+                        continue;
+                    }
+                    $paymentMethod = PaymentMethod::find($methodId);
+                    if ($paymentMethod && $paymentMethod->requires_bank_account && $bankAccountId) {
+                        $transactionId = trim((string) ($p['transaction_id'] ?? ''));
+                        $hasReceipt = $request->hasFile("payments.{$idx}.transfer_receipt");
+                        $rawPaymentId = $p['payment_id'] ?? null;
+                        $existingPaymentId = (is_string($rawPaymentId) ? (int) trim($rawPaymentId) : (int) $rawPaymentId);
+                        $isExisting = $existingPaymentId > 0 && PurchasePayment::where('purchase_id', $purchase->id)->where('payment_id', $existingPaymentId)->exists();
+                        if (! $isExisting && $transactionId === '' && ! $hasReceipt) {
+                            throw new \Exception('Please enter Transaction ID or attach transfer receipt for bank payment.');
+                        }
+                    }
+                }
+                $totalPayments = 0;
+                foreach ($paymentsInput as $p) {
+                    $methodId = $p['payment_method_id'] ?? null;
+                    $amount = floatval($p['amount'] ?? 0);
+                    if (! $methodId || $amount <= 0) {
+                        continue;
+                    }
+                    $totalPayments += $amount;
+                }
+                $grandTotalRounded = round($grandTotal, 2);
+                $totalPaymentsRounded = round($totalPayments, 2);
+                $advanceAmount = max(0, $totalPaymentsRounded - $grandTotalRounded);
+                if (Schema::hasColumn('purchases', 'advance_amount')) {
+                    $purchase->update(['advance_amount' => round($advanceAmount, 2)]);
+                }
+
+                $keptPaymentIds = [];
+                foreach ($paymentsInput as $idx => $p) {
+                    $methodId = $p['payment_method_id'] ?? null;
+                    $amount = floatval($p['amount'] ?? 0);
+                    if (! $methodId || $amount <= 0) {
+                        continue;
+                    }
+                    $rawPaymentId = $p['payment_id'] ?? null;
+                    $paymentId = null;
+                    if ($rawPaymentId !== null && $rawPaymentId !== '') {
+                        $paymentId = (int) (is_string($rawPaymentId) ? trim($rawPaymentId) : $rawPaymentId);
+                        if ($paymentId <= 0) {
+                            $paymentId = null;
+                        }
+                    }
+                    $purchasePayment = $paymentId ? PurchasePayment::where('purchase_id', $purchase->id)->where('payment_id', $paymentId)->first() : null;
+
+                    if ($purchasePayment && $purchasePayment->payment_id) {
+                        $existingPayment = Payment::find($purchasePayment->payment_id);
+                        if ($existingPayment) {
+                            $transferReceiptPath = $existingPayment->transfer_receipt;
+                            if ($request->hasFile("payments.{$idx}.transfer_receipt")) {
+                                $file = $request->file("payments.{$idx}.transfer_receipt");
+                                $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
+                                $transferReceiptPath = $file->storeAs('payment_receipts', 'payment_'.uniqid().'_'.time().'.'.($ext ?: 'bin'), 'public');
+                            }
+                            $bankAccountId = ! empty($p['bank_account_id']) ? $p['bank_account_id'] : null;
+                            $existingPayment->update([
+                                'payment_method_id' => $methodId,
+                                'bank_account_id' => $bankAccountId,
+                                'amount' => $amount,
+                                'payment_date' => $purchaseDate,
+                                'transaction_id' => $p['transaction_id'] ?? null,
+                                'transfer_receipt' => $transferReceiptPath,
+                            ]);
+                            $purchasePayment->update(['allocated_amount' => $amount]);
+                            $keptPaymentIds[] = $existingPayment->id;
+                        }
+                    } else {
+                        $paymentMethod = PaymentMethod::findOrFail($methodId);
+                        $bankAccountId = ! empty($p['bank_account_id']) ? $p['bank_account_id'] : null;
+                        $transactionId = $p['transaction_id'] ?? null;
+                        if ($paymentMethod->requires_bank_account && ! $bankAccountId) {
+                            throw new \Exception('Bank account is required for bank transfer payment.');
+                        }
+                        if ($bankAccountId) {
+                            $bankAccount = BankAccount::find($bankAccountId);
+                            if (! $bankAccount || ! $bankAccount->status) {
+                                throw new \Exception('Selected bank account is not available.');
+                            }
+                        }
+                        $transferReceiptPath = null;
+                        if ($request->hasFile("payments.{$idx}.transfer_receipt")) {
+                            $file = $request->file("payments.{$idx}.transfer_receipt");
+                            $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
+                            $transferReceiptPath = $file->storeAs('payment_receipts', 'payment_'.uniqid().'_'.time().'.'.($ext ?: 'bin'), 'public');
+                        }
+                        $payment = Payment::create([
+                            'user_id' => auth()->id(),
+                            'supplier_id' => $purchase->supplier_id,
+                            'payment_method_id' => $methodId,
+                            'bank_account_id' => $bankAccountId,
+                            'amount' => $amount,
+                            'currency' => 'PKR',
+                            'direction' => 'out',
+                            'payment_date' => $purchaseDate,
+                            'transaction_id' => $transactionId,
+                            'transfer_receipt' => $transferReceiptPath,
+                            'status' => 'paid',
+                            'paid_at' => now(),
+                            'notes' => "Payment for Purchase #{$purchase->invoice_no}",
+                        ]);
+                        PurchasePayment::create([
+                            'purchase_id' => $purchase->id,
+                            'payment_id' => $payment->id,
+                            'allocated_amount' => $amount,
+                        ]);
+                        $keptPaymentIds[] = $payment->id;
+                        if ($bankAccountId && $paymentMethod->requires_bank_account) {
+                            \App\Models\BankTransaction::create([
+                                'bank_account_id' => $bankAccountId,
+                                'transaction_date' => $purchaseDate,
+                                'description' => "Purchase Payment - Invoice #{$purchase->invoice_no}",
+                                'amount' => $amount,
+                                'type' => 'debit',
+                                'statement_reference' => $transactionId ?? $purchase->invoice_no,
+                                'matched_payment_id' => $payment->id,
+                                'reconciled' => false,
+                            ]);
+                        }
+                    }
+                }
+                PurchasePayment::where('purchase_id', $purchase->id)->whereNotIn('payment_id', $keptPaymentIds)->delete();
+            } elseif ($request->has('payments_json')) {
+                PurchasePayment::where('purchase_id', $purchase->id)->delete();
+                if (Schema::hasColumn('purchases', 'advance_amount')) {
+                    $purchase->update(['advance_amount' => 0]);
+                }
+            }
+
             DB::commit();
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'purchase_id' => $purchase->id,
+                    'invoice_no' => $purchase->invoice_no,
+                ]);
+            }
+
             return redirect()->route('all_purchases')->with('success', 'Purchase updated successfully');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withInput()->with('error', 'Failed to update purchase: ' . $e->getMessage());
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Failed to update purchase: '.$e->getMessage()], 500);
+            }
+
+            return redirect()->back()->withInput()->with('error', 'Failed to update purchase: '.$e->getMessage());
         }
     }
 
     public function destroy($id)
     {
         $purchase = Purchase::with('items')->findOrFail($id);
-        
+
         DB::beginTransaction();
         try {
             $warehouse = Warehouse::where('branch_id', $purchase->branch_id)->first();
-            
+
             if ($warehouse) {
                 foreach ($purchase->items as $purchaseItem) {
                     $warehouseItem = WarehouseItem::lockForUpdate()
@@ -1084,30 +1897,36 @@ class PurchaseController extends Controller
             $purchase->delete();
 
             DB::commit();
+
             return redirect()->route('all_purchases')->with('success', 'Purchase deleted successfully');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Failed to delete purchase: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Failed to delete purchase: '.$e->getMessage());
         }
     }
 
     public function searchItems(Request $request)
     {
         $search = $request->input('search', '');
-        
+
         $items = Item::where('is_active', 1)
-            ->where(function($query) use ($search) {
-                $query->where('bar_code', 'like', '%' . $search . '%')
-                      ->orWhere('short_disc', 'like', '%' . $search . '%')
-                      ->orWhere('pro_dis', 'like', '%' . $search . '%');
+            ->where(function ($q) {
+                $q->where('is_temporary', false)->orWhereNull('is_temporary');
+            })
+            ->where(function ($query) use ($search) {
+                $query->where('bar_code', 'like', '%'.$search.'%')
+                    ->orWhere('short_disc', 'like', '%'.$search.'%')
+                    ->orWhere('pro_dis', 'like', '%'.$search.'%');
             })
             ->select('id', 'bar_code', 'short_disc', 'pro_dis', 'on_hand', 'packing_purchase_rate', 'product_unit', 'image')
             ->limit(20)
             ->get();
 
         // Add computed name field to each item for frontend display
-        $items = $items->map(function($item) {
+        $items = $items->map(function ($item) {
             $item->name = $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'N/A';
+
             return $item;
         });
 
@@ -1116,7 +1935,7 @@ class PurchaseController extends Controller
 
     public function getItemDetails($id)
     {
-        $item = Item::with(['partnumber_item', 'category', 'product_item', 'plate_item', 'amphors_item', 'company_item', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical', 'unit_item', 'unit_item.baseUnits', 'warrenty_item'])->findOrFail($id);
+        $item = Item::with(['partnumber_item', 'category', 'subcategory', 'product_item', 'plate_item', 'amphors_item', 'company_item', 'grade_item', 'technology_item', 'level_item', 'mileage_item', 'quality_item', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical', 'unit_item', 'unit_item.baseUnits', 'warrenty_item'])->findOrFail($id);
 
         // For battery type: use sequence (Product • Plate • Amperes • Company) as name
         $batterySequence = $this->buildBatterySequenceDisplayName($item);
@@ -1133,17 +1952,17 @@ class PurchaseController extends Controller
             }
             $itemName = trim(strip_tags($rawName));
             if ($itemName === '') {
-                $itemName = $item->bar_code ?? 'Item #' . $item->id;
+                $itemName = $item->bar_code ?? 'Item #'.$item->id;
             }
         }
 
         // Add manufacturer and model only when we did NOT use battery sequence (battery shows only: GL50 • 11PL • 38AH • AGS)
         if ($batterySequence === null && $item->vehical_item) {
             if ($item->vehical_item->manutacturer_vehical) {
-                $itemName .= ' - ' . $item->vehical_item->manutacturer_vehical->name;
+                $itemName .= ' - '.$item->vehical_item->manutacturer_vehical->name;
             }
             if ($item->vehical_item->model_vehical) {
-                $itemName .= ' ' . $item->vehical_item->model_vehical->name;
+                $itemName .= ' '.$item->vehical_item->model_vehical->name;
             }
         }
 
@@ -1152,7 +1971,7 @@ class PurchaseController extends Controller
         if ($item->unit_item) {
             $unitName = $item->unit_item->name ?? $item->unit_item->short_name ?? 'Unit';
         }
-        
+
         // Get warranty info
         $warrantyName = null;
         $warrantyValue = null;
@@ -1179,41 +1998,121 @@ class PurchaseController extends Controller
                 }
             }
         }
-        
-        // Get warehouse for this item from selected branch
+
+        // Get warehouse for this item from selected branch.
+        // IMPORTANT: for claim flows, warehouse must come from claim stock source.
         $warehouseId = null;
-        $branchId = session('selected_branch_id');
+        $entryType = request()->get('entry_type'); // e.g. 'sale', 'claim', 'scrap'
+        $branchId = request()->get('branch_id');
+        if (! $branchId) {
+            $branchId = session('selected_branch_id');
+        }
         if ($branchId) {
             $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
             if ($warehouse) {
-                $warehouseItem = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
-                    ->where('item_id', $item->id)
-                    ->first();
-                if ($warehouseItem) {
-                    $warehouseId = $warehouse->id;
+                if ($entryType === 'claim') {
+                    $claimItem = \App\Models\ClaimWarehouseItem::where('warehouse_id', $warehouse->id)
+                        ->where('item_id', $item->id)
+                        ->first();
+                    if ($claimItem) {
+                        $warehouseId = $warehouse->id;
+                    }
+                } else {
+                    $warehouseItem = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
+                        ->where('item_id', $item->id)
+                        ->first();
+                    if ($warehouseItem) {
+                        $warehouseId = $warehouse->id;
+                    }
                 }
             }
         }
-        
+
         $unitInfo = $this->getItemUnitDisplayForSearch($item);
         $salePrice = floatval($item->sale_price ?? 0);
+        $totalSalePrice = isset($item->total_sale_price) && $item->total_sale_price !== null && $item->total_sale_price !== ''
+            ? (float) $item->total_sale_price
+            : 0.0;
+        $salePricePerBase = isset($item->sale_price_per_base) && $item->sale_price_per_base !== null && $item->sale_price_per_base !== ''
+            ? (float) $item->sale_price_per_base
+            : 0.0;
         $categoryName = $item->category ? trim($item->category->name ?? '') : '';
+        $subcategoryName = $item->subcategory ? trim((string) ($item->subcategory->name ?? '')) : '';
+        $itemType = strtolower(trim((string) ($item->type ?? '')));
+        $productTypeLabel = ItemProductTypeLabel::resolve($categoryName, $itemType, $subcategoryName !== '' ? $subcategoryName : null);
+        $qualityName = $item->quality_item ? trim((string) ($item->quality_item->name ?? '')) : '';
+        $technologyName = $item->technology_item ? trim((string) ($item->technology_item->name ?? '')) : '';
+        $partNumberStr = $item->partnumber_item ? trim((string) ($item->partnumber_item->name ?? '')) : '';
+        $companyNameStr = $item->company_item ? trim((string) ($item->company_item->name ?? '')) : '';
+        $productTitleStr = '';
+        if ($item->product_item && trim((string) ($item->product_item->name ?? '')) !== '') {
+            $productTitleStr = trim(strip_tags((string) $item->product_item->name));
+        }
+        if ($productTitleStr === '') {
+            foreach ([$item->short_disc, $item->pro_dis] as $cand) {
+                $t = trim(strip_tags((string) $cand));
+                if ($t === '' || ($partNumberStr !== '' && strcasecmp($t, $partNumberStr) === 0)) {
+                    continue;
+                }
+                $productTitleStr = $t;
+                break;
+            }
+        }
+        $oilSequence = ($itemType === 'oil') ? $this->buildOilSequenceDisplayName($item) : null;
+        $mileageName = ($itemType === 'oil' && $item->mileage_item) ? trim($item->mileage_item->name ?? '') : null;
+        $mileageId = ($itemType === 'oil' && $item->mileage_item) ? $item->mileage_item->id : null;
+
+        // Decide which stock to expose based on entry_type (for sales: claim vs normal)
+        $stockValue = $item->on_hand ?? 0; // default = main/new stock
+
+        if ($entryType === 'claim') {
+            // For Claim flows, show quantity from claim_warehouse_items instead of main stock
+            $claimQty = 0.0;
+            if ($warehouseId) {
+                $claimItem = ClaimWarehouseItem::where('warehouse_id', $warehouseId)
+                    ->where('item_id', $item->id)
+                    ->first();
+                if ($claimItem) {
+                    $claimQty = (float) ($claimItem->quantity ?? 0);
+                }
+            } else {
+                // Fallback: sum across all warehouses if none selected
+                $claimQty = (float) ClaimWarehouseItem::where('item_id', $item->id)->sum('quantity');
+            }
+            $stockValue = $claimQty;
+        }
+
         return response()->json([
             'id' => $item->id,
             'type' => $item->type ?? null,
+            'is_temporary' => (bool) ($item->is_temporary ?? false),
             'category_name' => $categoryName ?: 'Other',
+            'product_type_label' => $productTypeLabel,
+            'quality_name' => $qualityName !== '' ? $qualityName : null,
+            'technology_name' => $technologyName !== '' ? $technologyName : null,
+            'part_number' => $partNumberStr !== '' ? $partNumberStr : null,
+            'product_title' => $productTitleStr !== '' ? $productTitleStr : null,
+            'company_name' => $companyNameStr !== '' ? $companyNameStr : null,
             'category_id' => $item->category_id,
             'name' => $itemName,
+            'oil_sequence' => $oilSequence,
+            'mileage_name' => $mileageName,
+            'mileage_id' => $mileageId,
             'rate' => $item->packing_purchase_rate ?? 0,
             'sale_price' => $salePrice,
+            'total_sale_price' => $totalSalePrice > 0 ? $totalSalePrice : null,
+            'sale_price_per_base' => $salePricePerBase > 0 ? $salePricePerBase : null,
             'total_price' => $item->total_price ?? 0,
             'price_per_unit' => $item->price_per_unit ?? 0,
             'retail_price' => $item->retail_price ? (float) $item->retail_price : null,
+            'tax_percentage' => isset($item->tax_percentage) && $item->tax_percentage !== '' && (float) $item->tax_percentage > 0 ? (float) $item->tax_percentage : 18,
+            'r_tax_percentage' => isset($item->r_tax_percentage) && $item->r_tax_percentage !== '' && (float) $item->r_tax_percentage >= 0 ? (float) $item->r_tax_percentage : 0.05,
+            'amount_adjustment_pct' => isset($item->amount_adjustment_pct) && $item->amount_adjustment_pct !== '' && $item->amount_adjustment_pct !== null ? (float) $item->amount_adjustment_pct : null,
             'unit' => $unitName,
             'liter_per_can' => $unitInfo['liter_per_can'] > 0 ? $unitInfo['liter_per_can'] : null,
             'unit_id' => $item->unit, // Also return unit ID for reference
-            'image' => $item->image ? (preg_match('#^https?://#i', $item->image) ? $item->image : '/' . ltrim($item->image, '/')) : null,
-            'stock' => $item->on_hand ?? 0,
+            'image' => $item->image ? (preg_match('#^https?://#i', $item->image) ? $item->image : '/'.ltrim($item->image, '/')) : null,
+            'stock' => $stockValue,
             'warehouse_stock' => $item->on_hand ?? 0,
             'shop_stock' => 0,
             'bar_code' => $item->bar_code,
@@ -1223,6 +2122,8 @@ class PurchaseController extends Controller
             'warranty_name' => $warrantyName,
             'warranty_value' => $warrantyValue,
             'warranty_unit' => $warrantyUnit,
+            'voice_url' => $this->itemVoicePublicUrl($item->voice_path ?? null),
+            'images' => $this->itemGalleryPublicUrlsFromModel($item),
         ]);
     }
 
@@ -1238,12 +2139,13 @@ class PurchaseController extends Controller
             'voice_transcript' => 'nullable|string|max:1000',
             'notes_voice_path' => 'nullable|string|max:500',
             'cost_price' => 'required|numeric|min:0',
-            'quantity' => 'required|numeric|min:0.01',
+            'quantity' => 'required|numeric|min:1|max:1000',
             'notes' => 'nullable|string|max:1000',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'images' => 'required|array|min:1|max:20',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ], [
-            'image.required' => 'Image attachment is required for temporary products.',
-            'image.image' => 'The file must be an image.',
+            'images.required' => 'At least one photo is required for temporary products.',
+            'images.min' => 'At least one photo is required for temporary products.',
         ]);
 
         $defaultUnit = \App\Models\Unit::where('status', 'active')->orderBy('id')->first();
@@ -1253,7 +2155,7 @@ class PurchaseController extends Controller
         $name = trim((string) $request->product_name);
         $voicePath = $request->filled('voice_path') ? trim($request->voice_path) : null;
         $voiceTranscript = $request->filled('voice_transcript') ? trim($request->voice_transcript) : null;
-        if ($name === '' && !$voicePath) {
+        if ($name === '' && ! $voicePath) {
             return response()->json([
                 'success' => false,
                 'message' => 'Please enter a product name or attach a voice recording.',
@@ -1262,26 +2164,41 @@ class PurchaseController extends Controller
         if ($name === '' && $voicePath) {
             $name = $voiceTranscript !== null && $voiceTranscript !== '' ? $voiceTranscript : 'Temporary Product';
         }
-        $imagePath = null;
-        if ($request->hasFile('image')) {
+        $uploadDir = public_path('items');
+        if (! is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0755, true);
+        }
+        $imagePaths = [];
+        $files = $request->file('images');
+        if (! is_array($files)) {
+            $files = [];
+        }
+        foreach ($files as $file) {
+            if (! $file || ! $file->isValid()) {
+                continue;
+            }
             if (function_exists('saveSingleFile')) {
-                $imagePath = saveSingleFile($request->file('image'), 'items');
+                $saved = saveSingleFile($file, 'items');
             } else {
-                $file = $request->file('image');
-                $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
-                $file->move(public_path('items'), $filename);
-                $imagePath = 'items/' . $filename;
+                $filename = time().'_'.random_int(1000, 9999).'_'.preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
+                $file->move($uploadDir, $filename);
+                $saved = 'items/'.$filename;
+            }
+            if ($saved) {
+                $imagePaths[] = $saved;
             }
         }
 
-        if (!$imagePath) {
+        if ($imagePaths === []) {
             return response()->json(['success' => false, 'message' => 'Image upload failed.'], 422);
         }
 
+        $imagePath = $imagePaths[0];
+
         // Unique bar_code for temporary items (required by items table)
-        $barCode = 'TMP-' . time() . '-' . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        $barCode = 'TMP-'.time().'-'.str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
         while (Item::withTrashed()->where('bar_code', $barCode)->exists()) {
-            $barCode = 'TMP-' . time() . '-' . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $barCode = 'TMP-'.time().'-'.str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
         }
 
         $data = [
@@ -1301,16 +2218,28 @@ class PurchaseController extends Controller
             'voice_transcript' => $voiceTranscript,
             'notes_voice_path' => $request->filled('notes_voice_path') ? trim($request->notes_voice_path) : null,
         ];
+        if (Schema::hasColumn('items', 'images')) {
+            $data['images'] = $imagePaths;
+        }
         if (Schema::hasColumn('items', 'name')) {
             $data['name'] = $name;
         }
+        // Only pass columns that exist in the items table to avoid "Unknown column" errors
+        $itemColumns = Schema::getColumnListing('items');
+        $data = array_intersect_key($data, array_flip($itemColumns));
+
         try {
             $item = Item::create($data);
-        } catch (\Exception $e) {
-            \Log::error('Temporary product create failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        } catch (\Throwable $e) {
+            \Log::error('Temporary product create failed: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'data_keys' => array_keys($data),
+            ]);
+            $debugMsg = config('app.debug') ? $e->getMessage() : 'Please try again.';
+
             return response()->json([
                 'success' => false,
-                'message' => 'Could not save temporary product. ' . (config('app.debug') ? $e->getMessage() : 'Please try again.'),
+                'message' => 'Could not save temporary product. '.$debugMsg,
             ], 422);
         }
 
@@ -1323,7 +2252,13 @@ class PurchaseController extends Controller
                 'rate' => (float) $request->cost_price,
                 'unit' => $unitName,
                 'quantity' => (float) $request->quantity,
-                'image' => $item->image ? (str_starts_with($item->image, 'http') ? $item->image : asset($item->image)) : null,
+                'image' => $item->image ? (str_starts_with((string) $item->image, 'http') ? $item->image : asset(ltrim((string) $item->image, '/'))) : null,
+                'images' => array_map(function ($p) {
+                    $p = (string) $p;
+
+                    return $p !== '' && preg_match('#^https?://#i', $p) ? $p : asset(ltrim($p, '/'));
+                }, $imagePaths),
+                'voice_url' => $this->itemVoicePublicUrl($item->voice_path ?? null),
             ],
         ]);
     }
@@ -1404,18 +2339,18 @@ class PurchaseController extends Controller
 
         $file = $request->file('voice');
         $dir = 'voice';
-        $filename = 'voice_' . auth()->id() . '_' . time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName() ?: 'recording.webm');
-        if (!str_contains(strtolower($filename), '.')) {
-            $filename .= '.' . $file->getClientOriginalExtension();
+        $filename = 'voice_'.auth()->id().'_'.time().'_'.preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName() ?: 'recording.webm');
+        if (! str_contains(strtolower($filename), '.')) {
+            $filename .= '.'.$file->getClientOriginalExtension();
         }
         $path = $file->storeAs($dir, $filename, 'public');
-        if (!$path) {
+        if (! $path) {
             return response()->json(['success' => false, 'message' => 'Failed to store recording.'], 422);
         }
         $fullPath = Storage::disk('public')->path($path);
         $transcribe = app(TranscribeService::class);
         $transcript = $transcribe->transcribe($fullPath);
-        $publicPath = 'storage/' . $path;
+        $publicPath = 'storage/'.$path;
 
         return response()->json([
             'success' => true,
@@ -1431,7 +2366,7 @@ class PurchaseController extends Controller
     public function deleteVoice(Request $request)
     {
         $path = $request->input('path');
-        if (!$path || !is_string($path)) {
+        if (! $path || ! is_string($path)) {
             return response()->json(['success' => false, 'message' => 'Invalid path.'], 422);
         }
         $path = ltrim($path, '/');
@@ -1444,15 +2379,17 @@ class PurchaseController extends Controller
         if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
         }
+
         return response()->json(['success' => true]);
     }
-    
+
     /**
      * Get stock status for an item across all branches and warehouses.
      * If branch_id is passed, returns all warehouses of that branch (with 0 quantity where no stock).
      */
     public function getItemStockStatus(Request $request, $id)
     {
+        $context = $request->query('context', 'normal'); // normal|claim|scrap
         $item = Item::with(['unit_item', 'unit_item.baseUnits'])->findOrFail($id);
         $packingSize = (float) ($item->packing ?? 1);
         $unitName = $item->unit_item ? trim($item->unit_item->name ?? $item->unit_item->short_name ?? 'Unit') : 'Unit';
@@ -1485,25 +2422,27 @@ class PurchaseController extends Controller
 
         // Use pivot/name multiplier only when we didn't get multiplier from unit_option
         if ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 0) {
-        if ($item->unit_item && $item->unit_item->baseUnits && $item->unit_item->baseUnits->count() > 0) {
-            $firstBase = $item->unit_item->baseUnits->first();
-            if ($baseUnitName === null) $baseUnitName = $firstBase->name ?? $firstBase->short_name ?? null;
-            if ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 0) {
-                if ($firstBase->pivot !== null) {
-                    $m = $firstBase->pivot->multiplier ?? $firstBase->pivot->getAttribute('multiplier');
-                    $baseUnitMultiplier = $m !== null && $m !== '' ? (float) $m : null;
+            if ($item->unit_item && $item->unit_item->baseUnits && $item->unit_item->baseUnits->count() > 0) {
+                $firstBase = $item->unit_item->baseUnits->first();
+                if ($baseUnitName === null) {
+                    $baseUnitName = $firstBase->name ?? $firstBase->short_name ?? null;
+                }
+                if ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 0) {
+                    if ($firstBase->pivot !== null) {
+                        $m = $firstBase->pivot->multiplier ?? $firstBase->pivot->getAttribute('multiplier');
+                        $baseUnitMultiplier = $m !== null && $m !== '' ? (float) $m : null;
+                    }
+                }
+                // Pivot 1 ya null ho to unit name se multiplier use karo (6 can = 18 liter)
+                if ($parsedMultiplierFromName !== null && ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 1)) {
+                    $baseUnitMultiplier = $parsedMultiplierFromName;
                 }
             }
-            // Pivot 1 ya null ho to unit name se multiplier use karo (6 can = 18 liter)
-            if ($parsedMultiplierFromName !== null && ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 1)) {
+            // Base relation na ho ya multiplier abhi bhi 1 ho to name se set karo
+            if (($baseUnitName === null || $baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 1) && $parsedMultiplierFromName !== null) {
+                $baseUnitName = $baseUnitName ?: 'Liter';
                 $baseUnitMultiplier = $parsedMultiplierFromName;
             }
-        }
-        // Base relation na ho ya multiplier abhi bhi 1 ho to name se set karo
-        if (($baseUnitName === null || $baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 1) && $parsedMultiplierFromName !== null) {
-            $baseUnitName = $baseUnitName ?: 'Liter';
-            $baseUnitMultiplier = $parsedMultiplierFromName;
-        }
         }
 
         $requestedBranchId = $request->query('branch_id');
@@ -1512,10 +2451,19 @@ class PurchaseController extends Controller
         if ($requestedBranchId !== null && $requestedBranchId !== '') {
             $branch = \App\Models\Branch::find($requestedBranchId);
             $warehouses = \App\Models\Warehouse::where('branch_id', $requestedBranchId)->orderBy('warehouse_name')->get()->unique('id')->values();
-            $quantitiesByWarehouse = \App\Models\WarehouseItem::where('item_id', $id)
-                ->whereIn('warehouse_id', $warehouses->pluck('id'))
-                ->get()
-                ->keyBy('warehouse_id');
+            // IMPORTANT: Claim stock is fully isolated from new stock.
+            // For claim context, read ONLY from claim_warehouse_items (no warehouse_items fallback).
+            if ($context === 'claim') {
+                $quantitiesByWarehouse = \App\Models\ClaimWarehouseItem::where('item_id', $id)
+                    ->whereIn('warehouse_id', $warehouses->pluck('id'))
+                    ->get()
+                    ->keyBy('warehouse_id');
+            } else {
+                $quantitiesByWarehouse = \App\Models\WarehouseItem::where('item_id', $id)
+                    ->whereIn('warehouse_id', $warehouses->pluck('id'))
+                    ->get()
+                    ->keyBy('warehouse_id');
+            }
 
             $stockStatus = [];
             $branchName = $branch ? $branch->branch_name : 'No Branch';
@@ -1527,7 +2475,7 @@ class PurchaseController extends Controller
                 'id' => (int) $requestedBranchId,
                 'name' => $branchName,
                 'code' => $branchCode,
-                'display' => $branchName . ($branchCode ? ' (' . $branchCode . ')' : ''),
+                'display' => $branchName.($branchCode ? ' ('.$branchCode.')' : ''),
                 'cartons' => 0,
                 'loose' => 0,
                 'loose_liters' => 0,
@@ -1540,13 +2488,23 @@ class PurchaseController extends Controller
             $isOil = ($baseUnitName === 'Liter' && (float) $baseUnitMultiplier > 0);
             foreach ($warehouses as $warehouse) {
                 $wi = $quantitiesByWarehouse->get($warehouse->id);
-                $quantity = $wi ? floatval($wi->quantity ?? 0) : 0;
+                if ($wi) {
+                    if ($context === 'claim') {
+                        $quantity = floatval($wi->quantity ?? 0);
+                    } elseif ($context === 'scrap') {
+                        $quantity = floatval($wi->scrap_quantity ?? 0);
+                    } else {
+                        $quantity = floatval($wi->quantity ?? 0);
+                    }
+                } else {
+                    $quantity = 0;
+                }
                 $totalQty += $quantity;
                 $cartons = floor($quantity / $packingSize);
                 $loose = fmod($quantity, $packingSize);
                 $looseLiters = $isOil ? (float) ($loose * ((float) $baseUnitMultiplier / $packingSize)) : 0;
 
-                $whDisplay = $warehouse->warehouse_name . (($warehouse->warehouse_code ?? '') !== '' ? ' (' . $warehouse->warehouse_code . ')' : '');
+                $whDisplay = $warehouse->warehouse_name;
                 $stockStatus[] = [
                     'type' => 'warehouse',
                     'id' => $warehouse->id,
@@ -1577,9 +2535,17 @@ class PurchaseController extends Controller
         }
 
         // Original behaviour: all branches/warehouses that have stock for this item
-        $warehouseItems = \App\Models\WarehouseItem::with(['warehouse.branch'])
-            ->where('item_id', $id)
-            ->get();
+        // IMPORTANT: Claim stock is fully isolated from new stock.
+        // For claim context, read ONLY from claim_warehouse_items (no warehouse_items fallback).
+        if ($context === 'claim') {
+            $warehouseItems = \App\Models\ClaimWarehouseItem::with(['warehouse.branch'])
+                ->where('item_id', $id)
+                ->get();
+        } else {
+            $warehouseItems = \App\Models\WarehouseItem::with(['warehouse.branch'])
+                ->where('item_id', $id)
+                ->get();
+        }
 
         $stockStatus = [];
         $branchStocks = [];
@@ -1591,21 +2557,22 @@ class PurchaseController extends Controller
             $branchName = $branch ? $branch->branch_name : 'No Branch';
             $branchCode = $branch ? $branch->branch_code : '';
 
+            // For claim context, quantity is from claim_warehouse_items.quantity only.
             $quantity = floatval($warehouseItem->quantity ?? 0);
             $cartons = floor($quantity / $packingSize);
             $loose = fmod($quantity, $packingSize);
             $looseLiters = $isOil ? (float) ($loose * ((float) $baseUnitMultiplier / $packingSize)) : 0;
 
-            if (!isset($branchStocks[$branchId])) {
+            if (! isset($branchStocks[$branchId])) {
                 $branchStocks[$branchId] = [
                     'branch_id' => $branchId,
                     'branch_name' => $branchName,
                     'branch_code' => $branchCode,
-                    'display' => $branchName . ($branchCode ? ' (' . $branchCode . ')' : ''),
+                    'display' => $branchName.($branchCode ? ' ('.$branchCode.')' : ''),
                     'total_cartons' => 0,
                     'total_loose' => 0,
                     'total_loose_liters' => 0,
-                    'warehouses' => []
+                    'warehouses' => [],
                 ];
             }
 
@@ -1625,7 +2592,7 @@ class PurchaseController extends Controller
                     'cartons' => (int) $cartons,
                     'loose' => $loose,
                     'loose_liters' => $looseLiters,
-                    'display' => $warehouse->warehouse_name
+                    'display' => $warehouse->warehouse_name,
                 ];
                 $branchStocks[$branchId]['warehouses'][$whId] = $warehouseData;
             }
@@ -1679,26 +2646,38 @@ class PurchaseController extends Controller
     public function getItemPurchaseHistory($id)
     {
         $item = Item::findOrFail($id);
-        
+
         // Get all purchase items for this item, ordered by newest first
-        $purchaseHistory = PurchaseItem::with(['purchase.supplier'])
+        $purchaseHistory = PurchaseItem::with(['purchase.supplier', 'purchase.branch', 'purchase.user'])
             ->where('item_id', $id)
             ->orderBy('created_at', 'desc')
             ->limit(20) // Limit to last 20 purchases
             ->get();
-        
+
         $history = [];
         foreach ($purchaseHistory as $purchaseItem) {
             $purchase = $purchaseItem->purchase;
             $supplier = $purchase ? $purchase->supplier : null;
-            
+
             // Get supplier name
             $supplierName = 'Unknown Supplier';
             if ($supplier) {
                 $names = is_array($supplier->names) ? $supplier->names : json_decode($supplier->names, true) ?? [];
                 $supplierName = $names[0] ?? $supplier->company ?? 'Unknown Supplier';
             }
-            
+
+            // Branch and user (who created the bill)
+            $branchName = null;
+            $userName = null;
+            if ($purchase) {
+                if ($purchase->relationLoaded('branch') && $purchase->branch) {
+                    $branchName = $purchase->branch->branch_name ?? $purchase->branch->branch_code ?? '—';
+                }
+                if ($purchase->relationLoaded('user') && $purchase->user) {
+                    $userName = $purchase->user->name ?? $purchase->user->username ?? '—';
+                }
+            }
+
             $history[] = [
                 'id' => $purchaseItem->id,
                 'purchase_id' => $purchaseItem->purchase_id,
@@ -1714,9 +2693,11 @@ class PurchaseController extends Controller
                 'purchase_date' => $purchase ? $purchase->purchase_date->format('d/m/Y') : 'N/A',
                 'days_ago' => $purchase ? $purchase->purchase_date->diffInDays(now()) : null,
                 'created_at' => $purchaseItem->created_at->format('d/m/Y H:i'),
+                'branch_name' => $branchName,
+                'user_name' => $userName,
             ];
         }
-        
+
         // Calculate statistics
         $totalPurchases = count($history);
         $lastPurchase = $history[0] ?? null;
@@ -1724,10 +2705,10 @@ class PurchaseController extends Controller
         $minRate = $totalPurchases > 0 ? collect($history)->min('rate') : 0;
         $maxRate = $totalPurchases > 0 ? collect($history)->max('rate') : 0;
         $totalQuantity = collect($history)->sum('quantity');
-        
+
         return response()->json([
             'item_id' => $item->id,
-            'item_name' => $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'Item #' . $item->id,
+            'item_name' => $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'Item #'.$item->id,
             'total_purchases' => $totalPurchases,
             'total_quantity' => $totalQuantity,
             'avg_rate' => round($avgRate, 2),
@@ -1748,33 +2729,33 @@ class PurchaseController extends Controller
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
-            
+
         $manufacturers = CarManufacturer::where('status', 'active')
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
-            
+
         $partNumbers = PartNumber::where('status', 'active')
             ->select('id', 'name')
             ->orderBy('name')
             ->limit(50)
             ->get();
-            
+
         $technologies = Technology::where('status', 'active')
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
-            
+
         $grades = Grade::where('status', 'active')
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
-            
+
         $volts = Volt::where('status', 'active')
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
-            
+
         $ccas = Cca::where('status', 'active')
             ->select('id', 'name')
             ->orderBy('name')
@@ -1788,7 +2769,7 @@ class PurchaseController extends Controller
             ->filter()
             ->sort()
             ->values();
-            
+
         $racks = Item::whereNotNull('rack')
             ->where('rack', '!=', '')
             ->distinct()
@@ -1818,38 +2799,39 @@ class PurchaseController extends Controller
     {
         $search = $request->input('q', '');
         $results = [];
-        
+        $entryType = (string) $request->input('entry_type', '');
+
         // 1. Search branches first (if search term provided)
         if ($search) {
             $matchingBranches = \App\Models\Branch::where('status', 'active')
-                ->where(function($q) use ($search) {
+                ->where(function ($q) use ($search) {
                     $q->where('branch_name', 'LIKE', "%{$search}%")
-                      ->orWhere('branch_code', 'LIKE', "%{$search}%");
+                        ->orWhere('branch_code', 'LIKE', "%{$search}%");
                 })
                 ->limit(5)
                 ->get();
-            
+
             foreach ($matchingBranches as $branch) {
                 $results[] = [
                     'type' => 'branch',
                     'id' => $branch->id,
                     'name' => $branch->branch_name,
                     'code' => $branch->branch_code,
-                    'display' => $branch->branch_name . ($branch->branch_code ? ' (' . $branch->branch_code . ')' : '')
+                    'display' => $branch->branch_name.($branch->branch_code ? ' ('.$branch->branch_code.')' : ''),
                 ];
             }
         }
-        
+
         // 2. Search warehouses (if search term provided)
         if ($search) {
             $matchingWarehouses = \App\Models\Warehouse::with('branch')
-                ->where(function($q) use ($search) {
+                ->where(function ($q) use ($search) {
                     $q->where('warehouse_name', 'LIKE', "%{$search}%")
-                      ->orWhere('warehouse_code', 'LIKE', "%{$search}%");
+                        ->orWhere('warehouse_code', 'LIKE', "%{$search}%");
                 })
                 ->limit(10)
                 ->get();
-            
+
             foreach ($matchingWarehouses as $warehouse) {
                 $results[] = [
                     'type' => 'warehouse',
@@ -1858,11 +2840,11 @@ class PurchaseController extends Controller
                     'code' => $warehouse->warehouse_code,
                     'branch_id' => $warehouse->branch_id,
                     'branch_name' => $warehouse->branch ? $warehouse->branch->branch_name : '',
-                    'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($warehouse->branch ? ' - ' . $warehouse->branch->branch_name : '')
+                    'display' => $warehouse->warehouse_name.($warehouse->branch ? ' - '.$warehouse->branch->branch_name : ''),
                 ];
             }
         }
-        
+
         // 3. Search items - Show ALL items for purchase (no warehouse filter)
         $query = Item::with([
             'partnumber_item',
@@ -1884,7 +2866,21 @@ class PurchaseController extends Controller
             'plate_item', // Plate (for battery)
             'amphors_item', // Amperes (for battery)
             'mileage_item', // Mileage (e.g. oil)
-        ])->where('is_active', 1);
+        ])->where('is_active', 1)
+            ->where(function ($q) {
+                $q->where('is_temporary', false)->orWhereNull('is_temporary');
+            });
+
+        // IMPORTANT: Claim stock is fully isolated from new stock.
+        // When searching in claim flows, restrict stock display to claim stock only (no on_hand / no warehouse_items fallback).
+        if ($entryType === 'claim') {
+            // We still allow searching across items, but stock values must come from claim_warehouse_items only.
+        }
+
+        // When add-item modal is in "scrap" mode, only show items with type = scrap
+        if ($request->input('entry_type') === 'scrap') {
+            $query->where('type', 'scrap');
+        }
 
         // Multi-term search: space-separated words = AND filter (each term must match somewhere in item)
         $search = trim($request->input('q', ''));
@@ -1893,60 +2889,88 @@ class PurchaseController extends Controller
             $query->where(function ($q) use ($term) {
                 // ========== PRIMARY PRODUCT IDENTIFICATION ==========
                 $q->where('bar_code', 'LIKE', "%{$term}%")
-                  ->orWhere('pro_dis', 'LIKE', "%{$term}%")
-                  ->orWhere('short_disc', 'LIKE', "%{$term}%")
-                  ->orWhere('serial_number', 'LIKE', "%{$term}%")
-                  ->orWhere('p_brochure', 'LIKE', "%{$term}%");
+                    ->orWhere('pro_dis', 'LIKE', "%{$term}%")
+                    ->orWhere('short_disc', 'LIKE', "%{$term}%")
+                    ->orWhere('serial_number', 'LIKE', "%{$term}%")
+                    ->orWhere('p_brochure', 'LIKE', "%{$term}%");
                 // ========== CATEGORY / PART NUMBER ==========
                 $q->orWhereHas('category', function ($subQ) use ($term) {
                     $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('subcategory', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('partnumber_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                });
+                    ->orWhereHas('subcategory', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('partnumber_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    });
                 // ========== VEHICLE RELATED ==========
                 if (is_numeric($term)) {
                     $q->orWhere('vehical_id', $term);
                 }
                 $q->orWhereHas('vehical_item', function ($subQ) use ($term) {
-                    $subQ->where('year_from', 'LIKE', "%{$term}%")
-                      ->orWhere('year_to', 'LIKE', "%{$term}%")
-                      ->orWhere('car_manufactured_country', 'LIKE', "%{$term}%")
-                      ->orWhere('id', 'LIKE', "%{$term}%")
-                      ->orWhere('v_part_number_id', 'LIKE', "%{$term}%");
+                    $subQ->where(function ($vq) use ($term) {
+                        $vq->where('year_from', 'LIKE', "%{$term}%")
+                            ->orWhere('year_to', 'LIKE', "%{$term}%");
+                        if (VehicleYearSearch::isPlausibleYearTerm($term)) {
+                            $vq->orWhere(function ($yq) use ($term) {
+                                VehicleYearSearch::whereVehicleRowContainsYear($yq, (int) $term);
+                            });
+                        }
+                        if (preg_match('/^(\d{4})\s*-\s*(\d{4})$/', trim($term), $m)) {
+                            $low = min((int) $m[1], (int) $m[2]);
+                            $high = max((int) $m[1], (int) $m[2]);
+                            $vq->orWhere(function ($yq) use ($low, $high) {
+                                VehicleYearSearch::whereVehicleRowOverlapsYearRange($yq, $low, $high);
+                            });
+                        }
+                    })
+                        ->orWhere('car_manufactured_country', 'LIKE', "%{$term}%")
+                        ->orWhere('id', 'LIKE', "%{$term}%")
+                        ->orWhere('v_part_number_id', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('vehical_item.vehical_part_number', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
-                });
+                    ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('vehical_item.vehical_part_number', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                    });
                 // ========== MULTIPLE CONNECTED VEHICLES (vehical_ids) ==========
                 $matchingVehicleIds = \App\Models\VehicalType::where('status', 'active')
                     ->where(function ($vq) use ($term) {
-                        $vq->whereHas('manutacturer_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
-                          ->orWhereHas('model_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
-                          ->orWhereHas('engine_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
-                          ->orWhereHas('country_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
-                          ->orWhereHas('vehical_part_number', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
-                          ->orWhere('year_from', 'LIKE', "%{$term}%")
-                          ->orWhere('year_to', 'LIKE', "%{$term}%");
+                        $vq->whereHas('manutacturer_vehical', fn ($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                            ->orWhereHas('model_vehical', fn ($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                            ->orWhereHas('engine_vehical', fn ($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                            ->orWhereHas('country_vehical', fn ($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                            ->orWhereHas('vehical_part_number', fn ($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                            ->orWhere(function ($yq) use ($term) {
+                                $yq->where('year_from', 'LIKE', "%{$term}%")
+                                    ->orWhere('year_to', 'LIKE', "%{$term}%");
+                                if (VehicleYearSearch::isPlausibleYearTerm($term)) {
+                                    $yq->orWhere(function ($zq) use ($term) {
+                                        VehicleYearSearch::whereVehicleRowContainsYear($zq, (int) $term);
+                                    });
+                                }
+                                if (preg_match('/^(\d{4})\s*-\s*(\d{4})$/', trim($term), $m)) {
+                                    $low = min((int) $m[1], (int) $m[2]);
+                                    $high = max((int) $m[1], (int) $m[2]);
+                                    $yq->orWhere(function ($zq) use ($low, $high) {
+                                        VehicleYearSearch::whereVehicleRowOverlapsYearRange($zq, $low, $high);
+                                    });
+                                }
+                            });
                     })
                     ->pluck('id')
                     ->toArray();
-                if (!empty($matchingVehicleIds)) {
+                if (! empty($matchingVehicleIds)) {
                     $q->orWhere(function ($jsonQ) use ($matchingVehicleIds) {
                         foreach ($matchingVehicleIds as $vid) {
                             $jsonQ->orWhereJsonContains('vehical_ids', $vid);
@@ -1958,45 +2982,45 @@ class PurchaseController extends Controller
                 $q->orWhereHas('product_item', function ($subQ) use ($term) {
                     $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('company_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('plate_item', function ($subQ) use ($term) {
-                    // Strip "pl", "PL", "pl ", "PL " from the end of the term for plates search
-                    $plateTerm = preg_replace('/\s*(pl|PL)\s*$/i', '', $term);
-                    $subQ->where('name', 'LIKE', "%{$plateTerm}%");
-                })
-                ->orWhereHas('amphors_item', function ($subQ) use ($term) {
-                    // Strip "ah", "AH", "ah ", "AH " from the end of the term for amperes search
-                    $amperesTerm = preg_replace('/\s*(ah|AH)\s*$/i', '', $term);
-                    $subQ->where('name', 'LIKE', "%{$amperesTerm}%");
-                })
-                ->orWhereHas('lineitems_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('mileage_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                });
+                    ->orWhereHas('company_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('plate_item', function ($subQ) use ($term) {
+                        // Strip "pl", "PL", "pl ", "PL " from the end of the term for plates search
+                        $plateTerm = preg_replace('/\s*(pl|PL)\s*$/i', '', $term);
+                        $subQ->where('name', 'LIKE', "%{$plateTerm}%");
+                    })
+                    ->orWhereHas('amphors_item', function ($subQ) use ($term) {
+                        // Strip "ah", "AH", "ah ", "AH " from the end of the term for amperes search
+                        $amperesTerm = preg_replace('/\s*(ah|AH)\s*$/i', '', $term);
+                        $subQ->where('name', 'LIKE', "%{$amperesTerm}%");
+                    })
+                    ->orWhereHas('lineitems_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('mileage_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    });
                 // ========== BATTERY SPECS ==========
                 $q->orWhereHas('volt_item', function ($subQ) use ($term) {
                     $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('cca_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('minus_pool_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('technology_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('grade_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('farmula_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhere('battery_size', 'LIKE', "%{$term}%");
+                    ->orWhereHas('cca_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('minus_pool_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('technology_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('grade_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('farmula_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhere('battery_size', 'LIKE', "%{$term}%");
                 // ========== LOCATION / QUALITY / STOCK / UNIT / PACKAGING ==========
                 $q->orWhere('bussiness_location', 'LIKE', "%{$term}%");
                 $q->orWhereHas('quality_item', function ($subQ) use ($term) {
@@ -2007,26 +3031,26 @@ class PurchaseController extends Controller
                     $subQ->where('name', 'LIKE', "%{$term}%");
                 });
                 $q->orWhere('packing', 'LIKE', "%{$term}%")
-                  ->orWhere('scale', 'LIKE', "%{$term}%")
-                  ->orWhere('weight_unit', 'LIKE', "%{$term}%")
-                  ->orWhere('filling', 'LIKE', "%{$term}%")
-                  ->orWhere('weight_for_delivery', 'LIKE', "%{$term}%")
-                  ->orWhere('packing_purchase_rate', 'LIKE', "%{$term}%")
-                  ->orWhere('total_price', 'LIKE', "%{$term}%")
-                  ->orWhere('price_per_unit', 'LIKE', "%{$term}%")
-                  ->orWhere('sale_price', 'LIKE', "%{$term}%")
-                  ->orWhere('on_hand', 'LIKE', "%{$term}%")
-                  ->orWhere('rack', 'LIKE', "%{$term}%")
-                  ->orWhere('supplier', 'LIKE', "%{$term}%");
+                    ->orWhere('scale', 'LIKE', "%{$term}%")
+                    ->orWhere('weight_unit', 'LIKE', "%{$term}%")
+                    ->orWhere('filling', 'LIKE', "%{$term}%")
+                    ->orWhere('weight_for_delivery', 'LIKE', "%{$term}%")
+                    ->orWhere('packing_purchase_rate', 'LIKE', "%{$term}%")
+                    ->orWhere('total_price', 'LIKE', "%{$term}%")
+                    ->orWhere('price_per_unit', 'LIKE', "%{$term}%")
+                    ->orWhere('sale_price', 'LIKE', "%{$term}%")
+                    ->orWhere('on_hand', 'LIKE', "%{$term}%")
+                    ->orWhere('rack', 'LIKE', "%{$term}%")
+                    ->orWhere('supplier', 'LIKE', "%{$term}%");
                 if (is_numeric($term)) {
-                    $numericValue = (float)$term;
+                    $numericValue = (float) $term;
                     $q->orWhere('filling', $numericValue)
-                      ->orWhere('weight_for_delivery', $numericValue)
-                      ->orWhere('packing_purchase_rate', $numericValue)
-                      ->orWhere('total_price', $numericValue)
-                      ->orWhere('price_per_unit', $numericValue)
-                      ->orWhere('sale_price', $numericValue)
-                      ->orWhere('on_hand', (int)$numericValue);
+                        ->orWhere('weight_for_delivery', $numericValue)
+                        ->orWhere('packing_purchase_rate', $numericValue)
+                        ->orWhere('total_price', $numericValue)
+                        ->orWhere('price_per_unit', $numericValue)
+                        ->orWhere('sale_price', $numericValue)
+                        ->orWhere('on_hand', (int) $numericValue);
                 }
                 if (strlen($term) >= 4) {
                     $q->orWhere('update_date', 'LIKE', "%{$term}%");
@@ -2034,18 +3058,18 @@ class PurchaseController extends Controller
                 $q->orWhereHas('services_item', function ($subQ) use ($term) {
                     $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('warrenty_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('group_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('made_in_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                })
-                ->orWhereHas('level_item', function ($subQ) use ($term) {
-                    $subQ->where('name', 'LIKE', "%{$term}%");
-                });
+                    ->orWhereHas('warrenty_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('group_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('made_in_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    })
+                    ->orWhereHas('level_item', function ($subQ) use ($term) {
+                        $subQ->where('name', 'LIKE', "%{$term}%");
+                    });
             });
         }
 
@@ -2094,32 +3118,35 @@ class PurchaseController extends Controller
 
         // Filter by year
         if ($request->has('year') && $request->year) {
-            $yearFilter = $request->year;
+            $yearFilter = trim((string) $request->year);
             // Check if it's a range (e.g., "2020-2025") or single year
             if (strpos($yearFilter, '-') !== false) {
-                $years = explode('-', $yearFilter);
-                $yearFrom = trim($years[0]);
-                $yearTo = trim($years[1] ?? $years[0]);
-                $query->whereHas('vehical_item', function ($q) use ($yearFrom, $yearTo) {
-                    $q->where(function ($subQ) use ($yearFrom, $yearTo) {
-                        $subQ->where(function ($yq) use ($yearFrom, $yearTo) {
-                            // Year range overlaps with search range
-                            $yq->where('year_from', '<=', $yearTo)
-                               ->where('year_to', '>=', $yearFrom);
+                $parts = preg_split('/\s*-\s*/', $yearFilter, 2);
+                $yearFrom = isset($parts[0]) ? trim($parts[0]) : '';
+                $yearTo = isset($parts[1]) ? trim($parts[1]) : $yearFrom;
+                if (ctype_digit($yearFrom) && ctype_digit($yearTo)) {
+                    $yf = (int) $yearFrom;
+                    $yt = (int) $yearTo;
+                    $query->whereHas('vehical_item', function ($q) use ($yf, $yt) {
+                        $q->where(function ($subQ) use ($yf, $yt) {
+                            VehicleYearSearch::whereVehicleRowOverlapsYearRange($subQ, $yf, $yt);
                         });
                     });
-                });
+                }
             } else {
-                // Single year search
-                $year = trim($yearFilter);
-                $query->whereHas('vehical_item', function ($q) use ($year) {
-                    $q->where(function ($subQ) use ($year) {
-                        $subQ->where('year_from', '<=', $year)
-                             ->where('year_to', '>=', $year)
-                             ->orWhere('year_from', 'LIKE', "%{$year}%")
-                             ->orWhere('year_to', 'LIKE', "%{$year}%");
+                $year = $yearFilter;
+                if ($year !== '' && ctype_digit($year)) {
+                    $yi = (int) $year;
+                    $query->whereHas('vehical_item', function ($q) use ($year, $yi) {
+                        $q->where(function ($subQ) use ($year, $yi) {
+                            $subQ->where(function ($inner) use ($yi) {
+                                VehicleYearSearch::whereVehicleRowContainsYear($inner, $yi);
+                            })
+                                ->orWhere('year_from', 'LIKE', "%{$year}%")
+                                ->orWhere('year_to', 'LIKE', "%{$year}%");
+                        });
                     });
-                });
+                }
             }
         }
 
@@ -2185,14 +3212,25 @@ class PurchaseController extends Controller
         $items = $query->limit($limit)->get();
         $branchId = $request->input('branch_id');
 
-        // When branch_id is present: return one row per item with branch total stock (same as stock status section)
-        if ($branchId && !empty($items)) {
+        // When branch_id is present: return one row per item with branch total stock.
+        // IMPORTANT: For claim flows, "stock" must represent CLAIM stock only (never normal/new stock).
+        if ($branchId && ! empty($items)) {
+            $warehouseIds = \App\Models\Warehouse::where('branch_id', $branchId)->pluck('id');
+            $isClaimContext = ($entryType === 'claim');
             foreach ($items as $item) {
-                $stock = (float) \App\Models\WarehouseItem::where('item_id', $item->id)
-                    ->whereHas('warehouse', fn($q) => $q->where('branch_id', $branchId))
+                $normalStock = (float) \App\Models\WarehouseItem::where('item_id', $item->id)
+                    ->whereHas('warehouse', fn ($q) => $q->where('branch_id', $branchId))
                     ->sum('quantity');
+                $claimStock = null;
+                if ($warehouseIds->isNotEmpty()) {
+                    $claimStock = (float) \App\Models\ClaimWarehouseItem::where('item_id', $item->id)
+                        ->whereIn('warehouse_id', $warehouseIds)
+                        ->sum('quantity');
+                }
+                // In claim context, expose claim stock as the primary "stock" field so frontend badges always show claim qty.
+                $stock = $isClaimContext ? ($claimStock ?? 0) : $normalStock;
                 $unitInfo = $this->getItemUnitDisplayForSearch($item);
-                $results[] = [
+                $row = [
                     'type' => 'item',
                     'id' => $item->id,
                     'stock' => $stock,
@@ -2200,6 +3238,10 @@ class PurchaseController extends Controller
                     'unit_display' => $unitInfo['unit_display'],
                     'liter_per_can' => $unitInfo['liter_per_can'],
                 ];
+                if ($claimStock !== null) {
+                    $row['claim_stock'] = $claimStock;
+                }
+                $results[] = $row;
             }
         } else {
             // No branch: group by warehouse (legacy behaviour)
@@ -2210,11 +3252,11 @@ class PurchaseController extends Controller
                     $warehouse = $warehouseItem->warehouse;
                     if ($warehouse) {
                         $warehouseId = $warehouse->id;
-                        if (!isset($warehouseItems[$warehouseId])) {
+                        if (! isset($warehouseItems[$warehouseId])) {
                             $warehouseItems[$warehouseId] = [
                                 'warehouse' => $warehouse,
                                 'branch' => $warehouse->branch,
-                                'items' => []
+                                'items' => [],
                             ];
                         }
                         $warehouseItems[$warehouseId]['items'][] = $item;
@@ -2231,10 +3273,14 @@ class PurchaseController extends Controller
                     'code' => $warehouse->warehouse_code,
                     'branch_id' => $warehouse->branch_id,
                     'branch_name' => $branch ? $branch->branch_name : '',
-                    'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($branch ? ' - ' . $branch->branch_name : '')
+                    'display' => $warehouse->warehouse_name.($branch ? ' - '.$branch->branch_name : ''),
                 ];
                 foreach ($data['items'] as $item) {
-                    $qty = (float) (\App\Models\WarehouseItem::where('item_id', $item->id)->where('warehouse_id', $warehouse->id)->value('quantity') ?? 0);
+                    if ($entryType === 'claim') {
+                        $qty = (float) (\App\Models\ClaimWarehouseItem::where('item_id', $item->id)->where('warehouse_id', $warehouse->id)->value('quantity') ?? 0);
+                    } else {
+                        $qty = (float) (\App\Models\WarehouseItem::where('item_id', $item->id)->where('warehouse_id', $warehouse->id)->value('quantity') ?? 0);
+                    }
                     $unitInfo = $this->getItemUnitDisplayForSearch($item);
                     $results[] = [
                         'type' => 'item',
@@ -2248,9 +3294,13 @@ class PurchaseController extends Controller
                     ];
                 }
             }
-            if (empty($warehouseItems) && !empty($items)) {
+            if (empty($warehouseItems) && ! empty($items)) {
                 foreach ($items as $item) {
-                    $stock = $item->on_hand ?? 0;
+                    if ($entryType === 'claim') {
+                        $stock = (float) \App\Models\ClaimWarehouseItem::where('item_id', $item->id)->sum('quantity');
+                    } else {
+                        $stock = $item->on_hand ?? 0;
+                    }
                     $unitInfo = $this->getItemUnitDisplayForSearch($item);
                     $results[] = [
                         'type' => 'item',
@@ -2265,6 +3315,143 @@ class PurchaseController extends Controller
         }
 
         return response()->json($results);
+    }
+
+    /**
+     * Scrap-type items with normal warehouse scrap stock in the selected branch (not claim stock).
+     * Used by purchase create "SCRAP SEND" picker modal.
+     */
+    public function scrapStockItemsForPurchase(Request $request)
+    {
+        $branchId = (int) $request->query('branch_id', 0);
+        if ($branchId < 1) {
+            return response()->json(['success' => false, 'message' => 'Branch is required.', 'items' => []], 422);
+        }
+
+        $warehouseIds = Warehouse::where('branch_id', $branchId)->pluck('id');
+        if ($warehouseIds->isEmpty()) {
+            return response()->json(['success' => true, 'items' => []]);
+        }
+
+        $q = trim((string) $request->query('q', ''));
+
+        $itemIdsWithStock = WarehouseItem::query()
+            ->whereIn('warehouse_id', $warehouseIds)
+            ->whereHas('item', fn ($iq) => $iq->where('type', 'scrap'))
+            ->selectRaw('item_id, SUM(quantity) as qty_sum')
+            ->groupBy('item_id')
+            ->havingRaw('SUM(quantity) > 0')
+            ->pluck('item_id');
+
+        if ($itemIdsWithStock->isEmpty()) {
+            return response()->json(['success' => true, 'items' => []]);
+        }
+
+        $query = Item::query()
+            ->where('type', 'scrap')
+            ->whereIn('id', $itemIdsWithStock)
+            ->where('is_active', 1)
+            ->where(function ($qq) {
+                $qq->where('is_temporary', false)->orWhereNull('is_temporary');
+            })
+            ->with(['partnumber_item', 'company_item', 'product_item', 'unit_item']);
+
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $like = '%'.$q.'%';
+                $sub->where('bar_code', 'LIKE', $like)
+                    ->orWhere('pro_dis', 'LIKE', $like)
+                    ->orWhere('short_disc', 'LIKE', $like)
+                    ->orWhereHas('partnumber_item', fn ($p) => $p->where('name', 'LIKE', $like))
+                    ->orWhereHas('company_item', fn ($p) => $p->where('name', 'LIKE', $like))
+                    ->orWhereHas('product_item', fn ($p) => $p->where('name', 'LIKE', $like));
+            });
+        }
+
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = min(100, max(15, (int) $request->query('per_page', 50)));
+        $totalCount = (clone $query)->count();
+        $items = (clone $query)
+            ->orderByRaw('COALESCE(NULLIF(TRIM(short_disc), ""), TRIM(pro_dis), "") ASC')
+            ->orderBy('id')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        $out = [];
+        foreach ($items as $item) {
+            $rows = WarehouseItem::query()
+                ->where('item_id', $item->id)
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->where('quantity', '>', 0)
+                ->with('warehouse')
+                ->orderByDesc('quantity')
+                ->get();
+
+            if ($rows->isEmpty()) {
+                continue;
+            }
+
+            $primary = $rows->first();
+            $warehouse = $primary->warehouse;
+            $warehouseQty = (float) ($primary->quantity ?? 0);
+            $branchTotal = (float) $rows->sum('quantity');
+
+            $rate = (float) ($item->total_price ?? 0);
+            if ($rate <= 0) {
+                $rate = (float) ($item->packing_purchase_rate ?? 0);
+            }
+
+            $rawName = trim(strip_tags((string) ($item->short_disc ?: $item->pro_dis ?: '')));
+            if ($rawName === '') {
+                $rawName = 'Item #'.$item->id;
+            }
+
+            $image = null;
+            $rawImg = $item->getRawOriginal('image') ?? $item->image ?? null;
+            if ($rawImg && trim((string) $rawImg) !== '') {
+                $rawImg = trim((string) $rawImg);
+                $image = str_starts_with($rawImg, 'http://') || str_starts_with($rawImg, 'https://')
+                    ? $rawImg
+                    : asset(ltrim($rawImg, '/'));
+            }
+
+            $unitName = $item->unit_item
+                ? trim((string) ($item->unit_item->name ?? $item->unit_item->short_name ?? ''))
+                : '';
+            if ($unitName === '') {
+                $unitName = trim((string) ($item->packing ?? 'Unit')) ?: 'Unit';
+            }
+
+            $out[] = [
+                'id' => $item->id,
+                'name' => $rawName,
+                'part_number' => $item->partnumber_item ? trim((string) $item->partnumber_item->name) : '',
+                'company_name' => $item->company_item ? trim((string) $item->company_item->name) : '',
+                'product_name' => $item->product_item ? trim((string) $item->product_item->name) : '',
+                'scrap_qty_branch' => round($branchTotal, 4),
+                'scrap_qty_warehouse' => round($warehouseQty, 4),
+                'warehouse_id' => $warehouse ? (int) $warehouse->id : null,
+                'warehouse_name' => $warehouse ? trim((string) ($warehouse->warehouse_name ?? '')) : '',
+                'rate' => round($rate, 4),
+                'unit' => $unitName,
+                'bar_code' => trim((string) ($item->bar_code ?? '')),
+                'image' => $image,
+            ];
+        }
+
+        $hasMore = ($page * $perPage) < $totalCount;
+
+        return response()->json([
+            'success' => true,
+            'items' => $out,
+            'meta' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $totalCount,
+                'has_more' => $hasMore,
+            ],
+        ]);
     }
 
     /**
@@ -2290,7 +3477,7 @@ class PurchaseController extends Controller
             $literPerCan = (float) $m[1];
         }
         // 2) From item filling (per-can liters)
-        if ($literPerCan === null && $item->filling !== null && $item->filling !== '' && !is_nan((float) $item->filling)) {
+        if ($literPerCan === null && $item->filling !== null && $item->filling !== '' && ! is_nan((float) $item->filling)) {
             $literPerCan = (float) $item->filling;
         }
         // 3) From unit's base unit (e.g. Can has base unit Liter with multiplier 4) — only if no unit_option
@@ -2309,11 +3496,12 @@ class PurchaseController extends Controller
         $unitDisplay = $unitName;
         if ($literPerCan > 0) {
             $literal = (floor($literPerCan) == $literPerCan) ? (int) $literPerCan : number_format($literPerCan, 1, '.', '');
-            $canLiteral = 'Can - ' . $literal . ' Liter';
+            $canLiteral = 'Can - '.$literal.' Liter';
             if ($unitDisplay === '' || $unitDisplay === 'Unit' || stripos($unitDisplay, 'liter') === false) {
                 $unitDisplay = $canLiteral;
             }
         }
+
         return ['unit_display' => $unitDisplay ?: '', 'liter_per_can' => $literPerCan];
     }
 
@@ -2324,22 +3512,22 @@ class PurchaseController extends Controller
     {
         try {
             $supplier = Supplier::findOrFail($supplierId);
-            
+
             // Get opening balance
             $openingBalance = $supplier->opening_balance ?? 0;
             $balanceType = $supplier->balance_type ?? 'pay'; // 'pay' means we owe supplier
-            
+
             // Get all purchases from this supplier
             $purchases = Purchase::where('supplier_id', $supplier->id)->get();
-            
+
             // Calculate total purchases
             $totalPurchases = $purchases->sum('grand_total');
-            
+
             // Get all payments made to this supplier (sum of allocated amounts from purchase_payments)
-            $totalPayments = PurchasePayment::whereHas('purchase', function($query) use ($supplierId) {
+            $totalPayments = PurchasePayment::whereHas('purchase', function ($query) use ($supplierId) {
                 $query->where('supplier_id', $supplierId);
             })->sum('allocated_amount');
-            
+
             // Calculate balance
             // If balance_type is 'pay', we owe: opening_balance + purchases - payments
             // If balance_type is 'receive', supplier owes us: opening_balance - purchases + payments
@@ -2348,20 +3536,20 @@ class PurchaseController extends Controller
             } else {
                 $balance = $openingBalance - $totalPurchases + $totalPayments;
             }
-            
+
             return response()->json([
                 'success' => true,
                 'balance' => round($balance, 2),
                 'opening_balance' => round($openingBalance, 2),
                 'total_purchases' => round($totalPurchases, 2),
                 'total_payments' => round($totalPayments, 2),
-                'balance_type' => $balanceType
+                'balance_type' => $balanceType,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'balance' => 0,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -2373,7 +3561,7 @@ class PurchaseController extends Controller
     public function getPurchaseOrdersBySupplier(Request $request, $supplierId)
     {
         $supplier = Supplier::find($supplierId);
-        if (!$supplier) {
+        if (! $supplier) {
             return response()->json(['success' => false, 'message' => 'Supplier not found.'], 404);
         }
 
@@ -2392,9 +3580,11 @@ class PurchaseController extends Controller
                 $ordered = (float) ($line->ordered_quantity ?? $line->quantity ?? 0);
                 $received = (float) ($line->received_quantity ?? 0);
                 $pending = max(0, $ordered - $received);
-                if ($pending > 0) $hasPending = true;
+                if ($pending > 0) {
+                    $hasPending = true;
+                }
                 // Use same display logic as search: battery sequence (Product • Plate • Amperes • Company) for battery items, else strip HTML
-                $itemName = 'Item #' . $line->item_id;
+                $itemName = 'Item #'.$line->item_id;
                 if ($line->item) {
                     $batterySequence = $this->buildBatterySequenceDisplayName($line->item);
                     if ($batterySequence !== null) {
@@ -2407,7 +3597,7 @@ class PurchaseController extends Controller
                         if ($raw === '') {
                             $raw = trim((string) ($line->item->bar_code ?? ''));
                         }
-                        $itemName = $raw !== '' ? $raw : ('Item #' . $line->item_id);
+                        $itemName = $raw !== '' ? $raw : ('Item #'.$line->item_id);
                     }
                 }
                 $wh = $line->warehouse;
@@ -2451,6 +3641,7 @@ class PurchaseController extends Controller
             }
             $dateA = $a['purchase_date'] ?? '';
             $dateB = $b['purchase_date'] ?? '';
+
             return strcmp($dateB, $dateA);
         });
 
@@ -2463,7 +3654,7 @@ class PurchaseController extends Controller
     public function closePurchaseOrder(Request $request, $id)
     {
         $po = Purchase::where('id', $id)->where('is_purchase_order', true)->first();
-        if (!$po) {
+        if (! $po) {
             return response()->json(['success' => false, 'message' => 'Purchase Order not found.'], 404);
         }
 
@@ -2477,9 +3668,11 @@ class PurchaseController extends Controller
             $po->po_status = 'completed';
             $po->save();
             DB::commit();
+
             return response()->json(['success' => true, 'message' => 'Purchase Order closed.']);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

@@ -62,6 +62,36 @@
     #addSupplierModal.show .modal-header,
     #addSupplierModal.show .modal-body,
     #addSupplierModal.show .modal-footer { pointer-events: auto !important; }
+
+    /* Add Supplier modal – fixed height 85vh, scrollable body, fixed header/footer */
+    #addSupplierModal .modal-dialog.add-supplier-modal-scroll {
+        max-height: 85vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    #addSupplierModal .modal-content.add-supplier-modal-content {
+        max-height: 85vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    #addSupplierModal .modal-header { flex-shrink: 0 !important; }
+    #addSupplierModal .modal-footer { flex-shrink: 0 !important; }
+    #addSupplierModal .modal-body {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scroll-behavior: smooth !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(0, 0, 0, 0.25) transparent !important;
+    }
+    #addSupplierModal .modal-body::-webkit-scrollbar { width: 8px !important; }
+    #addSupplierModal .modal-body::-webkit-scrollbar-track { background: transparent !important; border-radius: 4px !important; }
+    #addSupplierModal .modal-body::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2) !important; border-radius: 4px !important; }
+    #addSupplierModal .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.35) !important; }
+    #addSupplierModal .modal-body::-webkit-scrollbar-thumb:active { background: rgba(0, 0, 0, 0.45) !important; }
+
     /* Modal Dialog Desktop Alignment */
     #addSupplierModal .modal-dialog {
         max-width: 1140px !important;
@@ -358,6 +388,15 @@
         display: block;
     }
     
+    /* Edit Supplier modal: show suggestions above input so tags (#business_detail_tags_edit_*) stay visible during search */
+    [id^="editSupplierModal"] .edit-business-detail-container .business-detail-suggestions {
+        top: auto;
+        bottom: 100%;
+        margin-top: 0;
+        margin-bottom: 2px;
+        max-height: 200px;
+    }
+    
     .business-detail-suggestion-item {
         display: flex;
         align-items: center;
@@ -378,6 +417,16 @@
     
     .business-detail-suggestion-item.selected {
         background-color: #e7f3ff;
+    }
+    .business-detail-suggestion-item.already-selected {
+        background-color: #e8f5e9;
+        color: #1b5e20;
+    }
+    .business-detail-suggestion-item.already-selected .business-detail-suggestion-text {
+        color: #1b5e20;
+    }
+    .business-detail-suggestion-item.already-selected .badge {
+        background-color: #2e7d32 !important;
     }
     
     .business-detail-suggestion-text {
@@ -422,6 +471,11 @@
         font-size: 16px;
         line-height: 1;
         transition: opacity 0.2s;
+    }
+    .business-detail-tag.tag-highlighted {
+        background-color: #198754;
+        box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.25);
+        transform: translateY(-1px);
     }
     
     .business-detail-tag .tag-remove:hover {
@@ -476,6 +530,38 @@
         visibility: visible !important;
     }
     
+    /* Edit Supplier modal: Products/Business Detail – same look as Select2 search field */
+    [id^="editSupplierModal"] .edit-business-detail-container .business-detail-tag-container {
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        background: #fff;
+        padding: 0.25rem 0.5rem;
+    }
+    [id^="editSupplierModal"] .edit-business-detail-input {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0.4rem 0.5rem;
+        min-height: 33px;
+        background: transparent !important;
+    }
+    [id^="editSupplierModal"] .edit-business-detail-input::placeholder {
+        color: #6c757d;
+    }
+    [id^="editSupplierModal"] .edit-business-detail-input:focus {
+        outline: none;
+    }
+    [id^="editSupplierModal"] .edit-business-detail-tags {
+        min-height: 32px;
+        padding: 0.35rem 0.5rem;
+        border-top: 1px solid #ced4da;
+        margin-top: 0.25rem;
+        background: #fff;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
     /* Remove extra padding from row */
     #addSupplierModal .row.g-3 {
         --bs-gutter-x: 1rem;
@@ -511,11 +597,15 @@
     }
     
     /* Supplier Modal Background Styling - Consistent White Background */
-    #addSupplierModal .modal-content {
+    #addSupplierModal .modal-content,
+    #addSupplierModal .modal-content.add-supplier-modal-content {
         background-color: #ffffff !important;
         border-radius: 12px !important;
         border: none !important;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+        opacity: 1 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
     }
     
     #addSupplierModal .modal-header {
@@ -523,13 +613,13 @@
         border-bottom: 1px solid #e9ecef !important;
         border-radius: 12px 12px 0 0 !important;
         padding: 20px 25px !important;
+        opacity: 1 !important;
     }
     
     #addSupplierModal .modal-body {
         background-color: #ffffff !important;
         padding: 25px !important;
-        max-height: calc(100vh - 200px);
-        overflow-y: auto;
+        opacity: 1 !important;
     }
     
     /* Desktop: Better padding for modal body */
@@ -550,6 +640,21 @@
         border-top: 1px solid #e9ecef !important;
         border-radius: 0 0 12px 12px !important;
         padding: 15px 25px !important;
+        opacity: 1 !important;
+    }
+    
+    /* Edit Supplier Modal: stay above Select2 dropdown so tags and content stay visible */
+    [id^="editSupplierModal"].modal.show,
+    [id^="editSupplierModal"].show {
+        z-index: 1061 !important;
+    }
+    [id^="editSupplierModal"].modal.show .modal-dialog,
+    [id^="editSupplierModal"].show .modal-dialog {
+        z-index: 1062 !important;
+    }
+    [id^="editSupplierModal"].modal.show ~ .modal-backdrop,
+    body:has([id^="editSupplierModal"].modal.show) .modal-backdrop:last-of-type {
+        z-index: 1060 !important;
     }
     
     /* Edit Supplier Modal Background Styling - Consistent White Background */
@@ -582,6 +687,8 @@
     /* Form controls should have white background */
     #addSupplierModal .form-control,
     #addSupplierModal .form-select,
+    #addSupplierModal .input-group,
+    #addSupplierModal form,
     [id^="editSupplierModal"] .form-control,
     [id^="editSupplierModal"] .form-select {
         background-color: #ffffff !important;
@@ -597,11 +704,15 @@
         background-color: #f8f9fa !important;
     }
     
-    /* Ensure row and column backgrounds are transparent */
-    #addSupplierModal .row,
-    #addSupplierModal .col-md-6,
-    #addSupplierModal .col-md-12,
-    #addSupplierModal .col-12,
+    /* Add Supplier modal: solid white only – no transparent/crystal effect inside modal */
+    #addSupplierModal .modal-body .row,
+    #addSupplierModal .modal-body .col-md-6,
+    #addSupplierModal .modal-body .col-md-12,
+    #addSupplierModal .modal-body .col-12 {
+        background-color: #ffffff !important;
+    }
+    
+    /* Edit Supplier: row/col can stay transparent (inherits white from body) */
     [id^="editSupplierModal"] .row,
     [id^="editSupplierModal"] .col-md-6,
     [id^="editSupplierModal"] .col-md-12,
@@ -609,7 +720,17 @@
         background-color: transparent !important;
     }
     
-    /* Image Crop Modal Styling */
+    /* Image Crop Modal Styling — always above Edit Supplier (1061) and Add Supplier (10056) */
+    #imageCropModal.modal {
+        z-index: 100600 !important;
+    }
+    #imageCropModal.modal.show {
+        z-index: 100600 !important;
+    }
+    #imageCropModal.modal.show .modal-dialog {
+        z-index: 100601 !important;
+        position: relative;
+    }
     #imageCropModal .modal-content {
         background-color: #ffffff !important;
         border-radius: 12px !important;
@@ -739,19 +860,32 @@
         max-width: 250px;
     }
     
-    /* Table Column Alignment - Created Date/Time (6th column) */
+    /* Table Column Alignment - Products (5th), Email (6th), Created Date (7th), Created By (8th) */
+    #searchableTable thead th:nth-child(5),
+    #searchableTable tbody td:nth-child(5) {
+        text-align: left;
+        vertical-align: middle;
+        padding-left: 15px;
+        padding-right: 15px;
+        max-width: 200px;
+    }
     #searchableTable thead th:nth-child(6),
     #searchableTable tbody td:nth-child(6) {
         text-align: left;
         vertical-align: middle;
         padding-left: 15px;
         padding-right: 15px;
-        min-width: 150px;
     }
-    
-    /* Table Column Alignment - Created By (7th column) */
     #searchableTable thead th:nth-child(7),
     #searchableTable tbody td:nth-child(7) {
+        text-align: left;
+        vertical-align: middle;
+        padding-left: 15px;
+        padding-right: 15px;
+        min-width: 150px;
+    }
+    #searchableTable thead th:nth-child(8),
+    #searchableTable tbody td:nth-child(8) {
         text-align: left;
         vertical-align: middle;
         padding-left: 15px;
@@ -760,8 +894,8 @@
     }
     
     /* Style for created date/time and created by cells */
-    #searchableTable tbody td:nth-child(6) small,
-    #searchableTable tbody td:nth-child(7) small {
+    #searchableTable tbody td:nth-child(7) small,
+    #searchableTable tbody td:nth-child(8) small {
         display: block;
         line-height: 1.4;
     }
@@ -787,6 +921,9 @@
                 <i class="ti ti-circle-plus me-1"></i>Add
             </a>
             @endcan
+            <a href="{{ route('suppliers.group-numbers') }}" class="btn btn-outline-primary ms-2">
+                <i class="ti ti-users me-1"></i>Group Numbers
+            </a>
         </div>
     </div>
     <div class="card">
@@ -824,6 +961,7 @@
                             <th>Image</th>
                             <th>Phone</th>
                             <th>Supplier Name</th>
+                            <th>Products</th>
                             <th>Email</th>
                             <th>Created Date/Time</th>
                             <th>Created By</th>
@@ -832,7 +970,8 @@
                     </thead>
                     <tbody>
                         @forelse ($suppliers as $key => $item)
-                        <tr data-status="{{ strtolower($item->status ?? 'active') }}">
+                        @php $products = is_array($item->business_detail ?? null) ? $item->business_detail : (json_decode($item->business_detail ?? '[]', true) ?? []); @endphp
+                        <tr data-status="{{ strtolower($item->status ?? 'active') }}" data-products="{{ e(json_encode($products)) }}">
                             <td>{{ $key + 1 }}</td>
                             <td>
                                 @if ($item->profile_img)
@@ -845,6 +984,13 @@
                             </td>
                             <td>{{ $item->phones[0] ?? 'N/A' }}</td>
                             <td>{{ $item->names[0] ?? 'N/A' }}</td>
+                            <td>
+                                @if(!empty($products))
+                                    <small class="text-muted">{{ implode(', ', $products) }}</small>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td>{{ $item->email }}</td>
                             <td>
                                 @if($item->created_at)
@@ -883,6 +1029,13 @@
                                     @can('update_supplier')
                                     <a class="me-2 p-2" href="#" data-bs-toggle="modal" data-bs-target="#editSupplierModal{{ $item->id }}">
                                         <i data-feather="edit" class="feather-edit"></i>
+                                    </a>
+                                    @endcan
+                                    @can('view_supplier')
+                                    <a class="me-2 p-2 text-info" href="javascript:void(0)"
+                                       onclick="showSupplierView({{ $item->id }})"
+                                       title="View Supplier">
+                                        <i data-feather="eye" class="feather-eye"></i>
                                     </a>
                                     @endcan
                                     @can('view_supplier')
@@ -930,11 +1083,35 @@
     </div>
 </div>
 
+{{-- View Supplier Modal (read-only) --}}
+@can('view_supplier')
+<div class="modal fade" id="supplierViewModal" tabindex="-1" aria-labelledby="supplierViewModalLabel" aria-hidden="true" style="z-index: 10560;">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="supplierViewModalLabel">Supplier Details</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="supplierViewModalBody">
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endcan
+
 {{-- Add Modal (Static) --}}
 @can('add_supplier')
 <div class="modal fade" id="addSupplierModal" tabindex="-1" aria-labelledby="addSupplierModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true" style="z-index: 10056;">
-    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable" style="pointer-events: auto;">
-        <div class="modal-content" style="pointer-events: auto;">
+    <div class="modal-dialog modal-dialog-centered modal-xl add-supplier-modal-scroll" style="pointer-events: auto;">
+        <div class="modal-content add-supplier-modal-content" style="pointer-events: auto;">
             <div class="modal-header" style="pointer-events: auto;">
                 <h4 class="modal-title" id="addSupplierModalLabel">Add Supplier</h4>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -954,7 +1131,7 @@
                 <h4 class="modal-title">Edit Supplier</h4>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            @include('admin.suppliers.modals.edit-supplier-form', ['supplier' => $item])
+            @include('admin.suppliers.modals.edit-supplier-form', ['supplier' => $item, 'return_url' => $return_url ?? null, 'edit_supplier_id' => $edit_supplier_id ?? null])
         </div>
     </div>
 </div>
@@ -1038,32 +1215,29 @@
     </div>
 </div>
 
-<!-- Universal Edit Group Modal (for Edit Group button next to group dropdown) -->
-<div class="modal fade" id="universalEditGroupModal" tabindex="-1" aria-labelledby="universalEditGroupModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="universalEditGroupModalLabel">Edit Group</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p id="universalEditGroupHint" class="text-muted small mb-2">Select a group from the dropdown first, then click the edit button.</p>
-                <div id="universalEditGroupForm" style="display: none;">
-                    <input type="hidden" id="universalEditGroupId" value="">
-                    <div class="mb-3">
-                        <label for="universalEditGroupName" class="form-label">Group Name</label>
-                        <input type="text" class="form-control" id="universalEditGroupName" placeholder="Group name">
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer" id="universalEditGroupFooter">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-danger me-auto" id="universalEditGroupDeleteBtn" style="display: none;">Delete</button>
-                <button type="button" class="btn btn-primary" id="universalEditGroupSaveBtn" style="display: none;">Update</button>
-            </div>
-        </div>
-    </div>
-</div>
+@if (request()->get('edit') && request()->get('return_url'))
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var editId = {!! json_encode(request()->get('edit')) !!};
+    var returnUrl = {!! json_encode(request()->get('return_url')) !!};
+    var modalEl = document.getElementById('editSupplierModal' + editId);
+    if (modalEl && returnUrl) {
+        var form = modalEl.querySelector('form#supplierForm');
+        if (form && !form.querySelector('input[name="return_url"]')) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'return_url';
+            inp.value = returnUrl;
+            form.appendChild(inp);
+        }
+        try {
+            var modal = typeof bootstrap !== 'undefined' && bootstrap.Modal && bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (modal && modal.show) modal.show();
+        } catch (e) {}
+    }
+});
+</script>
+@endif
 
 @endsection
 @push('scripts')
@@ -1073,6 +1247,28 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Cropper.js JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<script>
+(function () {
+    var cropModalEl = document.getElementById('imageCropModal');
+    if (!cropModalEl) return;
+    var CROP_MODAL_Z = 100600;
+    var CROP_BACKDROP_Z = 100598;
+    cropModalEl.addEventListener('show.bs.modal', function () {
+        cropModalEl.style.setProperty('z-index', String(CROP_MODAL_Z), 'important');
+    });
+    cropModalEl.addEventListener('shown.bs.modal', function () {
+        cropModalEl.style.setProperty('z-index', String(CROP_MODAL_Z), 'important');
+        var backs = document.querySelectorAll('.modal-backdrop');
+        if (backs.length) {
+            backs[backs.length - 1].style.setProperty('z-index', String(CROP_BACKDROP_Z), 'important');
+        }
+    });
+    cropModalEl.addEventListener('hidden.bs.modal', function () {
+        cropModalEl.style.removeProperty('z-index');
+    });
+})();
+</script>
 
 <script>
     // IIFE to avoid global pollution
@@ -1386,17 +1582,21 @@
 
             // Remove Preview Image
             if (e.target.closest('.remove-image-preview')) {
-                e.target.closest('div').remove();
-                const previewContainer = e.target.closest('#multiple_images_preview');
+                const box = e.target.closest('.multiple-upload-box');
+                const removedDiv = e.target.closest('div.position-relative');
+                if (removedDiv) removedDiv.remove();
+                const previewContainer = box ? box.querySelector('#multiple_images_preview, .preview-container') : e.target.closest('#multiple_images_preview');
                 if (previewContainer && previewContainer.children.length === 0) {
-                    const uploadBox = e.target.closest('.multiple-upload-box');
-                    const placeholder = uploadBox.querySelector('.upload-placeholder');
-                    const uploadBtn = uploadBox.querySelector('.upload-btn');
-                    const existing = uploadBox.querySelector('.existing-images');
-                    if (placeholder) placeholder.style.display = 'block';
-                    if (uploadBtn) uploadBtn.style.display = 'block';
-                    if (previewContainer) previewContainer.classList.add('d-none');
-                    if (existing) existing.style.display = 'block';
+                    const uploadBox = box || e.target.closest('.multiple-upload-box');
+                    if (uploadBox) {
+                        const placeholder = uploadBox.querySelector('.upload-placeholder');
+                        const uploadBtn = uploadBox.querySelector('.upload-btn');
+                        const multiInput = uploadBox.querySelector('input#multiple_images, input[name="multiple_images[]"]');
+                        if (placeholder) placeholder.style.display = 'block';
+                        if (uploadBtn) uploadBtn.style.display = 'block';
+                        if (previewContainer) previewContainer.classList.add('d-none');
+                        if (multiInput) multiInput.value = '';
+                    }
                 }
             }
 
@@ -1532,13 +1732,13 @@
                 if (linkContainer) linkContainer.style.display = 'none';
             }
 
-            // WhatsApp Button Click
+            // WhatsApp Button Click (country code is in .name-phone-row, not inside .input-group)
             if (e.target.closest('.phone-whatsapp-btn')) {
                 e.preventDefault();
                 const btn = e.target.closest('.phone-whatsapp-btn');
-                const inputGroup = btn.closest('.input-group');
-                const countryCodeSelect = inputGroup ? inputGroup.querySelector('.phone-country-code') : null;
-                const phoneInput = inputGroup ? inputGroup.querySelector('.phone-number-input') : null;
+                const row = btn.closest('.name-phone-row');
+                const countryCodeSelect = row ? row.querySelector('.phone-country-code') : null;
+                const phoneInput = row ? row.querySelector('.phone-number-input') : null;
                 
                 if (!phoneInput) return;
                 
@@ -1549,30 +1749,20 @@
                     return;
                 }
                 
-                // Get country code
-                let countryCode = '92'; // Default to Pakistan
-                if (countryCodeSelect) {
-                    countryCode = countryCodeSelect.value || '92';
-                }
-                
-                // Remove any non-digit characters from phone number
+                let countryCode = '92';
+                if (countryCodeSelect) countryCode = countryCodeSelect.value || '92';
                 const cleanNumber = phoneNumber.replace(/\D/g, '');
-                
-                // Create WhatsApp URL
                 const whatsappNumber = countryCode + cleanNumber;
-                const whatsappUrl = `https://wa.me/${whatsappNumber}`;
-                
-                // Open WhatsApp
-                window.open(whatsappUrl, '_blank');
+                window.open('https://wa.me/' + whatsappNumber, '_blank');
             }
 
-            // Call Button Click
+            // Call Button Click (country code from .name-phone-row)
             if (e.target.closest('.phone-call-btn')) {
                 e.preventDefault();
                 const btn = e.target.closest('.phone-call-btn');
-                const inputGroup = btn.closest('.input-group');
-                const countryCodeSelect = inputGroup ? inputGroup.querySelector('.phone-country-code') : null;
-                const phoneInput = inputGroup ? inputGroup.querySelector('.phone-number-input') : null;
+                const row = btn.closest('.name-phone-row');
+                const countryCodeSelect = row ? row.querySelector('.phone-country-code') : null;
+                const phoneInput = row ? row.querySelector('.phone-number-input') : null;
                 
                 if (!phoneInput) return;
                 
@@ -1583,21 +1773,11 @@
                     return;
                 }
                 
-                // Get country code
-                let countryCode = '92'; // Default to Pakistan
-                if (countryCodeSelect) {
-                    countryCode = countryCodeSelect.value || '92';
-                }
-                
-                // Remove any non-digit characters from phone number
+                let countryCode = '92';
+                if (countryCodeSelect) countryCode = countryCodeSelect.value || '92';
                 const cleanNumber = phoneNumber.replace(/\D/g, '');
-                
-                // Create tel: URL with country code
                 const fullNumber = '+' + countryCode + cleanNumber;
-                const telUrl = `tel:${fullNumber}`;
-                
-                // Initiate call (works on mobile devices)
-                window.location.href = telUrl;
+                window.location.href = 'tel:' + fullNumber;
             }
         });
 
@@ -2564,17 +2744,20 @@
             }
 
             if (e.target.id === 'multiple_images') {
-                const files = e.target.files;
-                const previewContainer = document.getElementById('multiple_images_preview');
-                const placeholder = e.target.closest('.multiple-upload-box').querySelector('.upload-placeholder');
-                const uploadBtn = e.target.closest('.multiple-upload-box').querySelector('.upload-btn');
-                const existing = e.target.closest('.multiple-upload-box').querySelector('.existing-images');
-                if (files.length > 0) {
+                // Add Supplier form handles its own multiple images in create-supplier-form script; skip here to avoid duplicate
+                if (e.target.closest('#addSupplierModal')) return;
+                const input = e.target;
+                const box = input.closest('.multiple-upload-box');
+                const previewContainer = box ? box.querySelector('#multiple_images_preview, .preview-container') : document.getElementById('multiple_images_preview');
+                const placeholder = box ? box.querySelector('.upload-placeholder') : null;
+                const uploadBtn = box ? box.querySelector('.upload-btn') : null;
+                const files = input.files;
+                if (files && files.length > 0) {
                     if (placeholder) placeholder.style.display = 'none';
                     if (uploadBtn) uploadBtn.style.display = 'none';
-                    if (existing) existing.style.display = 'none';
                     if (previewContainer) {
                         previewContainer.classList.remove('d-none');
+                        previewContainer.classList.add('d-flex', 'flex-wrap', 'justify-content-center', 'gap-2', 'p-2');
                         previewContainer.innerHTML = '';
                         Array.from(files).forEach((file) => {
                             if (file.type.startsWith('image/')) {
@@ -2586,9 +2769,9 @@
                                     div.style.height = '150px';
                                     div.style.cursor = 'pointer';
                                     div.innerHTML = `
-                                        <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded" style="max-height: 100px; max-width: 100px; display: block; margin: 0 auto;">
-                                        <small class="d-block text-muted mt-1">${file.name}</small>
-                                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-image-preview"><i class="fas fa-trash"></i></button>
+                                        <img src="${ev.target.result.replace(/"/g, '&quot;')}" alt="${(file.name || '').replace(/"/g, '&quot;')}" class="img-fluid rounded" style="max-height: 100px; max-width: 100px; display: block; margin: 0 auto;">
+                                        <small class="d-block text-muted mt-1 text-truncate" style="max-width: 130px;">${(file.name || '').replace(/</g, '&lt;')}</small>
+                                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" title="Remove"><i class="fas fa-trash"></i></button>
                                     `;
                                     previewContainer.appendChild(div);
                                 };
@@ -2599,11 +2782,22 @@
                 } else {
                     if (placeholder) placeholder.style.display = 'block';
                     if (uploadBtn) uploadBtn.style.display = 'block';
-                    if (existing) existing.style.display = 'block';
                     if (previewContainer) {
                         previewContainer.classList.add('d-none');
                         previewContainer.innerHTML = '';
                     }
+                }
+            }
+
+            // Click on placeholder or "Upload Images" button opens file picker for multiple images (Edit modal only; Add modal uses create-supplier-form)
+            const multiBox = e.target.closest('.multiple-upload-box');
+            if (multiBox && multiBox.closest('#addSupplierModal')) return;
+            if (multiBox && (e.target.closest('.upload-placeholder') || e.target.closest('.upload-btn')) && !e.target.closest('.remove-image-preview')) {
+                const multiInput = multiBox.querySelector('input#multiple_images, input[name="multiple_images[]"]');
+                if (multiInput) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    multiInput.click();
                 }
             }
         });
@@ -2616,16 +2810,20 @@
             }
         });
 
-        // Password Generation (delegated for add modal)
+        // Password Generation (delegated for add modal; use closest so click on icon/text works)
         document.addEventListener('click', function(e) {
-            if (e.target.id === 'generatePassword') {
+            if (e.target.closest('#generatePassword')) {
+                e.preventDefault();
                 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
                 let password = "";
                 for (let i = 0; i < 14; i++) {
                     password += charset.charAt(Math.floor(Math.random() * charset.length));
                 }
                 const passInput = document.getElementById('password');
-                if (passInput) passInput.value = password;
+                if (passInput) {
+                    passInput.value = password;
+                    passInput.removeAttribute('readonly');
+                }
             }
         });
 
@@ -2633,20 +2831,19 @@
         // Form Submission Spinner and Validation (delegated for all forms)
         document.addEventListener('submit', function(e) {
             if (e.target.id === 'supplierForm') {
-                // Check if voice recording is required and validate it exists
+                // Voice note: required only when voiceNoteRequired=1 AND no name text entered
                 const voiceNoteRequired = e.target.querySelector('#voiceNoteRequired');
                 if (voiceNoteRequired && voiceNoteRequired.value === '1') {
                     const voiceNoteInput = e.target.querySelector('input[name="voice_note"]');
                     const firstRow = e.target.querySelector('.name-phone-row');
                     const audioContainer = firstRow ? firstRow.querySelector('.audio-player-container') : null;
-                    
-                    // Check if voice recording exists (either file input with file or audio container)
+                    const nameInput = firstRow ? firstRow.querySelector('input[name="names[]"], .speech-input') : null;
+                    const hasNameText = nameInput && (nameInput.value || '').trim().length > 0;
                     const hasVoiceNoteFile = voiceNoteInput && voiceNoteInput.files && voiceNoteInput.files.length > 0;
                     const hasAudioContainer = audioContainer !== null;
-                    
-                    if (!hasVoiceNoteFile && !hasAudioContainer) {
+                    if (!hasVoiceNoteFile && !hasAudioContainer && !hasNameText) {
                         e.preventDefault();
-                        alert('⚠️ Please record voice for NAME. Voice recording is required!');
+                        alert('⚠️ Please enter Record Voice NAME or record voice. At least one is required.');
                         const firstMicBtn = firstRow ? firstRow.querySelector('.mic-btn') : null;
                         if (firstMicBtn) {
                             firstMicBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3079,8 +3276,8 @@
             rows.forEach(function(row) {
                 let showRow = true;
                 
-                // Filter by date (check created date column - 6th column)
-                const dateCell = row.querySelector('td:nth-child(6)');
+                // Filter by date (check created date column - 7th column)
+                const dateCell = row.querySelector('td:nth-child(7)');
                 if (dateCell && (startDate || endDate)) {
                     const dateText = dateCell.textContent.trim();
                     // Extract date from format "Date: DD/MM/YYYY"
@@ -3207,7 +3404,7 @@
                     const endDate = endDateFilter ? endDateFilter.value : '';
                     
                     // Filter by date
-                    const dateCell = row.querySelector('td:nth-child(6)');
+                    const dateCell = row.querySelector('td:nth-child(7)');
                     if (dateCell && (startDate || endDate)) {
                         const dateText = dateCell.textContent.trim();
                         const dateMatch = dateText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
@@ -3244,7 +3441,7 @@
                         }
                     }
                     
-                    // Then check search filter
+                    // Then check search filter (includes product names)
                     if (showRow && filter) {
                         const cells = row.getElementsByTagName('td');
                         let match = false;
@@ -3254,6 +3451,20 @@
                                 match = true;
                                 break;
                             }
+                        }
+                        if (!match) {
+                            try {
+                                const products = row.getAttribute('data-products');
+                                if (products) {
+                                    const arr = JSON.parse(products);
+                                    for (let k = 0; k < arr.length; k++) {
+                                        if (String(arr[k]).toLowerCase().includes(filter)) {
+                                            match = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            } catch (e) {}
                         }
                         showRow = match;
                     }
@@ -3273,12 +3484,24 @@
                 initSupplierGroupSelect2(this);
             }.bind(addSupplierModal), 100);
         });
+        // Also init Group select when DOM is ready so search works even if modal was already open
+        setTimeout(function() {
+            if (document.getElementById('create_supplier_group_id') && !document.querySelector('#addSupplierModal .select2-container')) {
+                initSupplierGroupSelect2(addSupplierModal);
+            }
+        }, 500);
     }
 
     // Group select: open on click, search always visible (Add & Edit Supplier modals)
     function initSupplierGroupSelect2(modalEl) {
         const container = modalEl && modalEl.querySelector ? modalEl : document;
-        const sel = (container.querySelector || document.querySelector).call(container, 'select.supplier-group-select');
+        // In Add Supplier modal, target the create form's group select by ID so search works
+        let sel = container.querySelector('select.supplier-group-select');
+        if (container.id === 'addSupplierModal' && document.getElementById('create_supplier_group_id')) {
+            sel = document.getElementById('create_supplier_group_id');
+        }
+        // Skip Select2 for create form: it uses custom dropdown with search inside
+        if (sel && sel.id === 'create_supplier_group_id') return;
         if (!sel || !window.$ || !$.fn.select2) return;
         const $sel = $(sel);
         const $modal = $sel.closest('.modal');
@@ -3286,31 +3509,37 @@
             try { $sel.select2('destroy'); } catch (err) {}
         }
         $sel.select2({
-            placeholder: 'Select Group',
+            placeholder: 'Search or select group…',
             allowClear: true,
             width: '100%',
             minimumResultsForSearch: 0,
-            dropdownParent: $modal.length ? $modal : $('body'),
-            escapeMarkup: function(m) { return m; },
             language: {
-                search: function() { return 'Search…'; },
+                search: function() { return ''; },
+                inputTooShort: function() { return 'Type to search'; },
+                searching: function() { return 'Searching…'; },
                 noResults: function() {
                     const term = ($('.select2-container--open .select2-search__field').val() || '').trim();
                     const display = term ? ' &quot;' + term.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') + '&quot;' : '';
-                    return '<div class="p-2 text-center"><button type="button" class="btn btn-primary btn-sm select2-add-group-btn" data-term="' + (term.replace(/"/g, '&quot;')) + '"><i class="ti ti-plus me-1"></i>Add' + display + '</button></div>';
+                    return 'No match. <button type="button" class="btn btn-primary btn-sm select2-add-group-btn" data-term="' + (term.replace(/"/g, '&quot;')) + '"><i class="ti ti-plus me-1"></i>Add' + display + '</button>';
                 }
-            }
+            },
+            dropdownParent: $modal.length ? $modal : $('body'),
+            escapeMarkup: function(m) { return m; }
         });
         $sel.on('select2:open', function() {
             setTimeout(function() {
-                var $search = $('.select2-dropdown .select2-search__field');
-                if (!$search.length) $search = $('.select2-container--open .select2-search__field');
-                if ($search.length) $search[0].focus();
-            }, 100);
+                var $search = $('.select2-container--open .select2-search__field');
+                if (!$search.length) $search = $('.select2-dropdown .select2-search__field');
+                if ($search.length) {
+                    $search[0].focus();
+                    $search.attr('placeholder', 'Type to search group…');
+                }
+            }, 150);
         });
         // Delegate from modal so click/mousedown on container or selection always opens dropdown
         var openGroupDropdown = function(e) {
             var $groupSel = $modal.find('select.supplier-group-select');
+            if (!$groupSel.length) $groupSel = $modal.find('#create_supplier_group_id');
             if (!$groupSel.length || !$groupSel.data('select2')) return;
             if (!$groupSel.data('select2').isOpen()) {
                 e.preventDefault();
@@ -3323,8 +3552,273 @@
     document.addEventListener('shown.bs.modal', function(e) {
         if (e.target.id && e.target.id.indexOf('editSupplierModal') === 0) {
             setTimeout(function() { initSupplierGroupSelect2(e.target); }, 100);
+            setTimeout(function() { initEditModalBusinessDetail(e.target); }, 150);
         }
     });
+
+    window.initEditModalBusinessDetail = function(modalEl) {
+        if (!modalEl) return;
+        var match = (modalEl.id || '').match(/editSupplierModal(\d+)/);
+        var supplierId = match ? match[1] : '';
+        if (!supplierId) return;
+        var input = document.getElementById('business_detail_input_edit_' + supplierId);
+        var suggestions = document.getElementById('business_detail_suggestions_edit_' + supplierId);
+        var tagsContainer = document.getElementById('business_detail_tags_edit_' + supplierId);
+        var hiddenInput = document.getElementById('business_detail_edit_' + supplierId);
+        if (!input || !tagsContainer || !hiddenInput) return;
+
+        var COMMON_PRODUCT_SUGGESTIONS = (window.__supplierCommonProductSuggestions || []);
+        var searchUrl = (document.body && document.body.getAttribute('data-supplier-products-search-url')) || '{{ route("suppliers.products.search") }}';
+        var storeUrl = (window.__supplierStoreProductUrl || '{{ route("suppliers.products.store") }}');
+        var tags = [];
+        var currentSuggestions = [];
+        var selectedSuggestionIndex = -1;
+        var suggestionTimeout = null;
+
+        function loadTagsFromHidden() {
+            tags = [];
+            try {
+                var val = (hiddenInput.value || '').trim();
+                if (!val) return;
+                val = val.replace(/&quot;/g, '"');
+                if (val.charAt(0) === '[') {
+                    var parsed = JSON.parse(val);
+                    tags = Array.isArray(parsed) ? parsed : [];
+                } else {
+                    tags = val.split(',').map(function(t) { return t.trim(); }).filter(Boolean);
+                }
+            } catch (err) {
+                tags = [];
+            }
+        }
+        function updateHidden() { hiddenInput.value = JSON.stringify(tags); }
+        function isDup(name) {
+            return tags.some(function(t) { return (t || '').toLowerCase().trim() === (name || '').toLowerCase().trim(); });
+        }
+        function renderTags() {
+            tagsContainer.innerHTML = '';
+            tags.forEach(function(tag) {
+                var span = document.createElement('span');
+                span.className = 'business-detail-tag';
+                span.innerHTML = tag + ' <span class="tag-remove" data-tag="' + (tag || '').replace(/"/g, '&quot;') + '" title="Remove">×</span>';
+                tagsContainer.appendChild(span);
+            });
+            tagsContainer.querySelectorAll('.tag-remove').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var t = this.getAttribute('data-tag');
+                    tags = tags.filter(function(x) { return x !== t; });
+                    renderTags();
+                    updateHidden();
+                });
+            });
+        }
+        function addTag(name) {
+            var v = (name || '').trim();
+            if (!v || isDup(v)) return;
+            tags.push(v);
+            renderTags();
+            updateHidden();
+        }
+        function getInstantSuggestions(query) {
+            var q = (query || '').toLowerCase().trim();
+            if (!q) return [];
+            var list = COMMON_PRODUCT_SUGGESTIONS.filter(function(name) {
+                return name.toLowerCase().includes(q);
+            });
+            list.sort(function(a, b) {
+                var aa = a.toLowerCase(), bb = b.toLowerCase();
+                var as = aa.startsWith(q) ? 0 : 1;
+                var bs = bb.startsWith(q) ? 0 : 1;
+                if (as !== bs) return as - bs;
+                return aa.localeCompare(bb);
+            });
+                return list.slice(0, 25).map(function(name) { return { name: name, addNew: false, alreadySelected: isDup(name) }; });
+        }
+        function displaySuggestions(list, query) {
+            if (!list || !list.length) {
+                suggestions.innerHTML = '';
+                suggestions.classList.remove('show');
+                return;
+            }
+            var regex = new RegExp('(' + (query || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            var highlight = function(t) { return (t || '').replace(regex, '<span class="highlight">$1</span>'); };
+            suggestions.innerHTML = list.map(function(item, i) {
+                var isAddNew = item.addNew === true;
+                var isAlreadySelected = item.alreadySelected === true;
+                var text = isAddNew ? ('Add new: ' + item.name) : item.name;
+                return '<div class="business-detail-suggestion-item' + (i === selectedSuggestionIndex ? ' selected' : '') + (isAlreadySelected ? ' already-selected' : '') + '" data-value="' + (item.name || '').replace(/"/g, '&quot;') + '" data-add-new="' + (isAddNew ? '1' : '0') + '" data-already-selected="' + (isAlreadySelected ? '1' : '0') + '">' +
+                    '<div class="business-detail-suggestion-text">' + highlight(text) + '</div>' +
+                    (isAddNew ? ' <span class="badge bg-primary ms-1">Add</span>' : '') +
+                    (isAlreadySelected ? ' <span class="badge ms-1">Added</span>' : '') + '</div>';
+            }).join('');
+            suggestions.classList.add('show');
+        }
+        function closeSuggestionsAndReset() {
+            input.value = '';
+            suggestions.classList.remove('show');
+            selectedSuggestionIndex = -1;
+        }
+        function handleSuggestionSelection(sel) {
+            if (!sel || !sel.name) return;
+            if (sel.addNew) {
+                addNewProductAndTag(sel.name);
+                return;
+            }
+            if (isDup(sel.name)) {
+                closeSuggestionsAndReset();
+                return;
+            }
+            addTag(sel.name);
+            closeSuggestionsAndReset();
+        }
+        function navigateSuggestions(direction) {
+            var items = suggestions.querySelectorAll('.business-detail-suggestion-item');
+            if (!items.length) return;
+            items.forEach(function(item) { item.classList.remove('selected'); });
+            selectedSuggestionIndex += direction;
+            if (selectedSuggestionIndex < 0) selectedSuggestionIndex = items.length - 1;
+            else if (selectedSuggestionIndex >= items.length) selectedSuggestionIndex = 0;
+            if (items[selectedSuggestionIndex]) {
+                items[selectedSuggestionIndex].classList.add('selected');
+                items[selectedSuggestionIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+        function addNewProductAndTag(name) {
+            var trimmed = (name || '').trim();
+            if (!trimmed) return;
+            if (isDup(trimmed)) {
+                input.value = '';
+                suggestions.classList.remove('show');
+                return;
+            }
+            var tokenInput = modalEl.querySelector('input[name="_token"]');
+            var token = tokenInput ? tokenInput.value : '';
+            input.disabled = true;
+            input.placeholder = 'Saving product…';
+            fetch(storeUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: 'name=' + encodeURIComponent(trimmed) + '&_token=' + encodeURIComponent(token)
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                addTag((data && data.name) ? data.name : trimmed);
+                input.value = '';
+                input.placeholder = 'Type product name and press Enter';
+                input.disabled = false;
+                suggestions.classList.remove('show');
+                selectedSuggestionIndex = -1;
+            }).catch(function() {
+                addTag(trimmed);
+                input.value = '';
+                input.placeholder = 'Type product name and press Enter';
+                input.disabled = false;
+                suggestions.classList.remove('show');
+                selectedSuggestionIndex = -1;
+            });
+        }
+        function fetchAndShowSuggestions(query) {
+            var q = (query || '').trim();
+            if (!q) { suggestions.classList.remove('show'); return; }
+            var instantList = getInstantSuggestions(q);
+            var exactInInstant = instantList.some(function(p) { return p.name.toLowerCase() === q.toLowerCase(); });
+            var list = instantList.map(function(p) { return { name: p.name, addNew: false }; });
+            if (!exactInInstant && !isDup(q)) list.push({ name: q, addNew: true });
+            currentSuggestions = list;
+            displaySuggestions(list, q);
+            fetch(searchUrl + '?q=' + encodeURIComponent(q)).then(function(r) { return r.json(); }).then(function(data) {
+                var products = (data && data.products) ? data.products : [];
+                var fromApi = products.map(function(p) { return { name: p.name, addNew: false, alreadySelected: isDup(p.name) }; });
+                var seen = new Set(list.map(function(i) { return i.name.toLowerCase(); }));
+                fromApi.forEach(function(p) {
+                    if (!seen.has(p.name.toLowerCase())) { list.push(p); seen.add(p.name.toLowerCase()); }
+                });
+                var exactMatch = list.some(function(p) { return p.name.toLowerCase() === q.toLowerCase(); });
+                list = list.filter(function(i) { return !i.addNew; });
+                if (!exactMatch && !isDup(q)) list.push({ name: q, addNew: true });
+                else if (list.length === 0 && !isDup(q)) list.push({ name: q, addNew: true });
+                currentSuggestions = list;
+                displaySuggestions(list, q);
+            }).catch(function() {
+                if (list.length === 0) {
+                    var fallback = isDup(q) ? [] : [{ name: q, addNew: true }];
+                    currentSuggestions = fallback;
+                    displaySuggestions(fallback, q);
+                }
+            });
+        }
+
+        // Avoid stacking multiple listeners on repeated modal open.
+        if (input._bdInputHandler) input.removeEventListener('input', input._bdInputHandler);
+        if (input._bdKeyHandler) input.removeEventListener('keydown', input._bdKeyHandler);
+        if (suggestions._bdClickHandler) suggestions.removeEventListener('click', suggestions._bdClickHandler);
+        if (document._bdEditOutsideHandler) document.removeEventListener('click', document._bdEditOutsideHandler, true);
+
+        loadTagsFromHidden();
+        renderTags();
+        updateHidden();
+
+        input._bdInputHandler = function() {
+            var query = input.value.trim();
+            if (suggestionTimeout) clearTimeout(suggestionTimeout);
+            if (query.length < 1) { suggestions.classList.remove('show'); selectedSuggestionIndex = -1; return; }
+            suggestionTimeout = setTimeout(function() { fetchAndShowSuggestions(query); }, 150);
+        };
+        input.addEventListener('input', input._bdInputHandler);
+
+        input._bdKeyHandler = function(e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                e.stopPropagation();
+                var value = input.value.trim();
+                if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
+                    var sel = currentSuggestions[selectedSuggestionIndex];
+                    handleSuggestionSelection(sel);
+                } else if (value) {
+                    if (isDup(value)) closeSuggestionsAndReset();
+                    else addNewProductAndTag(value);
+                }
+                return false;
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                navigateSuggestions(1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                navigateSuggestions(-1);
+            } else if (e.key === 'Escape') {
+                suggestions.classList.remove('show');
+                selectedSuggestionIndex = -1;
+            }
+        };
+        input.addEventListener('keydown', input._bdKeyHandler);
+
+        suggestions._bdClickHandler = function(e) {
+            var item = e.target.closest('.business-detail-suggestion-item');
+            if (!item) return;
+            var value = item.dataset.value;
+            var isAddNew = item.dataset.addNew === '1';
+            if (!value) return;
+            handleSuggestionSelection({ name: value, addNew: isAddNew, alreadySelected: item.dataset.alreadySelected === '1' });
+        };
+        suggestions.addEventListener('click', suggestions._bdClickHandler);
+
+        tagsContainer.addEventListener('click', function(e) {
+            if (e.target.closest('.tag-remove')) return;
+            var tagEl = e.target.closest('.business-detail-tag');
+            if (!tagEl) return;
+            tagsContainer.querySelectorAll('.business-detail-tag').forEach(function(el) {
+                if (el !== tagEl) el.classList.remove('tag-highlighted');
+            });
+            tagEl.classList.toggle('tag-highlighted');
+        });
+
+        document._bdEditOutsideHandler = function(e) {
+            if (!modalEl.classList.contains('show')) return;
+            if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+                suggestions.classList.remove('show');
+                selectedSuggestionIndex = -1;
+            }
+        };
+        document.addEventListener('click', document._bdEditOutsideHandler, true);
+    };
 
     $(document).on('click', '.select2-add-group-btn', function(e) {
         e.preventDefault();
@@ -3347,105 +3841,6 @@
                         $(this).val(res.id).trigger('change');
                     });
                 }
-            }
-        });
-    });
-
-    // Edit Group button (open-universal-modal): open modal, fetch selected group, update/delete
-    $(document).on('click', '.open-universal-modal', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var btn = $(this);
-        var fetchRoute = (btn.data('fetch-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
-        var updateRoute = (btn.data('update-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
-        var deleteRoute = (btn.data('delete-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
-        var targetSelect = btn.data('target-select') || '.supplier-group-select';
-        var $select = btn.closest('.modal').length ? btn.closest('.modal').find(targetSelect) : $(targetSelect).first();
-        if (!$select.length) $select = $(targetSelect).first();
-        var groupId = $select.length ? ($select.val() || '').trim() : '';
-        var $uModal = $('#universalEditGroupModal');
-        var $hint = $('#universalEditGroupHint');
-        var $form = $('#universalEditGroupForm');
-        var $idInput = $('#universalEditGroupId');
-        var $nameInput = $('#universalEditGroupName');
-        var $saveBtn = $('#universalEditGroupSaveBtn');
-        var $deleteBtn = $('#universalEditGroupDeleteBtn');
-        if (!groupId) {
-            $hint.show().text('Select a group from the dropdown first, then click the edit button.');
-            $form.hide();
-            $saveBtn.hide();
-            $deleteBtn.hide();
-            $uModal.modal('show');
-            return;
-        }
-        $hint.hide();
-        $form.show();
-        $idInput.val(groupId);
-        $nameInput.val('');
-        $saveBtn.show();
-        $deleteBtn.show();
-        var url = fetchRoute.replace(':id', groupId);
-        $.ajax({
-            url: url,
-            method: 'GET',
-            success: function(data) {
-                $nameInput.val(data.name || '');
-                $uModal.modal('show');
-            },
-            error: function() {
-                if (typeof toastr !== 'undefined') toastr.error('Could not load group.');
-                else alert('Could not load group.');
-            }
-        });
-    });
-    $('#universalEditGroupSaveBtn').on('click', function() {
-        var id = $('#universalEditGroupId').val();
-        var name = ($('#universalEditGroupName').val() || '').trim();
-        if (!name) {
-            if (typeof toastr !== 'undefined') toastr.warning('Enter a group name.');
-            else alert('Enter a group name.');
-            return;
-        }
-        var updateRoute = ($('.open-universal-modal').data('update-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
-        var url = updateRoute.replace(':id', id);
-        var $select = $('select.supplier-group-select');
-        $.ajax({
-            url: url,
-            method: 'PUT',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
-            data: { _token: '{{ csrf_token() }}', name: name },
-            success: function(res) {
-                $select.find('option[value="' + id + '"]').text(name);
-                $('#universalEditGroupModal').modal('hide');
-                if (typeof toastr !== 'undefined') toastr.success(res.message || 'Group updated.');
-            },
-            error: function(xhr) {
-                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Update failed.';
-                if (typeof toastr !== 'undefined') toastr.error(msg);
-                else alert(msg);
-            }
-        });
-    });
-    $('#universalEditGroupDeleteBtn').on('click', function() {
-        if (!confirm('Delete this group? This may affect suppliers using it.')) return;
-        var id = $('#universalEditGroupId').val();
-        var deleteRoute = ($('.open-universal-modal').data('delete-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
-        var url = deleteRoute.replace(':id', id);
-        var $select = $('select.supplier-group-select');
-        $.ajax({
-            url: url,
-            method: 'DELETE',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
-            success: function() {
-                $select.find('option[value="' + id + '"]').remove();
-                $select.val('').trigger('change');
-                $('#universalEditGroupModal').modal('hide');
-                if (typeof toastr !== 'undefined') toastr.success('Group deleted.');
-            },
-            error: function(xhr) {
-                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Delete failed.';
-                if (typeof toastr !== 'undefined') toastr.error(msg);
-                else alert(msg);
             }
         });
     });
@@ -3655,9 +4050,9 @@
                         }
                         html += `<td>${trans.description}</td>`;
                         html += `<td>${trans.branch}</td>`;
-                        html += `<td class="text-end text-danger">${parseFloat(trans.debit).toFixed(2)}</td>`;
-                        html += `<td class="text-end text-success">${parseFloat(trans.credit).toFixed(2)}</td>`;
-                        html += `<td class="text-end fw-bold">${parseFloat(trans.balance).toFixed(2)}</td>`;
+                        html += `<td class="text-end text-danger">${Math.round(parseFloat(trans.debit) || 0)}</td>`;
+                        html += `<td class="text-end text-success">${Math.round(parseFloat(trans.credit) || 0)}</td>`;
+                        html += `<td class="text-end fw-bold">${Math.round(parseFloat(trans.balance) || 0)}</td>`;
                         html += '</tr>';
                     });
                 } else {
@@ -4165,13 +4560,188 @@
             if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger text-center">Error loading edit history. Please try again.</div>';
         });
     }
+
+    // Supplier View Function (read-only modal)
+    function showSupplierView(supplierId) {
+        var modalBody = document.getElementById('supplierViewModalBody');
+        if (modalBody) {
+            modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        }
+        var modalElement = document.getElementById('supplierViewModal');
+        if (!modalElement) return;
+
+        var modal = new bootstrap.Modal(modalElement);
+        modal.show();
+
+        // Use Laravel base URL to avoid 404 when app is hosted under a subdirectory (e.g. /MAIN/trader/public)
+        var baseUrl = '{{ url('/') }}';
+        baseUrl = baseUrl.replace(/\/$/, '');
+        var url = baseUrl + '/suppliers/' + supplierId + '/view';
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'text/html'
+            },
+            credentials: 'same-origin'
+        })
+        .then(function (response) {
+            if (response.status === 401) {
+                throw new Error('Unauthorized');
+            }
+            return response.text();
+        })
+        .then(function (html) {
+            if (modalBody) modalBody.innerHTML = html;
+        })
+        .catch(function () {
+            if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger text-center mb-0">Error loading supplier details.</div>';
+        });
+    }
     
-    // Business Detail Tag Input with Spelling Suggestions
+    // Business Detail Tag Input: search products, add new, tags below
     (function() {
+        const searchProductsUrl = @json(route('suppliers.products.search'));
+        const storeProductUrl = @json(route('suppliers.products.store'));
         let businessDetailTags = [];
         let suggestionTimeout = null;
         let currentSuggestions = [];
         let selectedSuggestionIndex = -1;
+        
+        // Large keyword list so most typed words show suggestions (Google-style coverage)
+        const COMMON_PRODUCT_SUGGESTIONS = [
+            'Rice', 'Chawal', 'Sugar', 'Cheeni', 'Wheat', 'Gandum', 'Flour', 'Maida', 'Cooking Oil', 'Tail', 'Ghee', 'Butter', 'Makhan',
+            'Tea', 'Chai', 'Milk', 'Doodh', 'Bread', 'Roti', 'Eggs', 'Anday', 'Rice Flour', 'Rice Maida', 'Basmati', 'Sella', 'Broken Rice',
+            'Pulses', 'Daal', 'Lentils', 'Chana', 'Chickpeas', 'Masoor', 'Moong', 'Mash', 'Lobia', 'Rajma', 'White Chana', 'Kala Chana',
+            'Spices', 'Masala', 'Salt', 'Namak', 'Pepper', 'Kali Mirch', 'Cumin', 'Zeera', 'Turmeric', 'Haldi', 'Red Chilli', 'Lal Mirch',
+            'Coriander', 'Dhania', 'Garam Masala', 'Cardamom', 'Elaichi', 'Cinnamon', 'Dalchini', 'Cloves', 'Laung', 'Bay Leaf', 'Tez Patta',
+            'Soap', 'Sabun', 'Shampoo', 'Detergent', 'Surf', 'Bleach', 'Toothpaste', 'Colgate', 'Face Wash', 'Hand Wash', 'Dish Wash',
+            'Biscuits', 'Biskut', 'Nimco', 'Chips', 'Kurkure', 'Juice', 'Cold Drink', 'Water', 'Pani', 'Mineral Water', 'Soft Drink',
+            'Computer', 'Computers', 'Laptop', 'Laptops', 'Tablet', 'Tablets', 'Electronics', 'Mobile', 'Phone', 'Charger', 'Cable', 'Battery', 'Batteries',
+            'Smartphone', 'iPhone', 'Android', 'Touchscreen', 'Screen Guard', 'Case', 'Cover', 'Earphones', 'Headphones', 'Speaker', 'Bluetooth',
+            'Clothing', 'Kapray', 'Fabric', 'Cloth', 'Garments', 'Shoes', 'Jootay', 'Bags', 'Company', 'Companies', 'Shirt', 'T-Shirt', 'Pant', 'Trouser',
+            'Cotton', 'Colour', 'Color', 'Copper', 'Coil', 'Cooler', 'Copy', 'Copies', 'Cosmetics', 'Containers', 'Curtains', 'Carpet', 'Blanket',
+            'Furniture', 'Furnishing', 'Hardware', 'Iron', 'Steel', 'Cement', 'Paint', 'Rang', 'Door', 'Window', 'Almirah', 'Bed', 'Chair', 'Table',
+            'Groceries', 'Kirana', 'General Store', 'Pharmacy', 'Dawai', 'Medicine', 'Medicines', 'Tablets', 'Syrup', 'Injection', 'Vitamins',
+            'Stationery', 'Kaghaz', 'Pen', 'Notebook', 'Notebooks', 'Books', 'Kitabain', 'Pencil', 'Eraser', 'Sharpener', 'Scale', 'Ruler',
+            'Vegetables', 'Sabzi', 'Fruits', 'Phal', 'Onion', 'Pyaz', 'Potato', 'Aloo', 'Tomato', 'Tamatar', 'Garlic', 'Lehsan', 'Ginger', 'Adrak',
+            'Grocery', 'Rashan', 'Dry Fruit', 'Mewa', 'Dates', 'Khajoor', 'Honey', 'Shehad', 'Almonds', 'Badam', 'Cashew', 'Kaju', 'Raisins', 'Kishmish',
+            'Cosmetics', 'Makeup', 'Beauty', 'Skin Care', 'Hair Oil', 'Perfume', 'Itr', 'Lipstick', 'Nail Polish', 'Foundation', 'Cream', 'Lotion',
+            'Automotive', 'Car Parts', 'Spare Parts', 'Tires', 'Tyres', 'Engine Oil', 'Petrol', 'Diesel', 'CNG', 'Battery', 'Filter', 'Brake', 'Clutch',
+            'Plastic', 'Packaging', 'Containers', 'Bottles', 'Polythene', 'Compressor', 'Components', 'PVC', 'Pipe', 'Sheet', 'Box',
+            'Textile', 'Yarn', 'Thread', 'Dori', 'Button', 'Zipper', 'Zip', 'Construction', 'Contractor', 'Sand', 'Gravel', 'Bricks', 'Blocks',
+            'Office', 'Software', 'Hardware', 'Monitor', 'Keyboard', 'Mouse', 'Printer', 'Scanner', 'Projector', 'Webcam', 'USB', 'Adapter',
+            'Camera', 'Cameras', 'Accessories', 'Electrical', 'Cables', 'Switch', 'Socket', 'Bulbs', 'LED', 'Fan', 'AC', 'Air Conditioner',
+            'Tools', 'Machinery', 'Equipment', 'Machines', 'Generator', 'Inverter', 'UPS', 'Solar', 'Welding', 'Drill', 'Grinder', 'Cutter',
+            'Printing', 'Paper', 'Cartridge', 'Toner', 'Stapler', 'File', 'Folder', 'Envelope', 'Stamp', 'Ink', 'Glue', 'Tape',
+            'Food', 'Beverages', 'Snacks', 'Noodles', 'Pasta', 'Sauce', 'Ketchup', 'Mayonnaise', 'Pickle', 'Achar', 'Jam', 'Jelly', 'Marmalade',
+            'Cleaning', 'Mop', 'Bucket', 'Brush', 'Polish', 'Wax', 'Sanitizer', 'Tissue', 'Napkin', 'Soap', 'Scrubber', 'Dettol',
+            'Baby', 'Diapers', 'Wipes', 'Powder', 'Oil', 'Lotion', 'Toys', 'School', 'Bag', 'Uniform', 'Dairy', 'Yogurt', 'Dahi', 'Cheese',
+            'Jewelry', 'Jewellery', 'Gold', 'Silver', 'Rings', 'Earrings', 'Necklace', 'Bracelet', 'Watch', 'Wristwatch', 'Gift', 'Decoration',
+            'Sports', 'Cricket', 'Bat', 'Ball', 'Football', 'Badminton', 'Racket', 'Cycle', 'Bicycle', 'Gym', 'Exercise', 'Fitness',
+            'Agriculture', 'Seeds', 'Fertilizer', 'Pesticide', 'Insecticide', 'Tractor', 'Harvester', 'Spray', 'Farming', 'Crops',
+            'Restaurant', 'Hotel', 'Catering', 'Bakery', 'Sweets', 'Mithai', 'Cake', 'Pastry', 'Ice Cream', 'Cold Storage',
+            'Medical', 'Surgical', 'Gloves', 'Mask', 'Bandage', 'Thermometer', 'Stethoscope', 'Equipment', 'Hospital', 'Clinic',
+            'Education', 'School', 'College', 'University', 'Coaching', 'Tuition', 'Books', 'Course', 'Training', 'Certification',
+            'Real Estate', 'Property', 'Land', 'House', 'Flat', 'Apartment', 'Rent', 'Sale', 'Builder', 'Developer',
+            'Insurance', 'Policy', 'Claim', 'Life Insurance', 'Health Insurance', 'Vehicle Insurance', 'Agent',
+            'Banking', 'Finance', 'Loan', 'Credit', 'Investment', 'Savings', 'Account', 'ATM', 'Cash', 'Cheque',
+            'Travel', 'Tour', 'Ticket', 'Hotel', 'Transport', 'Bus', 'Train', 'Airline', 'Taxi', 'Cab',
+            'Photography', 'Photo', 'Video', 'Album', 'Frame', 'Print', 'Lens', 'Tripod', 'Studio',
+            'Garden', 'Plants', 'Seeds', 'Fertilizer', 'Pot', 'Soil', 'Flowers', 'Tree', 'Nursery',
+            'Pet', 'Dog', 'Cat', 'Food', 'Accessories', 'Veterinary', 'Medicine', 'Collar', 'Leash',
+            'Security', 'CCTV', 'Camera', 'Lock', 'Key', 'Alarm', 'Guard', 'Safe', 'Fire Extinguisher',
+            'Kitchen', 'Utensils', 'Stove', 'Gas', 'Cylinder', 'Cooker', 'Pressure Cooker', 'Mixer', 'Grinder', 'Knife',
+            'Appliances', 'Refrigerator', 'Fridge', 'Washing Machine', 'Microwave', 'Oven', 'Toaster', 'Blender',
+            'Interior', 'Design', 'Decoration', 'Lighting', 'Lamp', 'Chandelier', 'Wallpaper', 'Tiles', 'Marble',
+            'Chemical', 'Acid', 'Solvent', 'Dye', 'Paint', 'Varnish', 'Adhesive', 'Resin', 'Laboratory',
+            'Rubber', 'Tyre', 'Tube', 'Belt', 'Hose', 'Gasket', 'Seal', 'Mat', 'Footwear', 'Slippers',
+            'Leather', 'Shoes', 'Belt', 'Wallet', 'Bag', 'Jacket', 'Gloves', 'Saddlery',
+            'Glass', 'Mirror', 'Window', 'Door', 'Tiles', 'Bottle', 'Jar', 'Tumbler', 'Glasses',
+            'Ceramic', 'Tiles', 'Sanitary', 'Bathroom', 'Toilet', 'Basin', 'Faucet', 'Pipe',
+            'Timber', 'Wood', 'Plywood', 'Board', 'Laminate', 'Door', 'Window', 'Furniture',
+            'Aluminium', 'Steel', 'Metal', 'Copper', 'Brass', 'Zinc', 'Iron', 'Sheet', 'Rod', 'Wire',
+            'Fashion', 'Apparel', 'Designer', 'Boutique', 'Tailor', 'Stitching', 'Embroidery', 'Printing',
+            'Optics', 'Lens', 'Glasses', 'Sunglasses', 'Microscope', 'Telescope', 'Binoculars',
+            'Musical', 'Instrument', 'Guitar', 'Piano', 'Drum', 'Speaker', 'Amplifier', 'Microphone',
+            'Art', 'Craft', 'Painting', 'Brush', 'Canvas', 'Colours', 'Sketch', 'Drawing', 'Frame'
+        ];
+        window.__supplierCommonProductSuggestions = COMMON_PRODUCT_SUGGESTIONS;
+        window.__supplierStoreProductUrl = storeProductUrl;
+        
+        function getInstantSuggestions(query) {
+            const q = query.toLowerCase().trim();
+            if (!q) return [];
+            const list = COMMON_PRODUCT_SUGGESTIONS.filter(name => 
+                name.toLowerCase().includes(q)
+            );
+            // Prioritise: starts with query first (like Google), then contains
+            list.sort((a, b) => {
+                const aLower = a.toLowerCase();
+                const bLower = b.toLowerCase();
+                const aStarts = aLower.startsWith(q) ? 0 : 1;
+                const bStarts = bLower.startsWith(q) ? 0 : 1;
+                if (aStarts !== bStarts) return aStarts - bStarts;
+                return aLower.localeCompare(bLower);
+            });
+            return list.slice(0, 25).map(name => ({ name, addNew: false, alreadySelected: isTagDuplicate(name) }));
+        }
+        
+        function isTagDuplicate(name) {
+            if (!name) return false;
+            const l = name.toLowerCase().trim();
+            return businessDetailTags.some(t => t.toLowerCase().trim() === l);
+        }
+        function addTag(tagName) {
+            if (!tagName || isTagDuplicate(tagName)) return;
+            businessDetailTags.push(tagName);
+            renderTags();
+            updateHiddenInput();
+        }
+        function closeSuggestions(inputEl, suggestionsEl) {
+            if (inputEl) inputEl.value = '';
+            if (suggestionsEl) suggestionsEl.classList.remove('show');
+            selectedSuggestionIndex = -1;
+        }
+        function handleSuggestionSelection(sel, inputEl, suggestionsEl) {
+            if (!sel || !sel.name) return;
+            if (sel.addNew) {
+                addNewProductAndTag(sel.name, inputEl, suggestionsEl);
+                return;
+            }
+            if (isTagDuplicate(sel.name)) {
+                closeSuggestions(inputEl, suggestionsEl);
+                return;
+            }
+            addTag(sel.name);
+            closeSuggestions(inputEl, suggestionsEl);
+        }
+        function addNewProductAndTag(name, inputEl, suggestionsEl) {
+            const trimmed = (name || '').trim();
+            if (!trimmed) return;
+            if (isTagDuplicate(trimmed)) {
+                closeSuggestions(inputEl, suggestionsEl);
+                return;
+            }
+            const form = document.getElementById('supplierForm');
+            const token = form ? (form.querySelector('input[name="_token"]') || {}).value : '';
+            if (inputEl) { inputEl.disabled = true; inputEl.placeholder = 'Saving product…'; }
+            fetch(storeProductUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: 'name=' + encodeURIComponent(trimmed) + '&_token=' + encodeURIComponent(token)
+            }).then(r => r.json()).then(data => {
+                const nameToAdd = (data && data.name) ? data.name : trimmed;
+                addTag(nameToAdd);
+                if (inputEl) { inputEl.value = ''; inputEl.placeholder = 'Type product name and press Enter'; inputEl.disabled = false; }
+                if (suggestionsEl) suggestionsEl.classList.remove('show');
+                selectedSuggestionIndex = -1;
+            }).catch(() => {
+                addTag(trimmed);
+                if (inputEl) { inputEl.value = ''; inputEl.placeholder = 'Type product name and press Enter'; inputEl.disabled = false; }
+                if (suggestionsEl) suggestionsEl.classList.remove('show');
+            });
+        }
         
         function initializeBusinessDetailInput() {
             const input = document.getElementById('business_detail_input');
@@ -4197,41 +4767,32 @@
                 }
             }
             
-            // Input handler for suggestions
-            input.addEventListener('input', function(e) {
-                const query = e.target.value.trim();
-                
+            // Input handler: search from 1 character
+            input.addEventListener('input', function() {
+                const query = input.value.trim();
                 if (suggestionTimeout) clearTimeout(suggestionTimeout);
-                
-                if (query.length < 2) {
+                if (query.length < 1) {
                     suggestions.classList.remove('show');
                     selectedSuggestionIndex = -1;
                     return;
                 }
-                
-                suggestionTimeout = setTimeout(() => {
-                    fetchSpellingSuggestions(query, suggestions);
-                }, 300);
+                suggestionTimeout = setTimeout(() => fetchProductSuggestions(query, suggestions), 150);
             });
             
             // Keydown handler
             input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' || e.keyCode === 13) {
                     e.preventDefault();
-                    const value = e.target.value.trim();
-                    
+                    e.stopPropagation();
+                    const value = input.value.trim();
                     if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
-                        // Add selected suggestion
-                        addTag(currentSuggestions[selectedSuggestionIndex].name);
-                        input.value = '';
-                        suggestions.classList.remove('show');
-                        selectedSuggestionIndex = -1;
+                        const sel = currentSuggestions[selectedSuggestionIndex];
+                        handleSuggestionSelection(sel, input, suggestions);
                     } else if (value) {
-                        // Add typed value
-                        addTag(value);
-                        input.value = '';
-                        suggestions.classList.remove('show');
+                        if (isTagDuplicate(value)) closeSuggestions(input, suggestions);
+                        else addNewProductAndTag(value, input, suggestions);
                     }
+                    return false;
                 } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     navigateSuggestions(1);
@@ -4241,6 +4802,7 @@
                 } else if (e.key === 'Escape') {
                     suggestions.classList.remove('show');
                     selectedSuggestionIndex = -1;
+
                 }
             });
             
@@ -4255,235 +4817,81 @@
             // Click on suggestion
             suggestions.addEventListener('click', function(e) {
                 const item = e.target.closest('.business-detail-suggestion-item');
-                if (item) {
-                    const value = item.dataset.value;
-                    if (value) {
-                        addTag(value);
-                        input.value = '';
-                        suggestions.classList.remove('show');
-                        selectedSuggestionIndex = -1;
-                    }
+                if (!item) return;
+                const value = item.dataset.value;
+                const isAddNew = item.dataset.addNew === '1';
+                if (value) {
+                    handleSuggestionSelection({ name: value, addNew: isAddNew, alreadySelected: item.dataset.alreadySelected === '1' }, input, suggestions);
                 }
             });
         }
         
-        async function fetchSpellingSuggestions(query, suggestionsEl) {
-            suggestionsEl.innerHTML = '<div class="business-detail-suggestion-loading">Searching...</div>';
+        async function fetchProductSuggestions(query, suggestionsEl) {
+            const queryTrim = query.trim();
+            if (!queryTrim) { suggestionsEl.classList.remove('show'); return; }
+            // Show instant Google-style suggestions from common list first
+            const instantList = getInstantSuggestions(queryTrim);
+            const exactInInstant = instantList.some(p => p.name.toLowerCase() === queryTrim.toLowerCase());
+            let list = instantList.map(p => ({ name: p.name, addNew: false }));
+            if (!exactInInstant && !isTagDuplicate(queryTrim)) list.push({ name: queryTrim, addNew: true });
+            currentSuggestions = list;
+            displayProductSuggestions(list, suggestionsEl, queryTrim);
             suggestionsEl.classList.add('show');
-            
+            // Then fetch saved products from API and merge
             try {
-                // Progressive search - as user types, filter suggestions
-                const queryLower = query.toLowerCase().trim();
-                
-                // Comprehensive product list for progressive filtering
-                const allProducts = [
-                    'Books', 'Book', 'Bookstore', 'Bookshop', 'Bookbinding',
-                    'Electronics', 'Electronic Items', 'Electronic Devices', 'Electronic Accessories',
-                    'Clothing', 'Clothes', 'Cloth', 'Clothing Store', 'Clothing Accessories',
-                    'Groceries', 'Grocery', 'Grocery Store', 'Grocery Items',
-                    'Furniture', 'Furniture Store', 'Furniture Items', 'Office Furniture',
-                    'Appliances', 'Home Appliances', 'Kitchen Appliances', 'Electronic Appliances',
-                    'Toys', 'Toy Store', 'Toy Items', 'Children Toys',
-                    'Sports Equipment', 'Sports Items', 'Sports Goods', 'Sports Accessories',
-                    'Jewelry', 'Jewellery', 'Jewelry Store', 'Jewelry Items',
-                    'Cosmetics', 'Cosmetic Products', 'Cosmetic Items', 'Beauty Products',
-                    'Automotive Parts', 'Auto Parts', 'Car Parts', 'Vehicle Parts',
-                    'Hardware', 'Hardware Store', 'Hardware Items', 'Hardware Tools',
-                    'Software', 'Software Products', 'Software Solutions', 'Computer Software',
-                    'Food', 'Food Items', 'Food Products', 'Food Store',
-                    'Beverages', 'Beverage', 'Drinks', 'Beverage Store',
-                    'Stationery', 'Stationary', 'Stationery Items', 'Office Stationery',
-                    'Medicines', 'Medicine', 'Pharmaceuticals', 'Medical Supplies',
-                    'Home Decor', 'Home Decoration', 'Decorative Items', 'Home Accessories',
-                    'Garden Supplies', 'Garden Tools', 'Garden Items', 'Gardening Supplies',
-                    'Pet Supplies', 'Pet Food', 'Pet Accessories', 'Pet Items',
-                    'Baby Products', 'Baby Items', 'Baby Care', 'Baby Accessories',
-                    'Art Supplies', 'Art Materials', 'Art Items', 'Artistic Supplies',
-                    'Mobile Phones', 'Mobile', 'Smartphones', 'Mobile Accessories',
-                    'Laptops', 'Laptop', 'Laptop Accessories', 'Computer Laptops',
-                    'Tablets', 'Tablet', 'Tablet Accessories', 'Digital Tablets',
-                    'Headphones', 'Headphone', 'Earphones', 'Audio Headphones',
-                    'Cameras', 'Camera', 'Camera Accessories', 'Digital Cameras',
-                    'Watches', 'Watch', 'Wristwatch', 'Watch Accessories',
-                    'Shoes', 'Shoe', 'Footwear', 'Shoe Store',
-                    'Bags', 'Bag', 'Handbags', 'Bag Accessories',
-                    'Wallets', 'Wallet', 'Leather Wallets', 'Wallet Store',
-                    'Sunglasses', 'Sunglass', 'Eye Glasses', 'Sunglass Store',
-                    'Perfumes', 'Perfume', 'Fragrances', 'Perfume Store',
-                    'Skincare Products', 'Skincare', 'Skin Care', 'Beauty Skincare',
-                    'Computer Accessories', 'Computer Parts', 'PC Accessories', 'Computer Items',
-                    'Office Supplies', 'Office Items', 'Office Products', 'Office Equipment',
-                    'Kitchen Items', 'Kitchenware', 'Kitchen Products', 'Kitchen Accessories',
-                    'Bedding', 'Bed Sheets', 'Bedding Items', 'Bedroom Accessories',
-                    'Towels', 'Towel', 'Bath Towels', 'Towel Store'
-                ];
-                
-                // Progressive filtering - find ALL matching products
-                // As user types, filter products that contain the query anywhere
-                let filteredProducts = [];
-                
-                if (queryLower.length === 1) {
-                    // Single letter: show all products starting with that letter
-                    filteredProducts = allProducts.filter(product => 
-                        product.toLowerCase().startsWith(queryLower)
-                    );
-                } else {
-                    // Multiple letters: flexible matching - search in entire product name
-                    const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
-                    
-                    filteredProducts = allProducts.filter(product => {
-                        const productLower = product.toLowerCase();
-                        const productWords = productLower.split(/\s+/);
-                        
-                        // Method 1: Product starts with query (highest priority)
-                        if (productLower.startsWith(queryLower)) {
-                            return true;
-                        }
-                        
-                        // Method 2: Any word in product starts with query
-                        for (let word of productWords) {
-                            if (word.startsWith(queryLower)) {
-                                return true;
-                            }
-                        }
-                        
-                        // Method 3: Product contains query anywhere (more flexible)
-                        if (productLower.includes(queryLower)) {
-                            return true;
-                        }
-                        
-                        // Method 4: Check if query words appear in product (for multi-word queries)
-                        if (queryWords.length > 1) {
-                            // Check if all query words appear in product (in any order)
-                            const allWordsFound = queryWords.every(qWord => 
-                                productLower.includes(qWord)
-                            );
-                            if (allWordsFound) {
-                                return true;
-                            }
-                        }
-                        
-                        // Method 5: Check if any word in query matches any word in product (starts with)
-                        for (let qWord of queryWords) {
-                            if (productWords.some(pWord => pWord.startsWith(qWord))) {
-                                return true;
-                            }
-                        }
-                        
-                        return false;
-                    });
-                }
-                
-                // Remove already added tags
-                filteredProducts = filteredProducts.filter(p => 
-                    !businessDetailTags.includes(p) && p.toLowerCase() !== queryLower
-                );
-                
-                // Fetch Google suggestions for additional options
-                let googleSuggestions = [];
-                try {
-                    const googleUrl = `https://www.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}`;
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(googleUrl)}`;
-                    const response = await fetch(proxyUrl);
-                    const data = await response.json();
-                    
-                    if (data && data.contents) {
-                        const content = JSON.parse(data.contents);
-                        if (content && content[1] && Array.isArray(content[1])) {
-                            googleSuggestions = content[1].slice(0, 10).map(item => item[0])
-                                .filter(s => !businessDetailTags.includes(s) && s.toLowerCase() !== queryLower);
-                        }
-                    }
-                } catch (e) {
-                    console.log('Error fetching Google suggestions:', e);
-                }
-                
-                // Combine filtered products with Google suggestions
-                let allSuggestions = [...new Set([...filteredProducts, ...googleSuggestions])];
-                
-                // If no suggestions found at all, show "No suggestions found"
-                if (allSuggestions.length === 0) {
-                    displaySuggestions([], suggestionsEl, query);
-                    return;
-                }
-                
-                // Sort by relevance (exact start match first, then contains)
-                allSuggestions.sort((a, b) => {
-                    const aLower = a.toLowerCase();
-                    const bLower = b.toLowerCase();
-                    
-                    const aStarts = aLower.startsWith(queryLower) ? 1 : 0;
-                    const bStarts = bLower.startsWith(queryLower) ? 1 : 0;
-                    
-                    if (aStarts !== bStarts) return bStarts - aStarts;
-                    
-                    const aIndex = aLower.indexOf(queryLower);
-                    const bIndex = bLower.indexOf(queryLower);
-                    
-                    return aIndex - bIndex;
+                const res = await fetch(searchProductsUrl + '?q=' + encodeURIComponent(queryTrim));
+                const data = await res.json();
+                const products = (data && data.products) ? data.products : [];
+                const fromApi = products.map(p => ({ name: p.name, addNew: false, alreadySelected: isTagDuplicate(p.name) }));
+                const seen = new Set(list.map(i => i.name.toLowerCase()));
+                fromApi.forEach(p => {
+                    if (!seen.has(p.name.toLowerCase())) { list.push(p); seen.add(p.name.toLowerCase()); }
                 });
-                
-                // Limit to exactly 5 suggestions
-                currentSuggestions = allSuggestions.slice(0, 5).map(name => ({ name }));
-                displaySuggestions(currentSuggestions, suggestionsEl, query);
-                
-            } catch (error) {
-                console.error('Error fetching suggestions:', error);
-                suggestionsEl.innerHTML = '<div class="business-detail-suggestion-loading">Error loading suggestions</div>';
+                const exactMatch = list.some(p => p.name.toLowerCase() === queryTrim.toLowerCase());
+                list = list.filter(i => !i.addNew);
+                if (!exactMatch && !isTagDuplicate(queryTrim)) list.push({ name: queryTrim, addNew: true });
+                else if (list.length === 0 && !isTagDuplicate(queryTrim)) list.push({ name: queryTrim, addNew: true });
+                currentSuggestions = list;
+                displayProductSuggestions(list, suggestionsEl, queryTrim);
+            } catch (err) {
+                if (list.length === 0) {
+                    const fallback = isTagDuplicate(queryTrim) ? [] : [{ name: queryTrim, addNew: true }];
+                    currentSuggestions = fallback;
+                    displayProductSuggestions(fallback, suggestionsEl, queryTrim);
+                }
             }
         }
         
-        function displaySuggestions(suggestions, suggestionsEl, query) {
-            if (suggestions.length === 0) {
+        function displayProductSuggestions(suggestions, suggestionsEl, query) {
+            if (!suggestions || suggestions.length === 0) {
                 suggestionsEl.innerHTML = '';
                 suggestionsEl.classList.remove('show');
                 return;
             }
-            
-            const highlightText = (text, query) => {
-                const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                return text.replace(regex, '<span class="highlight">$1</span>');
-            };
-            
-            suggestionsEl.innerHTML = suggestions.map((suggestion, index) => {
-                return `
-                    <div class="business-detail-suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}" 
-                         data-value="${suggestion.name}" data-index="${index}">
-                        <div class="business-detail-suggestion-text">${highlightText(suggestion.name, query)}</div>
-                    </div>
-                `;
+            const regex = new RegExp('(' + (query || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            const highlight = t => (t || '').replace(regex, '<span class="highlight">$1</span>');
+            suggestionsEl.innerHTML = suggestions.map((item, i) => {
+                const isAddNew = item.addNew === true;
+                const isAlreadySelected = item.alreadySelected === true;
+                const text = isAddNew ? ('Add new: ' + item.name) : item.name;
+                return '<div class="business-detail-suggestion-item' + (i === selectedSuggestionIndex ? ' selected' : '') + (isAlreadySelected ? ' already-selected' : '') + '" data-value="' + (item.name || '').replace(/"/g, '&quot;') + '" data-add-new="' + (isAddNew ? '1' : '0') + '" data-already-selected="' + (isAlreadySelected ? '1' : '0') + '">' +
+                    '<div class="business-detail-suggestion-text">' + highlight(text) + '</div>' +
+                    (isAddNew ? ' <span class="badge bg-primary ms-1">Add</span>' : '') +
+                    (isAlreadySelected ? ' <span class="badge ms-1">Added</span>' : '') + '</div>';
             }).join('');
-            
             suggestionsEl.classList.add('show');
         }
         
         function navigateSuggestions(direction) {
             const items = document.querySelectorAll('.business-detail-suggestion-item');
             if (items.length === 0) return;
-            
-            // Remove previous selection
             items.forEach(item => item.classList.remove('selected'));
-            
-            // Update index
             selectedSuggestionIndex += direction;
-            if (selectedSuggestionIndex < 0) {
-                selectedSuggestionIndex = items.length - 1;
-            } else if (selectedSuggestionIndex >= items.length) {
-                selectedSuggestionIndex = 0;
-            }
-            
-            // Add selection
+            if (selectedSuggestionIndex < 0) selectedSuggestionIndex = items.length - 1;
+            else if (selectedSuggestionIndex >= items.length) selectedSuggestionIndex = 0;
             if (items[selectedSuggestionIndex]) {
                 items[selectedSuggestionIndex].classList.add('selected');
                 items[selectedSuggestionIndex].scrollIntoView({ block: 'nearest' });
-            }
-        }
-        
-        function addTag(tagName) {
-            if (tagName && !businessDetailTags.includes(tagName)) {
-                businessDetailTags.push(tagName);
-                renderTags();
-                updateHiddenInput();
             }
         }
         

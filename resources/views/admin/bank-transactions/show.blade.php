@@ -81,12 +81,12 @@
 
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <strong>Reconciled Status:</strong>
+                                <strong>Tally Status:</strong>
                                 <p class="text-muted">
                                     @if($bankTransaction->reconciled)
                                         <span class="badge badge-success">Yes</span>
                                         @if($bankTransaction->reconciled_at)
-                                            <br><small>Reconciled on: {{ $bankTransaction->reconciled_at->format('Y-m-d H:i') }}</small>
+                                            <br><small>Tallied on: {{ $bankTransaction->reconciled_at->format('Y-m-d H:i') }}</small>
                                         @endif
                                         @if($bankTransaction->reconciledBy)
                                             <br><small>By: {{ $bankTransaction->reconciledBy->name }}</small>
@@ -150,15 +150,15 @@
                             @if(!$bankTransaction->reconciled)
                                 <form action="{{ route('admin.bank-transactions.reconcile', $bankTransaction->id) }}" method="POST">
                                     @csrf
-                                    <button type="submit" class="btn btn-success w-100" onclick="return confirm('Mark this transaction as reconciled?');">
-                                        <i class="ti ti-check me-1"></i>Mark as Reconciled
+                                    <button type="submit" class="btn btn-success w-100" onclick="return confirm('Mark this transaction as tallied?');">
+                                        <i class="ti ti-check me-1"></i>Mark as Tallied
                                     </button>
                                 </form>
                             @else
                                 <form action="{{ route('admin.bank-transactions.unreconcile', $bankTransaction->id) }}" method="POST">
                                     @csrf
-                                    <button type="submit" class="btn btn-warning w-100" onclick="return confirm('Mark this transaction as unreconciled?');">
-                                        <i class="ti ti-x me-1"></i>Mark as Unreconciled
+                                    <button type="submit" class="btn btn-warning w-100" onclick="return confirm('Mark this transaction as untallied?');">
+                                        <i class="ti ti-x me-1"></i>Mark as Untallied
                                     </button>
                                 </form>
                             @endif

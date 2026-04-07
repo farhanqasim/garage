@@ -79,10 +79,7 @@
                     <thead class="thead-light">
                         <tr>
                             <th>Supplier Name</th>
-                            <th>Reference</th>
-                            <th>Date</th>
                             <th>Payment Status</th>
-                            <th>Verification</th>
                             <th>Total</th>
                             <th>Paid</th>
                             <th>Due</th>
@@ -98,50 +95,89 @@
                             $hasTemp = $purchase->items->contains(fn($i) => $i->item && $i->item->is_temporary);
                         @endphp
                         <tr class="{{ $allVerified ? 'purchase-row-verified' : '' }} {{ $hasTemp ? 'has-temporary-items' : '' }}" data-verified="{{ $allVerified ? '1' : '0' }}">
-                            <td>{{ $purchase->supplier->company ?? $purchase->supplier->names[0] ?? 'N/A' }}</td>
                             <td>
-                                @if(!empty(trim($purchase->reference ?? '')))
-                                    {{ $purchase->reference }}
-                                @else
-                                    @if($purchase->is_purchase_order)
-                                        <span class="text-primary fw-bold">PO #{{ preg_replace('/^PO-/', '', $purchase->invoice_no) }}</span>
+                                @php
+                                    $supplierName = $purchase->supplier ? ($purchase->supplier->company ?? (is_array($purchase->supplier->names ?? null) && isset($purchase->supplier->names[0]) ? $purchase->supplier->names[0] : 'N/A')) : 'N/A';
+                                @endphp
+                                <span class="d-block">{{ $supplierName }}</span>
+                                <small class="text-muted d-block mt-1">
+                                    @if(!empty(trim($purchase->reference ?? '')))
+                                        {{ $purchase->reference }}
                                     @else
-                                        <span class="text-primary fw-bold">Bill #{{ preg_replace('/^PUR-\d+-/', '', $purchase->invoice_no) }}</span>
+                                        @if($purchase->is_purchase_order)
+                                            @php
+                                                $poDisplay = $purchase->invoice_no ? preg_replace('/^PO-/', '', $purchase->invoice_no) : '';
+                                                if ($poDisplay === '' || $poDisplay === '00000') {
+                                                    $poDisplay = str_pad((int) $purchase->id, 5, '0', STR_PAD_LEFT);
+                                                }
+                                            @endphp
+                                            PO #{{ $poDisplay }}
+                                        @else
+                                            Bill #{{ preg_replace('/^PUR-\d+-/', '', $purchase->invoice_no ?? '') ?: str_pad((int) $purchase->id, 5, '0', STR_PAD_LEFT) }}
+                                        @endif
                                     @endif
-                                @endif
-                            </td>
-                            <td>{{ $purchase->purchase_date->format('d M Y') }}</td>
-                            <td>
-                                <span class="badges status-badge fs-10 p-1 px-2 rounded-1 
-                                    {{ $purchase->status == 'received' ? 'bg-success' : ($purchase->status == 'pending' ? 'bg-warning' : 'bg-info') }}">
-                                    {{ ucfirst($purchase->status) }}
-                                </span>
+                                </small>
+                                <small class="text-muted d-block mt-1">{{ $purchase->purchase_date ? $purchase->purchase_date->format('d M Y') : '—' }}</small>
+                                <small class="text-muted d-block mt-1">{{ $purchase->created_at ? $purchase->created_at->format('h:i A') : '—' }}</small>
                             </td>
                             <td class="small">
-                                @if($purchase->items->isEmpty())
-                                    <span class="text-muted">—</span>
-                                @elseif($allVerified)
-                                    <span class="text-success d-block"><i class="ti ti-checks me-1"></i>Verified</span>
-                                    @if(count($verifiedNames) > 0)
-                                        <span class="text-muted" style="font-size: 0.75rem;">Verified by: {{ implode(', ', $verifiedNames) }}</span>
+                                <span class="badges status-badge fs-10 p-1 px-2 rounded-1 
+                                    {{ $purchase->status == 'received' ? 'bg-success' : ($purchase->status == 'pending' ? 'bg-warning' : 'bg-info') }}">
+                                    {{ $purchase->status == 'pending' ? 'Pending payment' : ($purchase->status == 'received' ? 'Payment received' : 'Ordered') }}
+                                </span>
+                                <div class="mt-1">
+                                    @if($purchase->items->isEmpty())
+                                        <span class="text-muted">—</span>
+                                    @elseif($allVerified)
+                                        <span class="text-success d-block"><i class="ti ti-checks me-1"></i>Verified</span>
+                                        @if(count($verifiedNames) > 0)
+                                            <span class="text-muted" style="font-size: 0.75rem;">Verified by: {{ implode(', ', $verifiedNames) }}</span>
+                                        @endif
+                                    @else
+                                        <a href="{{ route('purchases.show', $purchase->id) }}" class="text-decoration-none d-block" title="Pending verified - open to verify">
+                                            <span class="badge bg-warning bg-opacity-25 text-dark fs-10 px-2 py-1"><i class="ti ti-circle-dashed me-1"></i>Pending Verified</span>
+                                        </a>
+                                        @if(count($verifiedNames) > 0)
+                                            <span class="text-muted d-block mt-1" style="font-size: 0.7rem;">{{ $purchase->items->filter(fn($i) => $i->verified_by)->count() }}/{{ $purchase->items->count() }} verified by: {{ implode(', ', $verifiedNames) }}</span>
+                                        @endif
                                     @endif
+                                    @if($hasTemp)
+                                        <span class="badge bg-warning text-dark fs-10 px-2 py-1 mt-1 d-inline-block" title="This bill has temporary items – open and convert or clear to resolve">Temporary items</span>
+                                    @endif
+                                </div>
+                            </td>
+                            @php
+                                $totalPaid = $purchase->total_paid ?? 0;
+                                $remaining = round($purchase->remaining_amount ?? 0, 2);
+                                $advance = round($purchase->advance_amount ?? 0, 2);
+                                $netText = 'Rs 0.00';
+                                $netClass = 'text-success';
+                                if ($remaining > 0.01) {
+                                    $netText = 'Pay Rs ' . number_format($remaining, 2);
+                                    $netClass = 'text-danger';
+                                } elseif ($advance > 0.01) {
+                                    $netText = 'Advance Rs ' . number_format($advance, 2);
+                                    $netClass = 'text-success';
+                                }
+                            @endphp
+                            <td>Rs {{ number_format($purchase->grand_total, 2) }}</td>
+                            <td>Rs {{ number_format($totalPaid, 2) }}</td>
+                            <td><span class="{{ $netClass }} fw-semibold">{{ $netText }}</span></td>
+                            <td>
+                                @if($remaining > 0.01)
+                                    <span class="p-1 pe-2 rounded-1 text-danger bg-danger-transparent fs-10">
+                                        <i class="ti ti-point-filled me-1 fs-11"></i>Amount to Pay
+                                    </span>
+                                @elseif($advance > 0.01)
+                                    <span class="p-1 pe-2 rounded-1 text-success bg-success-transparent fs-10">
+                                        <i class="ti ti-point-filled me-1 fs-11"></i>Advance Available
+                                    </span>
                                 @else
-                                    <a href="{{ route('purchases.show', $purchase->id) }}" class="text-decoration-none d-block" title="Pending verified - open to verify">
-                                        <span class="badge bg-warning bg-opacity-25 text-dark fs-10 px-2 py-1"><i class="ti ti-circle-dashed me-1"></i>Pending Verified</span>
-                                    </a>
-                                    @if(count($verifiedNames) > 0)
-                                        <span class="text-muted d-block mt-1" style="font-size: 0.7rem;">{{ $purchase->items->filter(fn($i) => $i->verified_by)->count() }}/{{ $purchase->items->count() }} verified by: {{ implode(', ', $verifiedNames) }}</span>
-                                    @endif
-                                @endif
-                                @if($hasTemp)
-                                    <span class="badge bg-warning text-dark fs-10 px-2 py-1 mt-1 d-inline-block" title="This bill has temporary items – open and convert or clear to resolve">Temporary items</span>
+                                    <span class="p-1 pe-2 rounded-1 text-success bg-success-transparent fs-10">
+                                        <i class="ti ti-point-filled me-1 fs-11"></i>Settled
+                                    </span>
                                 @endif
                             </td>
-                            <td>Rs {{ number_format($purchase->grand_total, 2) }}</td>
-                            <td>Rs {{ number_format($purchase->grand_total, 2) }}</td>
-                            <td>Rs 0.00</td>
-                            <td><span class="p-1 pe-2 rounded-1 text-success bg-success-transparent fs-10"><i
-                                        class="ti ti-point-filled me-1 fs-11"></i>Paid</span></td>
                             <td class="action-table-data no-highlight">
                                 <div class="edit-delete-action">
                                     @can('view_purchases')
@@ -164,11 +200,14 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="10" class="text-center text-muted py-4">No purchases found</td>
+                            <td colspan="7" class="text-center text-muted py-4">No purchases found</td>
                         </tr>
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+            <div class="d-flex justify-content-center mt-3">
+                {{ $purchases->appends(request()->query())->links() }}
             </div>
         </div>
     </div>

@@ -2,6 +2,43 @@
 @section('title', 'Login')
 @push('styles')
 <link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}">
+<style>
+.email-dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 0.375rem 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.email-dropdown-list .email-dropdown-item {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+}
+.email-dropdown-list .email-dropdown-item:hover,
+.email-dropdown-list .email-dropdown-item.active {
+    background: #e7f1ff;
+}
+.email-dropdown-list .email-dropdown-item:last-child { border-bottom: none; }
+.email-dropdown-list .email-dropdown-item .highlight {
+    background: rgba(13, 110, 253, 0.2);
+    font-weight: 600;
+    padding: 0 1px;
+    border-radius: 2px;
+}
+.email-dropdown-list:empty { display: none !important; }
+</style>
 @endpush
 @push('scripts')
 <script src="{{ asset('assets/plugins/select2/js/select2.min.js') }}"></script>
@@ -29,44 +66,23 @@
                                                     <i class="ti ti-key me-1"></i> PIN
                                                 </button>
                                             </li>
-                                            <li class="nav-item" role="presentation">
-                                                <button class="nav-link" id="pattern-tab" data-bs-toggle="pill" data-bs-target="#pattern-pane" type="button" role="tab" aria-controls="pattern-pane" aria-selected="false">
-                                                    <i class="ti ti-grid-3x3 me-1"></i> Pattern
-                                                </button>
-                                            </li>
-                                            <li class="nav-item" role="presentation">
-                                                <button class="nav-link" id="fingerprint-tab" data-bs-toggle="pill" data-bs-target="#fingerprint-pane" type="button" role="tab" aria-controls="fingerprint-pane" aria-selected="false">
-                                                    <i class="ti ti-fingerprint me-1"></i> Bio
-                                                </button>
-                                            </li>
                                         </ul>
 
                                         <!-- Tab Content -->
                                         <div class="tab-content" id="loginMethodTabContent">
                                             <!-- PIN Tab -->
                                             <div class="tab-pane fade show active" id="pin-pane" role="tabpanel" aria-labelledby="pin-tab">
-                                                <!-- Username (dropdown) -->
+                                                <!-- Email (searchable dropdown + manual type) -->
                                         <div class="mb-3">
-                                            <label class="form-label">Username <span class="text-danger">*</span></label>
-                                            <div class="input-group">
-                                                <select name="email" id="emailInput" class="form-control border-end-0 @error('email') is-invalid @enderror" required autofocus>
-                                                    <option value="">-- Select User --</option>
-                                                    @isset($users)
-                                                        @foreach($users as $u)
-                                                            <option value="{{ $u->email }}" {{ old('email') == $u->email ? 'selected' : '' }}>{{ $u->name }} ({{ $u->email }})</option>
-                                                        @endforeach
-                                                    @endisset
-                                                </select>
+                                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                                            <div class="input-group position-relative">
+                                                <input type="email" name="email" id="emailInput" class="form-control border-end-0 @error('email') is-invalid @enderror" placeholder="Search or type email" value="{{ old('email', $rememberedEmail ?? '') }}" required autofocus autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="emailDropdownList">
                                                 <span class="input-group-text border-start-0"><i class="ti ti-user"></i></span>
+                                                <div id="emailDropdownList" class="email-dropdown-list" role="listbox" style="display: none;"></div>
                                             </div>
                                             <small class="text-muted" id="branchAutoDetectMsg" style="display: none;">
                                                 <i class="ti ti-loader spinner-border spinner-border-sm"></i> Detecting your branch...
                                             </small>
-                                            <div id="selectedUserBranchDisplay" class="mt-2 py-2 px-3 rounded small d-flex align-items-center" style="display: none; background: #e8f4fd; border: 1px solid #0d6efd;">
-                                                <i class="ti ti-building me-2 text-primary"></i>
-                                                <span class="text-muted me-1">Branch:</span>
-                                                <strong id="selectedUserBranchName" class="text-primary"></strong>
-                                            </div>
                                             @error('email')
                                                 <span class="text-danger small">{{ $message }}</span>
                                             @enderror
@@ -93,8 +109,6 @@
                                                 </select>
                                                 <span class="input-group-text border-start-0"><i class="ti ti-building"></i></span>
                                             </div>
-                                            <!-- Hidden input to ensure branch_id is submitted even when select is disabled -->
-                                            <input type="hidden" name="branch_id_hidden" id="branchIdHidden" value="">
                                             <small class="text-muted" id="branchInfoMsg">
                                                 Select your username above to auto-detect your branch
                                             </small>
@@ -116,31 +130,14 @@
                                             @enderror
                                         </div>
 
+                                        <div class="form-check mb-3">
+                                            <input type="checkbox" name="remember" id="remember" class="form-check-input" {{ old('remember') ? 'checked' : '' }}>
+                                            <label for="remember" class="form-check-label">Remember Me</label>
+                                        </div>
+
                                                 <!-- Submit -->
                                                 <div class="form-login mb-3">
                                                     <button type="submit" class="btn btn-login w-100">Sign In</button>
-                                                </div>
-                                            </div>
-
-                                            <!-- Pattern Tab -->
-                                            <div class="tab-pane fade" id="pattern-pane" role="tabpanel" aria-labelledby="pattern-tab">
-                                                <div class="text-center mb-4">
-                                                    <p class="text-muted small mb-3">Draw Pattern (Top Row: 0, 1, 2)</p>
-                                                    <div class="d-flex justify-content-center">
-                                                        <div class="pattern-lock-container" style="background: #f8f9fa; padding: 2rem; border-radius: 1rem; display: inline-block;">
-                                                            <div class="pattern-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
-                                                                @for($i = 0; $i < 9; $i++)
-                                                                    <button type="button" class="pattern-dot" data-index="{{ $i }}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #dee2e6; background: #fff; cursor: pointer; transition: all 0.2s;">
-                                                                    </button>
-                                                                @endfor
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <p class="text-danger small mt-3" id="patternError" style="display: none;"></p>
-                                                    @error('pattern')
-                                                        <p class="text-danger small mt-2">{{ $message }}</p>
-                                                    @enderror
-                                                    <input type="hidden" name="pattern" id="patternInput" value="">
                                                 </div>
                                             </div>
 
@@ -148,7 +145,7 @@
                                             <div class="tab-pane fade" id="fingerprint-pane" role="tabpanel" aria-labelledby="fingerprint-tab">
                                                 <div class="text-center mb-4">
                                                     <div class="fingerprint-container mb-3" id="fingerprintContainer" role="button" tabindex="0" style="cursor: pointer;" title="فنگر پرنٹ اسکین کریں">
-                                                        <button type="button" id="fingerprintBtn" class="btn btn-link p-0" style="border: none; background: none;">
+                                                        <button type="button" id="bio-fingerprint-btn" class="btn btn-link p-0" style="border: none; background: none;">
                                                             <div class="fingerprint-icon" style="width: 120px; height: 120px; margin: 0 auto; border-radius: 50%; background: #f8f9fa; display: flex; align-items: center; justify-content: center; transition: all 0.3s;">
                                                                 <i class="ti ti-fingerprint" style="font-size: 64px; color: #3b82f6;"></i>
                                                             </div>
@@ -157,7 +154,24 @@
                                                             <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
                                                         </div>
                                                     </div>
-                                                    <p class="text-muted small mb-2" id="fingerprintStatus">Hold to Scan Finger</p>
+                                                    <p class="text-muted small mb-2" id="bio-status-text">Hold to Scan Finger</p>
+                                                    <p class="text-muted small mb-2" id="bio-message-text" style="display: none;"></p>
+                                                    <div id="bio-register-section" style="display: none;" class="mt-2">
+                                                        <small class="text-muted">Login with PIN first, then go to Profile to register fingerprint on this device.</small>
+                                                    </div>
+                                                    <div id="bio-not-supported" style="display: none;" class="mt-3 text-center">
+                                                        <div class="alert alert-warning py-2 px-3 d-inline-block text-start" style="max-width: 400px;">
+                                                            <strong>⚠️ Biometric not available</strong>
+                                                            <p class="mb-1 small" id="bio-unsupported-reason"></p>
+                                                            <hr class="my-1">
+                                                            <p class="mb-0 small text-muted">
+                                                                <strong>Solutions:</strong><br>
+                                                                • On PC: Use <code>http://localhost</code><br>
+                                                                • On Phone: Deploy to HTTPS domain<br>
+                                                                • Use PIN or Pattern tab instead
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                     <p class="text-muted" style="font-size: 0.75rem;">Biometric Identity Verification</p>
                                                 </div>
                                             </div>
@@ -201,154 +215,180 @@
                         <!-- JavaScript for Login Methods -->
                         <script>
                             document.addEventListener('DOMContentLoaded', function() {
-                                // If pattern error on redirect back, switch to pattern tab
-                                @if($errors->has('pattern'))
-                                    var patternTab = document.getElementById('pattern-tab');
-                                    if (patternTab) {
-                                        patternTab.click();
+                                var userEmails = @json($userEmails ?? []);
+
+                                (function initEmailAutocomplete() {
+                                    var emailInput = document.getElementById('emailInput');
+                                    var dropdown = document.getElementById('emailDropdownList');
+                                    if (!emailInput || !dropdown) return;
+
+                                    var selectedIndex = -1;
+
+                                    function filterEmails(query) {
+                                        var q = (query || '').trim().toLowerCase();
+                                        if (!q) return userEmails.slice();
+                                        return userEmails.filter(function(email) {
+                                            return email.toLowerCase().indexOf(q) !== -1;
+                                        });
                                     }
-                                @endif
-                                // Pattern Lock Logic
-                                let patternDots = [];
-                                let isDrawing = false;
-                                let userPattern = null; // Will be loaded from database
-                                
-                                const patternDotsElements = document.querySelectorAll('.pattern-dot');
-                                const patternInput = document.getElementById('patternInput');
-                                const patternError = document.getElementById('patternError');
-                                const patternPane = document.getElementById('pattern-pane');
-                                
-                                if (patternDotsElements.length > 0) {
-                                    patternDotsElements.forEach((dot, index) => {
-                                        dot.addEventListener('mousedown', function() {
-                                            isDrawing = true;
-                                            patternDots = [index];
-                                            updatePatternDisplay();
+
+                                    function escapeHtml(s) {
+                                        if (!s) return '';
+                                        return String(s)
+                                            .replace(/&/g, '&amp;')
+                                            .replace(/</g, '&lt;')
+                                            .replace(/>/g, '&gt;')
+                                            .replace(/"/g, '&quot;');
+                                    }
+                                    function escapeRegex(s) {
+                                        return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                    }
+                                    function highlightMatch(email, query) {
+                                        if (!query || !query.trim()) return escapeHtml(email);
+                                        var q = query.trim();
+                                        var re = new RegExp(escapeRegex(q), 'gi');
+                                        var result = '';
+                                        var lastIndex = 0;
+                                        var match;
+                                        while ((match = re.exec(email)) !== null) {
+                                            result += escapeHtml(email.substring(lastIndex, match.index)) + '<span class="highlight">' + escapeHtml(match[0]) + '</span>';
+                                            lastIndex = match.index + match[0].length;
+                                        }
+                                        result += escapeHtml(email.substring(lastIndex));
+                                        return result || escapeHtml(email);
+                                    }
+
+                                    function renderList(emails) {
+                                        var query = (emailInput.value || '').trim();
+                                        dropdown.innerHTML = '';
+                                        dropdown.style.display = emails.length ? 'block' : 'none';
+                                        selectedIndex = -1;
+                                        emails.forEach(function(email, i) {
+                                            var div = document.createElement('div');
+                                            div.className = 'email-dropdown-item';
+                                            div.setAttribute('role', 'option');
+                                            div.setAttribute('data-index', i);
+                                            div.setAttribute('data-email', email);
+                                            div.innerHTML = highlightMatch(email, query);
+                                            div.addEventListener('click', function() {
+                                                emailInput.value = this.getAttribute('data-email');
+                                                dropdown.style.display = 'none';
+                                                dropdown.innerHTML = '';
+                                                emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                            });
+                                            dropdown.appendChild(div);
                                         });
-                                        
-                                        dot.addEventListener('mouseenter', function() {
-                                            if (isDrawing && !patternDots.includes(index)) {
-                                                patternDots.push(index);
-                                                updatePatternDisplay();
-                                            }
-                                        });
-                                        
-                                        dot.addEventListener('mouseup', function() {
-                                            if (isDrawing) {
-                                                isDrawing = false;
-                                                checkPattern();
-                                            }
-                                        });
+                                    }
+
+                                    function openDropdown() {
+                                        var emails = filterEmails(emailInput.value);
+                                        renderList(emails);
+                                    }
+
+                                    emailInput.addEventListener('focus', function() {
+                                        openDropdown();
                                     });
-                                    
-                                    // Touch events for mobile
-                                    patternDotsElements.forEach((dot, index) => {
-                                        dot.addEventListener('touchstart', function(e) {
-                                            e.preventDefault();
-                                            isDrawing = true;
-                                            patternDots = [index];
-                                            updatePatternDisplay();
-                                        });
-                                        
-                                        dot.addEventListener('touchmove', function(e) {
-                                            e.preventDefault();
-                                            const touch = e.touches[0];
-                                            const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                                            if (element && element.classList.contains('pattern-dot')) {
-                                                const dotIndex = parseInt(element.getAttribute('data-index'));
-                                                if (isDrawing && !patternDots.includes(dotIndex)) {
-                                                    patternDots.push(dotIndex);
-                                                    updatePatternDisplay();
-                                                }
-                                            }
-                                        });
-                                        
-                                        dot.addEventListener('touchend', function(e) {
-                                            e.preventDefault();
-                                            if (isDrawing) {
-                                                isDrawing = false;
-                                                checkPattern();
-                                            }
-                                        });
+
+                                    emailInput.addEventListener('input', function() {
+                                        openDropdown();
                                     });
-                                }
-                                
-                                function updatePatternDisplay() {
-                                    patternDotsElements.forEach((dot, index) => {
-                                        if (patternDots.includes(index)) {
-                                            dot.style.background = '#3b82f6';
-                                            dot.style.borderColor = '#3b82f6';
-                                            dot.style.transform = 'scale(1.1)';
-                                        } else {
-                                            dot.style.background = '#fff';
-                                            dot.style.borderColor = '#dee2e6';
-                                            dot.style.transform = 'scale(1)';
+
+                                    emailInput.addEventListener('keydown', function(e) {
+                                        var items = dropdown.querySelectorAll('.email-dropdown-item');
+                                        if (e.key === 'ArrowDown') {
+                                            e.preventDefault();
+                                            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                                            if (selectedIndex >= 0 && items[selectedIndex]) {
+                                                items.forEach(function(el, i) { el.classList.toggle('active', i === selectedIndex); });
+                                                items[selectedIndex].scrollIntoView({ block: 'nearest' });
+                                            }
+                                            return;
+                                        }
+                                        if (e.key === 'ArrowUp') {
+                                            e.preventDefault();
+                                            selectedIndex = Math.max(selectedIndex - 1, -1);
+                                            items.forEach(function(el, i) { el.classList.toggle('active', i === selectedIndex); });
+                                            if (selectedIndex >= 0 && items[selectedIndex]) items[selectedIndex].scrollIntoView({ block: 'nearest' });
+                                            return;
+                                        }
+                                        if (e.key === 'Enter' && selectedIndex >= 0 && items[selectedIndex]) {
+                                            e.preventDefault();
+                                            emailInput.value = items[selectedIndex].getAttribute('data-email') || items[selectedIndex].textContent;
+                                            dropdown.style.display = 'none';
+                                            dropdown.innerHTML = '';
+                                            emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                            return;
+                                        }
+                                        if (e.key === 'Escape') {
+                                            dropdown.style.display = 'none';
+                                            dropdown.innerHTML = '';
+                                            selectedIndex = -1;
                                         }
                                     });
-                                }
-                                
-                                function checkPattern() {
-                                    if (!userPattern) {
-                                        patternError.textContent = 'Pattern not set. Please set your pattern first.';
-                                        patternError.style.display = 'block';
-                                        setTimeout(function() {
-                                            patternDots = [];
-                                            updatePatternDisplay();
-                                            patternError.style.display = 'none';
-                                        }, 2000);
-                                        return;
-                                    }
-                                    // Submit to server - verification happens securely on backend (encrypted storage)
-                                    patternInput.value = patternDots.join(',');
-                                    submitPatternLogin();
-                                }
 
-                                function submitPatternLogin() {
-                                    const email = document.getElementById('emailInput').value;
-                                    const pattern = patternDots.join(',');
-                                    const branchId = document.getElementById('branchSelect') ? document.getElementById('branchSelect').value : '';
-                                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+                                    document.addEventListener('click', function(e) {
+                                        if (!emailInput.contains(e.target) && !dropdown.contains(e.target)) {
+                                            dropdown.style.display = 'none';
+                                            dropdown.innerHTML = '';
+                                        }
+                                    });
+                                })();
 
-                                    // Create form and submit
-                                    const form = document.createElement('form');
-                                    form.method = 'POST';
-                                    form.action = '{{ route("login.pattern") }}';
-                                    
-                                    const csrfInput = document.createElement('input');
-                                    csrfInput.type = 'hidden';
-                                    csrfInput.name = '_token';
-                                    csrfInput.value = csrfToken;
-                                    form.appendChild(csrfInput);
-
-                                    const emailInput = document.createElement('input');
-                                    emailInput.type = 'hidden';
-                                    emailInput.name = 'email';
-                                    emailInput.value = email;
-                                    form.appendChild(emailInput);
-
-                                    const patternInput = document.createElement('input');
-                                    patternInput.type = 'hidden';
-                                    patternInput.name = 'pattern';
-                                    patternInput.value = pattern;
-                                    form.appendChild(patternInput);
-
-                                    if (branchId) {
-                                        const branchInput = document.createElement('input');
-                                        branchInput.type = 'hidden';
-                                        branchInput.name = 'branch_id';
-                                        branchInput.value = branchId;
-                                        form.appendChild(branchInput);
-                                    }
-
-                                    document.body.appendChild(form);
-                                    form.submit();
-                                }
-                                
                                 // Fingerprint / WebAuthn: real biometric login (conditional UI)
-                                const fingerprintBtn = document.getElementById('fingerprintBtn');
-                                const fingerprintStatus = document.getElementById('fingerprintStatus');
+                                const fingerprintBtn = document.getElementById('bio-fingerprint-btn');
+                                const fingerprintStatus = document.getElementById('bio-status-text');
                                 const fingerprintError = document.getElementById('fingerprintError');
                                 let userHasFingerprint = false;
+
+                                function getDeviceType() {
+                                    var ua = navigator.userAgent || '';
+                                    if (/iPhone|iPad|iPod/i.test(ua)) return 'iPhone';
+                                    if (/Android/i.test(ua)) return 'Android';
+                                    if (/Windows/i.test(ua)) return 'Windows PC';
+                                    if (/Mac/i.test(ua)) return 'Mac';
+                                    return 'this device';
+                                }
+                                function isSecureContext() {
+                                    return window.isSecureContext === true;
+                                }
+                                function isLocalhost() {
+                                    var host = window.location.hostname;
+                                    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+                                }
+                                function showBioUnsupported(message) {
+                                    if (fingerprintBtn) fingerprintBtn.style.display = 'none';
+                                    var container = document.getElementById('fingerprintContainer');
+                                    if (container) container.style.display = 'none';
+                                    var reasonEl = document.getElementById('bio-unsupported-reason');
+                                    if (reasonEl) reasonEl.textContent = message || '';
+                                    var notSupportedDiv = document.getElementById('bio-not-supported');
+                                    if (notSupportedDiv) notSupportedDiv.style.display = 'block';
+                                }
+                                function showNoPasskeyState() {
+                                    var statusEl = document.getElementById('bio-status-text') || document.getElementById('bio-message-text');
+                                    if (statusEl) {
+                                        statusEl.innerHTML = '<span class="text-warning">' +
+                                            '⚠️ اس ڈیوائس پر کوئی فنگر پرنٹ رجسٹرڈ نہیں۔' +
+                                            '<br><small class="text-muted">No fingerprint registered on this device.</small>' +
+                                            '</span>';
+                                    }
+                                    var regSection = document.getElementById('bio-register-section');
+                                    if (regSection) regSection.style.display = 'block';
+                                }
+
+                                if (!window.PublicKeyCredential) {
+                                    showBioUnsupported('Biometric login is not supported in this browser. Use Chrome or Edge.');
+                                } else if (!isSecureContext()) {
+                                    showBioUnsupported(
+                                        'Biometric login requires HTTPS or localhost. ' +
+                                        'You are accessing via ' + window.location.protocol + '//' + window.location.hostname + ' which is not secure. ' +
+                                        'On ' + getDeviceType() + ', use HTTPS.'
+                                    );
+                                } else if (!isLocalhost() && window.location.protocol !== 'https:') {
+                                    showBioUnsupported(
+                                        'آپ کا ' + getDeviceType() + ' اس سائٹ کو IP ایڈریس سے کھول رہا ہے۔ فنگر پرنٹ کے لیے HTTPS ضروری ہے۔ Biometric requires HTTPS on mobile devices.'
+                                    );
+                                }
 
                                 function bufferToBase64url(buffer) {
                                     const bytes = new Uint8Array(buffer);
@@ -415,7 +455,11 @@
                                         return navigator.credentials.get({ publicKey: publicKey, mediation: 'optional' });
                                     })
                                     .then(credential => {
-                                        if (!credential) throw new Error('تصدیق منسوخ');
+                                        if (!credential) {
+                                            setFingerprintUI('idle');
+                                            showNoPasskeyState();
+                                            throw new Error('No passkey on this device');
+                                        }
                                         const id = credential.id;
                                         const authenticatorData = bufferToBase64url(credential.response.authenticatorData);
                                         const clientDataJSON = bufferToBase64url(credential.response.clientDataJSON);
@@ -460,9 +504,16 @@
                                     })
                                     .catch(function(err) {
                                         setFingerprintUI('idle');
-                                        if (fingerprintError) {
-                                            fingerprintError.textContent = err.message || 'پہلے پروفائل میں فنگر پرنٹ رجسٹر کریں یا تصدیق دوبارہ کریں۔';
-                                            fingerprintError.style.display = 'block';
+                                        var msg = (err && err.message) ? err.message : String(err);
+                                        var isNotAllowed = (err && err.name === 'NotAllowedError') || /not allowed|user cancelled|canceled/i.test(msg);
+                                        var isNotFound = /not found|no passkey|no credential/i.test(msg);
+                                        if (isNotAllowed || isNotFound) {
+                                            showNoPasskeyState();
+                                        } else {
+                                            if (fingerprintError) {
+                                                fingerprintError.textContent = msg || 'پہلے پروفائل میں فنگر پرنٹ رجسٹر کریں یا تصدیق دوبارہ کریں۔';
+                                                fingerprintError.style.display = 'block';
+                                            }
                                         }
                                     });
                                 }
@@ -495,53 +546,12 @@
                                 let debounceTimer;
                                 let isUserRole = false;
                                 
-                                // Check pattern and fingerprint status when email is entered
-                                function checkPatternFingerprintStatus(email) {
+                                // Check fingerprint status when email is entered
+                                function checkFingerprintStatus(email) {
                                     if (!email || !email.includes('@')) {
-                                        userPattern = null;
                                         userHasFingerprint = false;
-                                        if (patternPane) {
-                                            const patternMsg = patternPane.querySelector('.pattern-status-msg');
-                                            if (patternMsg) patternMsg.remove();
-                                        }
                                         return;
                                     }
-
-                                    // Check pattern status
-                                    fetch('{{ route("get.user.pattern.status") }}', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                        },
-                                        body: JSON.stringify({ email: email })
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.has_pattern) {
-                                            userPattern = true; // User has pattern set (never send actual pattern to client)
-                                            if (patternPane) {
-                                                let patternMsg = patternPane.querySelector('.pattern-status-msg');
-                                                if (!patternMsg) {
-                                                    patternMsg = document.createElement('p');
-                                                    patternMsg.className = 'text-success small mt-2 pattern-status-msg';
-                                                    patternPane.querySelector('.text-center').appendChild(patternMsg);
-                                                }
-                                                patternMsg.textContent = 'Pattern is set. Draw your pattern to login.';
-                                            }
-                                        } else {
-                                            userPattern = null;
-                                            if (patternPane) {
-                                                let patternMsg = patternPane.querySelector('.pattern-status-msg');
-                                                if (!patternMsg) {
-                                                    patternMsg = document.createElement('p');
-                                                    patternMsg.className = 'text-warning small mt-2 pattern-status-msg';
-                                                    patternPane.querySelector('.text-center').appendChild(patternMsg);
-                                                }
-                                                patternMsg.textContent = 'Pattern not set. Please set your pattern first in settings.';
-                                            }
-                                        }
-                                    });
 
                                     // Check fingerprint status
                                     fetch('{{ route("get.user.fingerprint.status") }}', {
@@ -556,13 +566,13 @@
                                     .then(data => {
                                         userHasFingerprint = data.has_fingerprint;
                                         if (!userHasFingerprint) {
-                                            const fingerprintStatusEl = document.getElementById('fingerprintStatus');
+                                            const fingerprintStatusEl = document.getElementById('bio-status-text');
                                             if (fingerprintStatusEl) {
                                                 fingerprintStatusEl.textContent = 'Fingerprint not set. Please set your fingerprint first.';
                                                 fingerprintStatusEl.style.color = '#dc3545';
                                             }
                                         } else {
-                                            const fingerprintStatusEl = document.getElementById('fingerprintStatus');
+                                            const fingerprintStatusEl = document.getElementById('bio-status-text');
                                             if (fingerprintStatusEl) {
                                                 fingerprintStatusEl.textContent = 'Hold to Scan Finger';
                                                 fingerprintStatusEl.style.color = '';
@@ -605,10 +615,10 @@
                                     function handleEmailOrUserChange() {
                                         const email = (emailInput.tagName === 'SELECT' ? emailInput.value : emailInput.value.trim());
                                         
-                                        checkPatternFingerprintStatus(email);
+                                        checkFingerprintStatus(email);
                                         
                                         var branchDisplay = document.getElementById('selectedUserBranchDisplay');
-                                        if (!email || !email.includes('@')) {
+                                                if (!email || !email.includes('@')) {
                                             if (branchDisplay) branchDisplay.style.display = 'none';
                                             if (branchSelectionDiv) branchSelectionDiv.style.display = 'none';
                                             if (branchSelect) { branchSelect.disabled = false; branchSelect.value = ''; }
@@ -620,6 +630,17 @@
                                         if (branchSelectionDiv) branchSelectionDiv.style.display = 'block';
                                         if (branchSelect) branchSelect.disabled = true;
                                         
+                                        function setBranchOptions(branches) {
+                                            if (!branchSelect || !branches || !branches.length) return;
+                                            branchSelect.innerHTML = '<option value="">-- Select Branch --</option>';
+                                            branches.forEach(function(b) {
+                                                var opt = document.createElement('option');
+                                                opt.value = b.id;
+                                                opt.textContent = b.name + (b.code ? ' (' + b.code + ')' : '');
+                                                branchSelect.appendChild(opt);
+                                            });
+                                        }
+
                                         function doBranchFetch() {
                                             fetch('{{ route("get.user.branch") }}', {
                                                 method: 'POST',
@@ -638,66 +659,43 @@
                                                 if (!branchSelect || !branchSelectionDiv) return;
                                                 
                                                 if (data.success) {
+                                                    var branches = data.branches;
+                                                    if (!branches && data.branch_id) {
+                                                        branches = [{ id: data.branch_id, name: data.branch_name || '', code: data.branch_code || '' }];
+                                                    }
+                                                    if (branches && branches.length) {
+                                                        setBranchOptions(branches);
+                                                        if (branches.length === 1) branchSelect.value = branches[0].id;
+                                                    }
+                                                    branchSelect.disabled = false;
+                                                    branchSelect.removeAttribute('readonly');
+                                                    branchSelect.style.backgroundColor = '';
+                                                    branchSelect.style.cursor = '';
+
                                                     if (data.is_admin) {
                                                         isUserRole = false;
                                                         if (branchRequiredStar) branchRequiredStar.style.display = 'none';
-                                                        if (branchSelect) { branchSelect.removeAttribute('required'); branchSelect.disabled = false; }
+                                                        branchSelect.removeAttribute('required');
                                                         if (branchOptionalText) branchOptionalText.textContent = '(Optional for Admin)';
                                                         if (branchInfoMsg) {
-                                                            branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - Branch selection is optional';
+                                                            branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - Select branch below if needed';
                                                             branchInfoMsg.style.display = 'block';
                                                             branchInfoMsg.classList.remove('text-danger', 'text-success');
                                                             branchInfoMsg.classList.add('text-info');
                                                         }
-                                                        if (data.branch_id && branchSelect) branchSelect.value = data.branch_id;
-                                                        else if (branchSelect && !branchSelect.value) focusAndOpenBranchDropdown();
-                                                    } else if (data.branch_id && data.branch_required) {
-                                                        isUserRole = true;
-                                                        if (branchRequiredStar) branchRequiredStar.style.display = 'inline';
-                                                        if (branchSelect) {
-                                                            branchSelect.value = data.branch_id;
-                                                            branchSelect.disabled = false;
-                                                            branchSelect.style.backgroundColor = '#e9ecef';
-                                                            branchSelect.style.cursor = 'not-allowed';
-                                                            branchSelect.setAttribute('readonly', 'readonly');
-                                                            branchSelect.addEventListener('mousedown', function(e) { e.preventDefault(); return false; });
-                                                            branchSelect.addEventListener('keydown', function(e) {
-                                                                if (e.key !== 'Tab' && e.key !== 'Enter') { e.preventDefault(); return false; }
-                                                            });
-                                                            branchSelect.classList.remove('is-invalid');
-                                                        }
-                                                        var branchIdHidden = document.getElementById('branchIdHidden');
-                                                        if (branchIdHidden) branchIdHidden.value = data.branch_id;
-                                                        if (branchOptionalText) branchOptionalText.textContent = '(Auto-selected - Required)';
-                                                        if (branchInfoMsg) {
-                                                            branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong> - Ready to login';
-                                                            branchInfoMsg.style.display = 'block';
-                                                            branchInfoMsg.classList.remove('text-danger', 'text-info');
-                                                            branchInfoMsg.classList.add('text-success');
-                                                        }
-                                                        setTimeout(function() {
-                                                            var passwordInput = document.querySelector('input[name="password"]');
-                                                            if (passwordInput) passwordInput.focus();
-                                                        }, 100);
                                                     } else {
                                                         isUserRole = true;
                                                         if (branchRequiredStar) branchRequiredStar.style.display = 'inline';
-                                                        if (branchSelect) {
-                                                            branchSelect.setAttribute('required', 'required');
-                                                            branchSelect.disabled = false;
-                                                            branchSelect.style.backgroundColor = '';
-                                                            branchSelect.style.cursor = '';
-                                                            branchSelect.value = '';
-                                                        }
-                                                        if (branchOptionalText) branchOptionalText.textContent = '(Required)';
+                                                        branchSelect.setAttribute('required', 'required');
+                                                        if (branchOptionalText) branchOptionalText.textContent = '(Required - select your branch)';
                                                         if (branchInfoMsg) {
-                                                            branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> ' + (data.message || 'No active branch found. Please contact administrator.');
+                                                            branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Select your branch from the list below';
                                                             branchInfoMsg.style.display = 'block';
-                                                            branchInfoMsg.classList.remove('text-success', 'text-info');
-                                                            branchInfoMsg.classList.add('text-danger');
+                                                            branchInfoMsg.classList.remove('text-danger', 'text-success');
+                                                            branchInfoMsg.classList.add('text-info');
                                                         }
-                                                        focusAndOpenBranchDropdown();
                                                     }
+                                                    focusAndOpenBranchDropdown();
                                                 } else {
                                                     if (branchSelectionDiv) branchSelectionDiv.style.display = 'none';
                                                     if (branchSelect) { branchSelect.disabled = false; branchSelect.value = ''; }
@@ -711,11 +709,13 @@
                                             .catch(error => {
                                                 console.error('Error:', error);
                                                 if (branchAutoDetectMsg) branchAutoDetectMsg.style.display = 'none';
-                                                if (branchSelect) branchSelect.disabled = false;
+                                                if (branchSelect) { branchSelect.disabled = false; branchSelect.value = ''; }
+                                                isUserRole = false;
                                                 if (branchInfoMsg) {
-                                                    branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Error detecting branch';
+                                                    branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Could not load branches. Sign in anyway – we\'ll use your default branch.';
                                                     branchInfoMsg.style.display = 'block';
-                                                    branchInfoMsg.classList.add('text-danger');
+                                                    branchInfoMsg.classList.remove('text-danger', 'text-success');
+                                                    branchInfoMsg.classList.add('text-info');
                                                 }
                                                 updateBranchDisplay({ success: false });
                                             });
@@ -765,13 +765,11 @@
                                                     branchInfoMsg.classList.remove('text-success', 'text-info');
                                                     branchInfoMsg.classList.add('text-danger');
                                                 }
-                                                branchSelect.style.backgroundColor = '';
-                                                branchSelect.style.cursor = '';
-                                                branchSelect.removeAttribute('readonly');
                                                 branchSelect.focus();
                                                 return false;
                                             }
-                                            if (isUserRole && branchValue) branchSelect.removeAttribute('readonly');
+                                            // Ensure branch select is enabled so its value is submitted (disabled fields are not sent)
+                                            branchSelect.disabled = false;
                                         });
                                     }
                                     @if(old('email'))
@@ -781,21 +779,68 @@
                                     @endif
                                 }
                                 
-                                // Searchable username dropdown (Select2)
-                                if (typeof $ !== 'undefined' && $.fn.select2 && document.getElementById('emailInput')) {
-                                    $('#emailInput').select2({
-                                        placeholder: '-- Select User --',
-                                        allowClear: false,
-                                        width: '100%'
+                                // Email is a plain input; branch is fetched on blur/input via getUserBranchByEmail
+                            });
+                        </script>
+
+                        <script>
+                        (function () {
+                            var STORAGE_KEY = 'remembered_email';
+
+                            document.addEventListener('DOMContentLoaded', function () {
+                                var emailInputs = document.querySelectorAll('input[name="email"], input[type="email"], #emailInput');
+                                var rememberCheckbox = document.getElementById('remember');
+
+                                if (emailInputs.length === 0) return;
+
+                                var savedEmail = localStorage.getItem(STORAGE_KEY);
+                                if (savedEmail && savedEmail.trim() !== '') {
+                                    emailInputs.forEach(function (input) {
+                                        if (!input.value || input.value.trim() === '') {
+                                            input.value = savedEmail;
+                                        }
                                     });
-                                    // Ensure branch section shows when user selects from dropdown (Select2 uses select2:select)
-                                    $('#emailInput').on('select2:select', function() {
-                                        var sel = document.getElementById('emailInput');
-                                        if (sel) sel.dispatchEvent(new Event('change'));
-                                    });
+                                    if (rememberCheckbox) rememberCheckbox.checked = true;
                                 }
 
+                                emailInputs.forEach(function (input) {
+                                    input.addEventListener('input', function () {
+                                        var val = this.value;
+                                        emailInputs.forEach(function (other) {
+                                            if (other !== input) other.value = val;
+                                        });
+                                    });
+                                    input.addEventListener('blur', function () {
+                                        if (rememberCheckbox && rememberCheckbox.checked && this.value.trim() !== '') {
+                                            localStorage.setItem(STORAGE_KEY, this.value.trim());
+                                        }
+                                    });
+                                });
+
+                                var forms = document.querySelectorAll('form');
+                                forms.forEach(function (form) {
+                                    form.addEventListener('submit', function () {
+                                        var emailVal = '';
+                                        emailInputs.forEach(function (input) {
+                                            if (input.value.trim() !== '') emailVal = input.value.trim();
+                                        });
+                                        if (rememberCheckbox && rememberCheckbox.checked && emailVal) {
+                                            localStorage.setItem(STORAGE_KEY, emailVal);
+                                        } else if (rememberCheckbox && !rememberCheckbox.checked) {
+                                            localStorage.removeItem(STORAGE_KEY);
+                                        }
+                                    });
+                                });
+
+                                if (rememberCheckbox) {
+                                    rememberCheckbox.addEventListener('change', function () {
+                                        if (!this.checked) {
+                                            localStorage.removeItem(STORAGE_KEY);
+                                        }
+                                    });
+                                }
                             });
+                        })();
                         </script>
 
                         {{-- <div class="my-4 d-flex justify-content-center align-items-center copyright-text">

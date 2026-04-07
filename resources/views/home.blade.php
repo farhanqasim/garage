@@ -8,8 +8,6 @@
 <div class="content">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-2">
           <div class="mb-3">
-            <h1 class="mb-1">Welcome, {{ auth()->user()->name ?? 'Guest' }} bhai</h1>
-            <p class="fw-medium">You have <span class="text-primary fw-bold">{{ $todayOrdersCount ?? 0 }}</span> Orders, Today</p>
             @can('view_car_wash_jobs')
             <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
               <a href="{{ route('car.wash') }}" class="btn btn-primary btn-lg">
@@ -44,6 +42,26 @@
                       @if(($unverifiedPurchasesCount ?? 0) > 0)
                         <span class="badge bg-warning text-dark rounded-pill">{{ $unverifiedPurchasesCount }} Unverified</span>
                       @endif
+                      <i class="ti ti-arrow-right fs-18 opacity-90"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+          @endcanany
+          @canany(['view_purchases', 'add_purchases'])
+          <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <a href="{{ route('purchases.demand') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
+              <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #b45309 0%, #92400e 100%);">
+                <div class="card-body d-flex align-items-center text-white">
+                  <span class="sale-icon bg-white rounded-2 d-flex align-items-center justify-content-center" style="color: #92400e;">
+                    <i class="ti ti-clipboard-list fs-24"></i>
+                  </span>
+                  <div class="ms-2">
+                    <p class="text-white mb-1">Demand</p>
+                    <div class="d-inline-flex align-items-center flex-wrap gap-2">
+                      <span class="text-white fw-semibold">Purchase order list</span>
                       <i class="ti ti-arrow-right fs-18 opacity-90"></i>
                     </div>
                   </div>
@@ -131,6 +149,27 @@
               </div>
             </a>
           </div>
+
+          @canany(['view_cash_accounts', 'view_bank_transactions', 'view_bank_accounts'])
+          <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <a href="{{ route('admin.reports.cash-ledger') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
+              <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);">
+                <div class="card-body d-flex align-items-center text-white">
+                  <span class="sale-icon bg-white rounded-2 d-flex align-items-center justify-content-center" style="color: #0f766e;">
+                    <i class="ti ti-cash fs-24"></i>
+                  </span>
+                  <div class="ms-2">
+                    <p class="text-white mb-1">Cash Ledger</p>
+                    <div class="d-inline-flex align-items-center flex-wrap gap-2">
+                      <span class="text-white fw-semibold">View Cash Report</span>
+                      <i class="ti ti-arrow-right fs-18 opacity-90"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+          @endcanany
 
           @canany(['view_items', 'add_items'])
           <div class="col-xl-3 col-sm-6 col-12 d-flex">
@@ -698,7 +737,7 @@
                 <a href="{{ route('customers.index') }}" class="fs-13 fw-medium text-decoration-underline">View All</a>
               </div>
               <div class="card-body">
-                @forelse($topCustomersList as $customer)
+                @forelse(($topCustomersList ?? collect()) as $customer)
                 <div class="d-flex align-items-center justify-content-between {{ !$loop->last ? 'border-bottom mb-3 pb-3' : '' }} flex-wrap gap-2">
                   <div class="d-flex align-items-center">
                     <a href="javascript:void(0);" class="avatar avatar-lg flex-shrink-0 bg-soft-primary rounded-circle d-flex align-items-center justify-content-center">

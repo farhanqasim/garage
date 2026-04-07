@@ -58,17 +58,17 @@ class BankAccount extends Model
     public function getCurrentBalanceAttribute()
     {
         $openingBalance = $this->opening_balance ?? 0;
-        
-        // Include ALL transactions (both reconciled and unreconciled) for current balance
+
+        // Include ALL transactions (both tallied and untallied) for current balance
         // This ensures job payments and other transactions are immediately reflected in balance
         $credits = $this->bankTransactions()
             ->where('type', 'credit')
             ->sum('amount');
-        
+
         $debits = $this->bankTransactions()
             ->where('type', 'debit')
             ->sum('amount');
-        
+
         return $openingBalance + $credits - $debits;
     }
 

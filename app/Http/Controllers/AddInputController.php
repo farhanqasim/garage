@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BatterySize;
 use App\Models\Brand;
 use App\Models\Cca;
 use App\Models\EngineCc;
 use App\Models\Formula;
 use App\Models\Grade;
 use App\Models\Group;
+use App\Models\GroupPhoneNumber;
 use App\Models\Level;
 use App\Models\MadeIn;
 use App\Models\Minuspool;
@@ -16,9 +18,9 @@ use App\Models\PoleThickness;
 use App\Models\PoolDirection;
 use App\Models\Product;
 use App\Models\Quality;
+use App\Models\Series;
 use App\Models\Services;
 use App\Models\Technology;
-use App\Models\BatterySize;
 use App\Models\VehicalType;
 use App\Models\Volt;
 use App\Models\Warrenty;
@@ -27,7 +29,6 @@ use Illuminate\Http\Request;
 
 class AddInputController extends Controller
 {
-
     public function post_volts(Request $request)
     {
         $name = trim((string) $request->name);
@@ -41,23 +42,22 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This volt already exists. It has been selected for you.'
+                'message' => 'This volt already exists. It has been selected for you.',
             ]);
         }
         $volts = Volt::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $volts->id,
-            'name' => $volts->name
+            'name' => $volts->name,
         ]);
     }
-
 
     public function show_volt($id)
     {
         return response()->json(Volt::findOrFail($id));
     }
-
 
     public function update_volt(Request $request, $id)
     {
@@ -68,22 +68,19 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $Volt->id,
             'name' => $Volt->name,
-            'message' => "Volt Update Successfully"
+            'message' => 'Volt Update Successfully',
         ]);
     }
 
     public function destory_volt($id)
     {
         Volt::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Volt deleted Successfully"
+            'message' => 'Volt deleted Successfully',
         ]);
     }
-
-
-
-
 
     public function post_cca(Request $request)
     {
@@ -98,37 +95,43 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This CCA already exists. It has been selected for you.'
+                'message' => 'This CCA already exists. It has been selected for you.',
             ]);
         }
         $cca = Cca::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $cca->id,
-            'name' => $cca->name
+            'name' => $cca->name,
         ]);
     }
+
     public function show_cca($id)
     {
         return response()->json(Cca::findOrFail($id));
     }
+
     public function update_cca(Request $request, $id)
     {
         $Cca = Cca::findOrFail($id);
         $Cca->update(['name' => $request->name]);
+
         return response()->json([
             'success' => true,
             'id' => $Cca->id,
             'name' => $Cca->name,
-            'message' => "Cca Update Successfully"
+            'message' => 'Cca Update Successfully',
         ]);
     }
+
     public function destory_cca($id)
     {
         Cca::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Cca deleted Successfully"
+            'message' => 'Cca deleted Successfully',
         ]);
     }
 
@@ -146,14 +149,15 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This already exists. It has been selected for you.'
+                'message' => 'This already exists. It has been selected for you.',
             ]);
         }
         $minuspool = Minuspool::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $minuspool->id,
-            'name' => $minuspool->name
+            'name' => $minuspool->name,
         ]);
     }
 
@@ -161,7 +165,6 @@ class AddInputController extends Controller
     {
         return response()->json(Minuspool::findOrFail($id));
     }
-
 
     public function update_minuspool(Request $request, $id)
     {
@@ -172,16 +175,17 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $minuspool->id,
             'name' => $minuspool->name,
-            'message' => "Minuspool Update Successfully"
+            'message' => 'Minuspool Update Successfully',
         ]);
     }
 
     public function destory_minuspool($id)
     {
         Minuspool::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Minuspool deleted Successfully"
+            'message' => 'Minuspool deleted Successfully',
         ]);
     }
 
@@ -199,14 +203,15 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This already exists. It has been selected for you.'
+                'message' => 'This already exists. It has been selected for you.',
             ]);
         }
         $poleThickness = PoleThickness::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $poleThickness->id,
-            'name' => $poleThickness->name
+            'name' => $poleThickness->name,
         ]);
     }
 
@@ -219,20 +224,22 @@ class AddInputController extends Controller
     {
         $poleThickness = PoleThickness::findOrFail($id);
         $poleThickness->update(['name' => $request->name]);
+
         return response()->json([
             'success' => true,
             'id' => $poleThickness->id,
             'name' => $poleThickness->name,
-            'message' => "Pole Thickness updated successfully"
+            'message' => 'Pole Thickness updated successfully',
         ]);
     }
 
     public function destory_polethickness($id)
     {
         PoleThickness::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Pole Thickness deleted successfully"
+            'message' => 'Pole Thickness deleted successfully',
         ]);
     }
 
@@ -250,14 +257,15 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This already exists. It has been selected for you.'
+                'message' => 'This already exists. It has been selected for you.',
             ]);
         }
         $poolDirection = PoolDirection::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $poolDirection->id,
-            'name' => $poolDirection->name
+            'name' => $poolDirection->name,
         ]);
     }
 
@@ -270,20 +278,22 @@ class AddInputController extends Controller
     {
         $poolDirection = PoolDirection::findOrFail($id);
         $poolDirection->update(['name' => $request->name]);
+
         return response()->json([
             'success' => true,
             'id' => $poolDirection->id,
             'name' => $poolDirection->name,
-            'message' => "Pool Direction updated successfully"
+            'message' => 'Pool Direction updated successfully',
         ]);
     }
 
     public function destory_pooldirection($id)
     {
         PoolDirection::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Pool Direction deleted successfully"
+            'message' => 'Pool Direction deleted successfully',
         ]);
     }
 
@@ -300,7 +310,7 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This technology already exists. It has been selected for you.'
+                'message' => 'This technology already exists. It has been selected for you.',
             ]);
         }
         $data = ['name' => $name];
@@ -308,10 +318,11 @@ class AddInputController extends Controller
             $data['type'] = $request->type;
         }
         $technology = Technology::create($data);
+
         return response()->json([
             'success' => true,
             'id' => $technology->id,
-            'name' => $technology->name
+            'name' => $technology->name,
         ]);
     }
 
@@ -319,7 +330,6 @@ class AddInputController extends Controller
     {
         return response()->json(Technology::findOrFail($id));
     }
-
 
     public function update_technology(Request $request, $id)
     {
@@ -330,16 +340,62 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $technology->id,
             'name' => $technology->name,
-            'message' => "Technology Update Successfully"
+            'message' => 'Technology Update Successfully',
         ]);
     }
 
     public function destory_technology($id)
     {
         Technology::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Technology deleted Successfully"
+            'message' => 'Technology deleted Successfully',
+        ]);
+    }
+
+    public function post_series(Request $request)
+    {
+        $name = strtolower(trim((string) $request->name));
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Series name is required.'], 422);
+        }
+
+        $series = Series::firstOrCreate(['name' => $name]);
+
+        return response()->json([
+            'success' => true,
+            'id' => $series->id,
+            'name' => $series->name,
+        ]);
+    }
+
+    public function show_series($id)
+    {
+        return response()->json(Series::findOrFail($id));
+    }
+
+    public function update_series(Request $request, $id)
+    {
+        $series = Series::findOrFail($id);
+        $name = strtolower(trim((string) $request->name));
+        $series->update(['name' => $name]);
+
+        return response()->json([
+            'success' => true,
+            'id' => $series->id,
+            'name' => $series->name,
+            'message' => 'Series Update Successfully',
+        ]);
+    }
+
+    public function destory_series($id)
+    {
+        Series::findOrFail($id)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Series deleted Successfully',
         ]);
     }
 
@@ -359,7 +415,7 @@ class AddInputController extends Controller
                 'width' => $existing->width,
                 'length' => $existing->length,
                 'already_exists' => true,
-                'message' => 'This battery size already exists. It has been selected for you.'
+                'message' => 'This battery size already exists. It has been selected for you.',
             ]);
         }
         $data = ['name' => $name];
@@ -373,13 +429,14 @@ class AddInputController extends Controller
             $data['length'] = $request->length;
         }
         $batterySize = BatterySize::create($data);
+
         return response()->json([
             'success' => true,
             'id' => $batterySize->id,
             'name' => $batterySize->name,
             'height' => $batterySize->height,
             'width' => $batterySize->width,
-            'length' => $batterySize->length
+            'length' => $batterySize->length,
         ]);
     }
 
@@ -397,6 +454,7 @@ class AddInputController extends Controller
             'width' => $request->filled('width') ? $request->width : $batterySize->width,
             'length' => $request->filled('length') ? $request->length : $batterySize->length,
         ]);
+
         return response()->json([
             'success' => true,
             'id' => $batterySize->id,
@@ -404,16 +462,17 @@ class AddInputController extends Controller
             'height' => $batterySize->height,
             'width' => $batterySize->width,
             'length' => $batterySize->length,
-            'message' => "Battery Size updated successfully"
+            'message' => 'Battery Size updated successfully',
         ]);
     }
 
     public function destory_battery_size($id)
     {
         BatterySize::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Battery Size deleted successfully"
+            'message' => 'Battery Size deleted successfully',
         ]);
     }
 
@@ -430,14 +489,15 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This grade already exists. It has been selected for you.'
+                'message' => 'This grade already exists. It has been selected for you.',
             ]);
         }
         $grade = Grade::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $grade->id,
-            'name' => $grade->name
+            'name' => $grade->name,
         ]);
     }
 
@@ -445,7 +505,6 @@ class AddInputController extends Controller
     {
         return response()->json(Grade::findOrFail($id));
     }
-
 
     public function update_grade(Request $request, $id)
     {
@@ -456,23 +515,19 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $grade->id,
             'name' => $grade->name,
-            'message' => "Grade Update Successfully"
+            'message' => 'Grade Update Successfully',
         ]);
     }
 
     public function destory_grade($id)
     {
         Grade::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Grade deleted Successfully"
+            'message' => 'Grade deleted Successfully',
         ]);
     }
-
-
-
-
-
 
     public function post_brand_item(Request $request)
     {
@@ -488,7 +543,7 @@ class AddInputController extends Controller
                 'name' => $existing->name,
                 'image' => $existing->image ?? null,
                 'already_exists' => true,
-                'message' => 'This brand already exists. It has been selected for you.'
+                'message' => 'This brand already exists. It has been selected for you.',
             ]);
         }
         $imagepath = null;
@@ -502,6 +557,7 @@ class AddInputController extends Controller
                     'image' => $imagepath,
                 ]
             );
+
             return response()->json([
                 'success' => true,
                 'id' => $brand->id,
@@ -514,10 +570,10 @@ class AddInputController extends Controller
                     'name' => $name,
                 ]
             );
+
             return response()->json(['success' => true, 'id' => $brand->id, 'name' => $brand->name]);
         }
     }
-
 
     public function post_formulas(Request $request)
     {
@@ -532,18 +588,17 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This formula already exists. It has been selected for you.'
+                'message' => 'This formula already exists. It has been selected for you.',
             ]);
         }
         $formula = Formula::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $formula->id,
-            'name' => $formula->name
+            'name' => $formula->name,
         ]);
     }
-
-
 
     public function post_product(Request $request)
     {
@@ -558,7 +613,7 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This product already exists. It has been selected for you.'
+                'message' => 'This product already exists. It has been selected for you.',
             ]);
         }
         $data = ['name' => $name];
@@ -566,20 +621,19 @@ class AddInputController extends Controller
             $data['type'] = $request->type;
         }
         $product = Product::create($data);
+
         return response()->json([
             'success' => true,
             'id' => $product->id,
             'name' => $product->name,
-            'message' => 'Product added successfully'
+            'message' => 'Product added successfully',
         ]);
     }
-
 
     public function show_product($id)
     {
         return response()->json(Product::findOrFail($id));
     }
-
 
     public function update_product(Request $request, $id)
     {
@@ -590,20 +644,19 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $Product->id,
             'name' => $Product->name,
-            'message' => "Product Update Successfully"
+            'message' => 'Product Update Successfully',
         ]);
     }
 
     public function destory_product($id)
     {
         Product::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Product deleted Successfully"
+            'message' => 'Product deleted Successfully',
         ]);
     }
-
-
 
     public function post_qualities(Request $request)
     {
@@ -623,7 +676,7 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This quality already exists. It has been selected for you.'
+                'message' => 'This quality already exists. It has been selected for you.',
             ]);
         }
 
@@ -632,10 +685,11 @@ class AddInputController extends Controller
             $data['type'] = $type;
         }
         $quality = Quality::create($data);
+
         return response()->json([
             'success' => true,
             'id' => $quality->id,
-            'name' => $quality->name
+            'name' => $quality->name,
         ]);
     }
 
@@ -643,7 +697,6 @@ class AddInputController extends Controller
     {
         return response()->json(Quality::findOrFail($id));
     }
-
 
     public function update_quality(Request $request, $id)
     {
@@ -654,51 +707,51 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $quality->id,
             'name' => $quality->name,
-            'message' => "Quality Update Successfully"
+            'message' => 'Quality Update Successfully',
         ]);
     }
 
     public function destory_quality($id)
     {
         Quality::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Quality deleted Successfully"
+            'message' => 'Quality deleted Successfully',
         ]);
     }
-
-
 
     public function post_part_number(Request $request)
     {
         // Use PartNumberController for consistency
-        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        $controller = new \App\Http\Controllers\Admin\PartNumberController;
+
         return $controller->store($request);
     }
-
 
     public function show_partnumber($id)
     {
         // Use PartNumberController for consistency
-        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        $controller = new \App\Http\Controllers\Admin\PartNumberController;
+
         return $controller->show($id);
     }
-
 
     public function update_partnumber(Request $request, $id)
     {
         // Use PartNumberController for consistency
-        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        $controller = new \App\Http\Controllers\Admin\PartNumberController;
+
         return $controller->update($request, $id);
     }
 
     public function destory_partnumber($id)
     {
         // Use PartNumberController for consistency
-        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        $controller = new \App\Http\Controllers\Admin\PartNumberController;
+
         return $controller->destroy($id);
     }
-
 
     public function post_engine_cc(Request $request)
     {
@@ -713,332 +766,334 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This already exists. It has been selected for you.'
+                'message' => 'This already exists. It has been selected for you.',
             ]);
         }
         $enginecc = EngineCc::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $enginecc->id,
-            'name' => $enginecc->name
+            'name' => $enginecc->name,
         ]);
     }
 
-
-        public function show_engine_cc($id)
-        {
-            return response()->json(EngineCc::findOrFail($id));
-        }
-
+    public function show_engine_cc($id)
+    {
+        return response()->json(EngineCc::findOrFail($id));
+    }
 
     public function update_engine_cc(Request $request, $id)
     {
         $EngineCc = EngineCc::findOrFail($id);
         $EngineCc->update(['name' => $request->name]);
+
         return response()->json([
             'success' => true,
             'id' => $EngineCc->id,
             'name' => $EngineCc->name,
-            'message' => "EngineCc Update Successfully"
+            'message' => 'EngineCc Update Successfully',
         ]);
     }
 
     public function destory_engine_cc($id)
     {
         EngineCc::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "EngineCc deleted Successfully"
+            'message' => 'EngineCc deleted Successfully',
         ]);
     }
-
 
     public function all_vehicals_types()
     {
         $all_vehicals = VehicalType::paginate(10);
+
         return view('admin.vehical.index', compact('all_vehicals'));
     }
 
-        // Helper function to check if two year ranges overlap
-        private function rangesOverlap($range1, $range2)
-        {
-            $from1 = (int) $range1['from'];
-            $to1 = (int) $range1['to'];
-            $from2 = (int) $range2['from'];
-            $to2 = (int) $range2['to'];
-            
-            // Two ranges overlap if: range1 starts before range2 ends AND range1 ends after range2 starts
-            return $from1 <= $to2 && $to1 >= $from2;
+    // Helper function to check if two year ranges overlap
+    private function rangesOverlap($range1, $range2)
+    {
+        $from1 = (int) $range1['from'];
+        $to1 = (int) $range1['to'];
+        $from2 = (int) $range2['from'];
+        $to2 = (int) $range2['to'];
+
+        // Two ranges overlap if: range1 starts before range2 ends AND range1 ends after range2 starts
+        return $from1 <= $to2 && $to1 >= $from2;
+    }
+
+    // Helper function to check if a year is covered by any range
+    private function yearCoveredByRanges($year, $ranges)
+    {
+        $yearInt = (int) $year;
+        foreach ($ranges as $range) {
+            $from = (int) $range['from'];
+            $to = (int) $range['to'];
+            if ($yearInt >= $from && $yearInt <= $to) {
+                return $range;
+            }
         }
 
-        // Helper function to check if a year is covered by any range
-        private function yearCoveredByRanges($year, $ranges)
-        {
-            $yearInt = (int) $year;
-            foreach ($ranges as $range) {
-                $from = (int) $range['from'];
-                $to = (int) $range['to'];
-                if ($yearInt >= $from && $yearInt <= $to) {
-                    return $range;
-                }
-            }
-            return false;
-        }
+        return false;
+    }
 
-        public function post_product_vehical(Request $request)
-        {
-            // For battery type: allow either v_part_number_id OR product_id (product name). If product_id given, resolve to part number.
-            $hasPartNumber = $request->filled('v_part_number_id');
-            $hasProductId = $request->filled('product_id');
-            if (!$hasPartNumber && !$hasProductId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Please select Part Number or Product Name first.',
-                ], 422);
-            }
-            if ($hasPartNumber) {
-                $request->validate([
-                    'v_part_number_id' => 'required|exists:part_numbers,id',
-                ], [
-                    'v_part_number_id.exists' => 'The selected part number is invalid.',
-                ]);
-            } else {
-                $request->validate([
-                    'product_id' => 'required|exists:products,id',
-                ], [
-                    'product_id.required' => 'Please select Product Name first.',
-                    'product_id.exists' => 'The selected product is invalid.',
-                ]);
-            }
-
-            $vPartNumberId = $request->v_part_number_id;
-            if (!$vPartNumberId && $hasProductId) {
-                // Resolve product name to a part number: find or create PartNumber with same name as Product
-                $product = Product::findOrFail($request->product_id);
-                $name = trim((string) $product->name);
-                if ($name === '') {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Product has no name; cannot link vehicles.',
-                    ], 422);
-                }
-                $type = $request->get('type', 'battery');
-                $partNumber = PartNumber::whereRaw('LOWER(name) = ?', [strtolower($name)])
-                    ->when($type, fn ($q) => $q->where('type', $type))
-                    ->first();
-                if (!$partNumber) {
-                    $partNumber = PartNumber::create([
-                        'name' => $name,
-                        'type' => $type,
-                        'status' => 'active',
-                    ]);
-                }
-                $vPartNumberId = $partNumber->id;
-            }
-
-            $request->merge(['v_part_number_id' => $vPartNumberId]);
-
-            $request->validate([
-                'car_manufacturer' => 'nullable|exists:car_manufacturers,id',
-                'car_model_name' => 'nullable|exists:car_models,id',
-                'engine_cc' => 'nullable|exists:engine_ccs,id',
-                'car_manufactured_country' => 'nullable|exists:car_countries,id',
-                'year_from' => 'nullable|array',
-                'year_from.*' => 'nullable|string',
-                'year_to' => 'nullable|array',
-                'year_to.*' => 'nullable|string',
-            ]);
-
-            $yearFroms = $request->get('year_from', []);
-            $yearTos = $request->get('year_to', []);
-            
-            // Process year ranges
-            $validRanges = [];
-            for ($i = 0; $i < count($yearFroms); $i++) {
-                $from = trim((string) ($yearFroms[$i] ?? ''));
-                $to = trim((string) ($yearTos[$i] ?? ''));
-                
-                if ($from === '' && $to === '') {
-                    continue; // Skip empty ranges
-                }
-                
-                $fromInt = $from ? (int) $from : null;
-                $toInt = $to ? (int) $to : null;
-                
-                // Validate year range
-                if ($fromInt && ($fromInt < 1900 || $fromInt > 2100)) {
-                    continue;
-                }
-                if ($toInt && ($toInt < 1900 || $toInt > 2100)) {
-                    continue;
-                }
-                
-                // If only one year is provided, use it for both
-                if ($fromInt && !$toInt) {
-                    $toInt = $fromInt;
-                } elseif (!$fromInt && $toInt) {
-                    $fromInt = $toInt;
-                }
-                
-                // Ensure from <= to
-                if ($fromInt && $toInt && $fromInt > $toInt) {
-                    $temp = $fromInt;
-                    $fromInt = $toInt;
-                    $toInt = $temp;
-                }
-                
-                if ($fromInt && $toInt) {
-                    $validRanges[] = [
-                        'from' => (string) $fromInt,
-                        'to' => (string) $toInt
-                    ];
-                }
-            }
-
-            $hasAnyData = !empty($validRanges) ||
-                $request->filled('v_part_number_id') ||
-                $request->filled('car_manufacturer') ||
-                $request->filled('car_model_name') ||
-                $request->filled('engine_cc') ||
-                $request->filled('car_manufactured_country');
-
-            if (!$hasAnyData) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'At least one field is required to save a vehicle configuration.',
-                ], 422);
-            }
-
-            // Check for overlaps within the input ranges
-            $overlapErrors = [];
-            for ($i = 0; $i < count($validRanges); $i++) {
-                for ($j = $i + 1; $j < count($validRanges); $j++) {
-                    if ($this->rangesOverlap($validRanges[$i], $validRanges[$j])) {
-                        $range1Str = $validRanges[$i]['from'] . ($validRanges[$i]['from'] != $validRanges[$i]['to'] ? '-' . $validRanges[$i]['to'] : '');
-                        $range2Str = $validRanges[$j]['from'] . ($validRanges[$j]['from'] != $validRanges[$j]['to'] ? '-' . $validRanges[$j]['to'] : '');
-                        $overlapErrors[] = "Ranges $range1Str and $range2Str overlap.";
-                    }
-                }
-            }
-
-            if (!empty($overlapErrors)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'YEAR OVERLAP ERROR',
-                    'errors' => $overlapErrors,
-                ], 422);
-            }
-
-            $commonFields = [
-                'v_part_number_id' => $request->v_part_number_id,
-                'car_manufacturer' => $request->car_manufacturer,
-                'car_model_name' => $request->car_model_name,
-                'engine_cc' => $request->engine_cc,
-                'car_manufactured_country' => $request->car_manufactured_country,
-                'status' => 'active',
-            ];
-
-            // Get existing ranges for this vehicle config to check overlaps
-            $existingRanges = VehicalType::where($commonFields)
-                ->select('year_from', 'year_to')
-                ->get()
-                ->map(function($item) {
-                    return ['from' => $item->year_from, 'to' => $item->year_to];
-                })
-                ->toArray();
-
-            $savedVehicles = [];
-            $duplicateRanges = [];
-            $overlapWithExisting = [];
-
-            // Save one record per year range
-            foreach ($validRanges as $range) {
-                // Check if exact duplicate exists
-                $exists = VehicalType::where(array_merge($commonFields, [
-                    'year_from' => $range['from'],
-                    'year_to' => $range['to']
-                ]))->exists();
-
-                if ($exists) {
-                    $rangeStr = $range['from'] . ($range['from'] != $range['to'] ? '-' . $range['to'] : '');
-                    $duplicateRanges[] = $rangeStr;
-                    continue;
-                }
-
-                // Check overlap with existing ranges
-                $hasOverlap = false;
-                foreach ($existingRanges as $existing) {
-                    if ($this->rangesOverlap($range, $existing)) {
-                        $existingStr = $existing['from'] . ($existing['from'] != $existing['to'] ? '-' . $existing['to'] : '');
-                        $newRangeStr = $range['from'] . ($range['from'] != $range['to'] ? '-' . $range['to'] : '');
-                        
-                        // Check if specific years are covered
-                        $fromInt = (int) $range['from'];
-                        $toInt = (int) $range['to'];
-                        $existingFrom = (int) $existing['from'];
-                        $existingTo = (int) $existing['to'];
-                        
-                        if ($fromInt >= $existingFrom && $fromInt <= $existingTo) {
-                            $overlapWithExisting[] = "Year {$range['from']} is already covered in range {$existingStr}.";
-                        } elseif ($toInt >= $existingFrom && $toInt <= $existingTo) {
-                            $overlapWithExisting[] = "Year {$range['to']} is already covered in range {$existingStr}.";
-                        } else {
-                            $overlapWithExisting[] = "Range $newRangeStr overlaps with existing range $existingStr.";
-                        }
-                        $hasOverlap = true;
-                        break;
-                    }
-                }
-
-                if ($hasOverlap) {
-                    continue;
-                }
-
-                $savedVehicles[] = VehicalType::create(array_merge($commonFields, [
-                    'year_from' => $range['from'],
-                    'year_to' => $range['to']
-                ]));
-            }
-
-            if (!empty($overlapWithExisting)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'YEAR OVERLAP ERROR',
-                    'errors' => $overlapWithExisting,
-                    'duplicate_years' => $duplicateRanges,
-                ], 422);
-            }
-
-            if (empty($savedVehicles) && !empty($duplicateRanges)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'All year ranges already exist for this vehicle configuration.',
-                    'duplicate_years' => $duplicateRanges,
-                ], 422);
-            }
-
-            $savedIds = collect($savedVehicles)->pluck('id')->toArray();
-
-            // Get all vehicles for this config (including newly saved ones)
-            $allVehicleIds = array_merge(
-                VehicalType::where($commonFields)->pluck('id')->toArray(),
-                $savedIds
-            );
-
+    public function post_product_vehical(Request $request)
+    {
+        // For battery type: allow either v_part_number_id OR product_id (product name). If product_id given, resolve to part number.
+        $hasPartNumber = $request->filled('v_part_number_id');
+        $hasProductId = $request->filled('product_id');
+        if (! $hasPartNumber && ! $hasProductId) {
             return response()->json([
-                'success' => true,
-                'message' => 'Vehicle saved successfully!',
-                'duplicate_years' => $duplicateRanges,
-                'vehicles' => VehicalType::with([
-                    'manutacturer_vehical',
-                    'model_vehical',
-                    'engine_vehical',
-                    'country_vehical',
-                    'vehical_part_number'
-                ])->whereIn('id', array_unique($allVehicleIds))->get()
+                'success' => false,
+                'message' => 'Please select Part Number or Product Name first.',
+            ], 422);
+        }
+        if ($hasPartNumber) {
+            $request->validate([
+                'v_part_number_id' => 'required|exists:part_numbers,id',
+            ], [
+                'v_part_number_id.exists' => 'The selected part number is invalid.',
+            ]);
+        } else {
+            $request->validate([
+                'product_id' => 'required|exists:products,id',
+            ], [
+                'product_id.required' => 'Please select Product Name first.',
+                'product_id.exists' => 'The selected product is invalid.',
             ]);
         }
 
+        $vPartNumberId = $request->v_part_number_id;
+        if (! $vPartNumberId && $hasProductId) {
+            // Resolve product name to a part number: find or create PartNumber with same name as Product
+            $product = Product::findOrFail($request->product_id);
+            $name = trim((string) $product->name);
+            if ($name === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product has no name; cannot link vehicles.',
+                ], 422);
+            }
+            $type = $request->get('type', 'battery');
+            $partNumber = PartNumber::whereRaw('LOWER(name) = ?', [strtolower($name)])
+                ->when($type, fn ($q) => $q->where('type', $type))
+                ->first();
+            if (! $partNumber) {
+                $partNumber = PartNumber::create([
+                    'name' => $name,
+                    'type' => $type,
+                    'status' => 'active',
+                ]);
+            }
+            $vPartNumberId = $partNumber->id;
+        }
+
+        $request->merge(['v_part_number_id' => $vPartNumberId]);
+
+        $request->validate([
+            'car_manufacturer' => 'nullable|exists:car_manufacturers,id',
+            'car_model_name' => 'nullable|exists:car_models,id',
+            'engine_cc' => 'nullable|exists:engine_ccs,id',
+            'car_manufactured_country' => 'nullable|exists:car_countries,id',
+            'year_from' => 'nullable|array',
+            'year_from.*' => 'nullable|string',
+            'year_to' => 'nullable|array',
+            'year_to.*' => 'nullable|string',
+        ]);
+
+        $yearFroms = $request->get('year_from', []);
+        $yearTos = $request->get('year_to', []);
+
+        // Process year ranges
+        $validRanges = [];
+        for ($i = 0; $i < count($yearFroms); $i++) {
+            $from = trim((string) ($yearFroms[$i] ?? ''));
+            $to = trim((string) ($yearTos[$i] ?? ''));
+
+            if ($from === '' && $to === '') {
+                continue; // Skip empty ranges
+            }
+
+            $fromInt = $from ? (int) $from : null;
+            $toInt = $to ? (int) $to : null;
+
+            // Validate year range
+            if ($fromInt && ($fromInt < 1900 || $fromInt > 2100)) {
+                continue;
+            }
+            if ($toInt && ($toInt < 1900 || $toInt > 2100)) {
+                continue;
+            }
+
+            // If only one year is provided, use it for both
+            if ($fromInt && ! $toInt) {
+                $toInt = $fromInt;
+            } elseif (! $fromInt && $toInt) {
+                $fromInt = $toInt;
+            }
+
+            // Ensure from <= to
+            if ($fromInt && $toInt && $fromInt > $toInt) {
+                $temp = $fromInt;
+                $fromInt = $toInt;
+                $toInt = $temp;
+            }
+
+            if ($fromInt && $toInt) {
+                $validRanges[] = [
+                    'from' => (string) $fromInt,
+                    'to' => (string) $toInt,
+                ];
+            }
+        }
+
+        $hasAnyData = ! empty($validRanges) ||
+            $request->filled('v_part_number_id') ||
+            $request->filled('car_manufacturer') ||
+            $request->filled('car_model_name') ||
+            $request->filled('engine_cc') ||
+            $request->filled('car_manufactured_country');
+
+        if (! $hasAnyData) {
+            return response()->json([
+                'success' => false,
+                'message' => 'At least one field is required to save a vehicle configuration.',
+            ], 422);
+        }
+
+        // Check for overlaps within the input ranges
+        $overlapErrors = [];
+        for ($i = 0; $i < count($validRanges); $i++) {
+            for ($j = $i + 1; $j < count($validRanges); $j++) {
+                if ($this->rangesOverlap($validRanges[$i], $validRanges[$j])) {
+                    $range1Str = $validRanges[$i]['from'].($validRanges[$i]['from'] != $validRanges[$i]['to'] ? '-'.$validRanges[$i]['to'] : '');
+                    $range2Str = $validRanges[$j]['from'].($validRanges[$j]['from'] != $validRanges[$j]['to'] ? '-'.$validRanges[$j]['to'] : '');
+                    $overlapErrors[] = "Ranges $range1Str and $range2Str overlap.";
+                }
+            }
+        }
+
+        if (! empty($overlapErrors)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'YEAR OVERLAP ERROR',
+                'errors' => $overlapErrors,
+            ], 422);
+        }
+
+        $commonFields = [
+            'v_part_number_id' => $request->v_part_number_id,
+            'car_manufacturer' => $request->car_manufacturer,
+            'car_model_name' => $request->car_model_name,
+            'engine_cc' => $request->engine_cc,
+            'car_manufactured_country' => $request->car_manufactured_country,
+            'status' => 'active',
+        ];
+
+        // Get existing ranges for this vehicle config to check overlaps
+        $existingRanges = VehicalType::where($commonFields)
+            ->select('year_from', 'year_to')
+            ->get()
+            ->map(function ($item) {
+                return ['from' => $item->year_from, 'to' => $item->year_to];
+            })
+            ->toArray();
+
+        $savedVehicles = [];
+        $duplicateRanges = [];
+        $overlapWithExisting = [];
+
+        // Save one record per year range
+        foreach ($validRanges as $range) {
+            // Check if exact duplicate exists
+            $exists = VehicalType::where(array_merge($commonFields, [
+                'year_from' => $range['from'],
+                'year_to' => $range['to'],
+            ]))->exists();
+
+            if ($exists) {
+                $rangeStr = $range['from'].($range['from'] != $range['to'] ? '-'.$range['to'] : '');
+                $duplicateRanges[] = $rangeStr;
+
+                continue;
+            }
+
+            // Check overlap with existing ranges
+            $hasOverlap = false;
+            foreach ($existingRanges as $existing) {
+                if ($this->rangesOverlap($range, $existing)) {
+                    $existingStr = $existing['from'].($existing['from'] != $existing['to'] ? '-'.$existing['to'] : '');
+                    $newRangeStr = $range['from'].($range['from'] != $range['to'] ? '-'.$range['to'] : '');
+
+                    // Check if specific years are covered
+                    $fromInt = (int) $range['from'];
+                    $toInt = (int) $range['to'];
+                    $existingFrom = (int) $existing['from'];
+                    $existingTo = (int) $existing['to'];
+
+                    if ($fromInt >= $existingFrom && $fromInt <= $existingTo) {
+                        $overlapWithExisting[] = "Year {$range['from']} is already covered in range {$existingStr}.";
+                    } elseif ($toInt >= $existingFrom && $toInt <= $existingTo) {
+                        $overlapWithExisting[] = "Year {$range['to']} is already covered in range {$existingStr}.";
+                    } else {
+                        $overlapWithExisting[] = "Range $newRangeStr overlaps with existing range $existingStr.";
+                    }
+                    $hasOverlap = true;
+                    break;
+                }
+            }
+
+            if ($hasOverlap) {
+                continue;
+            }
+
+            $savedVehicles[] = VehicalType::create(array_merge($commonFields, [
+                'year_from' => $range['from'],
+                'year_to' => $range['to'],
+            ]));
+        }
+
+        if (! empty($overlapWithExisting)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'YEAR OVERLAP ERROR',
+                'errors' => $overlapWithExisting,
+                'duplicate_years' => $duplicateRanges,
+            ], 422);
+        }
+
+        if (empty($savedVehicles) && ! empty($duplicateRanges)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'All year ranges already exist for this vehicle configuration.',
+                'duplicate_years' => $duplicateRanges,
+            ], 422);
+        }
+
+        $savedIds = collect($savedVehicles)->pluck('id')->toArray();
+
+        // Get all vehicles for this config (including newly saved ones)
+        $allVehicleIds = array_merge(
+            VehicalType::where($commonFields)->pluck('id')->toArray(),
+            $savedIds
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle saved successfully!',
+            'duplicate_years' => $duplicateRanges,
+            'vehicles' => VehicalType::with([
+                'manutacturer_vehical',
+                'model_vehical',
+                'engine_vehical',
+                'country_vehical',
+                'vehical_part_number',
+            ])->whereIn('id', array_unique($allVehicleIds))->get(),
+        ]);
+    }
 
     // In AddInputController.php - Add this method for fetching group data
     public function get_vehical_group($id)
@@ -1061,11 +1116,11 @@ class AddInputController extends Controller
                 if ($range->year_from == $range->year_to) {
                     $years[] = $range->year_from;
                 } else {
-                    $years[] = $range->year_from . '-' . $range->year_to;
+                    $years[] = $range->year_from.'-'.$range->year_to;
                 }
             }
         }
-        
+
         $group_ids = $groupQuery->pluck('id')->toArray();
 
         return response()->json([
@@ -1075,7 +1130,7 @@ class AddInputController extends Controller
             'engine_id' => $vehical->engine_cc,
             'country_id' => $vehical->car_manufactured_country,
             'years' => $years,
-            'group_ids' => $group_ids
+            'group_ids' => $group_ids,
         ]);
     }
 
@@ -1120,43 +1175,43 @@ class AddInputController extends Controller
 
         $yearFroms = $request->get('year_from', []);
         $yearTos = $request->get('year_to', []);
-        
+
         // Process year ranges
         $validRanges = [];
         for ($i = 0; $i < count($yearFroms); $i++) {
             $from = trim((string) ($yearFroms[$i] ?? ''));
             $to = trim((string) ($yearTos[$i] ?? ''));
-            
+
             if ($from === '' && $to === '') {
                 continue;
             }
 
             $fromInt = $from ? (int) $from : null;
             $toInt = $to ? (int) $to : null;
-            
+
             if ($fromInt && ($fromInt < 1900 || $fromInt > 2100)) {
                 continue;
             }
             if ($toInt && ($toInt < 1900 || $toInt > 2100)) {
                 continue;
             }
-            
-            if ($fromInt && !$toInt) {
+
+            if ($fromInt && ! $toInt) {
                 $toInt = $fromInt;
-            } elseif (!$fromInt && $toInt) {
+            } elseif (! $fromInt && $toInt) {
                 $fromInt = $toInt;
             }
-            
+
             if ($fromInt && $toInt && $fromInt > $toInt) {
                 $temp = $fromInt;
                 $fromInt = $toInt;
                 $toInt = $temp;
             }
-            
+
             if ($fromInt && $toInt) {
                 $validRanges[] = [
                     'from' => (string) $fromInt,
-                    'to' => (string) $toInt
+                    'to' => (string) $toInt,
                 ];
             }
         }
@@ -1173,14 +1228,14 @@ class AddInputController extends Controller
         for ($i = 0; $i < count($validRanges); $i++) {
             for ($j = $i + 1; $j < count($validRanges); $j++) {
                 if ($this->rangesOverlap($validRanges[$i], $validRanges[$j])) {
-                    $range1Str = $validRanges[$i]['from'] . ($validRanges[$i]['from'] != $validRanges[$i]['to'] ? '-' . $validRanges[$i]['to'] : '');
-                    $range2Str = $validRanges[$j]['from'] . ($validRanges[$j]['from'] != $validRanges[$j]['to'] ? '-' . $validRanges[$j]['to'] : '');
+                    $range1Str = $validRanges[$i]['from'].($validRanges[$i]['from'] != $validRanges[$i]['to'] ? '-'.$validRanges[$i]['to'] : '');
+                    $range2Str = $validRanges[$j]['from'].($validRanges[$j]['from'] != $validRanges[$j]['to'] ? '-'.$validRanges[$j]['to'] : '');
                     $overlapErrors[] = "Ranges $range1Str and $range2Str overlap.";
                 }
             }
         }
 
-        if (!empty($overlapErrors)) {
+        if (! empty($overlapErrors)) {
             return response()->json([
                 'success' => false,
                 'message' => 'YEAR OVERLAP ERROR',
@@ -1204,21 +1259,22 @@ class AddInputController extends Controller
         foreach ($validRanges as $range) {
             $exists = VehicalType::where(array_merge($commonFields, [
                 'year_from' => $range['from'],
-                'year_to' => $range['to']
+                'year_to' => $range['to'],
             ]))->exists();
 
             if ($exists) {
-                $duplicateRanges[] = $range['from'] . ($range['from'] != $range['to'] ? '-' . $range['to'] : '');
+                $duplicateRanges[] = $range['from'].($range['from'] != $range['to'] ? '-'.$range['to'] : '');
+
                 continue;
             }
 
             $savedVehicles[] = VehicalType::create(array_merge($commonFields, [
                 'year_from' => $range['from'],
-                'year_to' => $range['to']
+                'year_to' => $range['to'],
             ]));
         }
 
-        if (empty($savedVehicles) && !empty($duplicateRanges)) {
+        if (empty($savedVehicles) && ! empty($duplicateRanges)) {
             return response()->json([
                 'success' => false,
                 'message' => 'All year ranges already exist for this vehicle configuration.',
@@ -1237,11 +1293,12 @@ class AddInputController extends Controller
                 'model_vehical',
                 'engine_vehical',
                 'country_vehical',
-                'vehical_part_number'
+                'vehical_part_number',
             ])->whereIn('id', $savedIds)->get(),
-            'deleted_ids' => $deleted_ids
+            'deleted_ids' => $deleted_ids,
         ]);
     }
+
     public function searchByPartNumber(Request $request)
     {
         $vehicles = VehicalType::with([
@@ -1249,16 +1306,17 @@ class AddInputController extends Controller
             'model_vehical',
             'engine_vehical',
             'vehical_part_number',
-            'country_vehical'
+            'country_vehical',
         ])
             ->where('v_part_number_id', $request->vehical_id)
             ->get();
+
         return $vehicles;
+
         return response()->json([
-            'vehicles' => $vehicles
+            'vehicles' => $vehicles,
         ]);
     }
-
 
     public function updateVehicalInline(Request $request, $id)
     {
@@ -1271,6 +1329,7 @@ class AddInputController extends Controller
     public function delete_vehical($id)
     {
         VehicalType::findOrFail($id)->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -1297,11 +1356,9 @@ class AddInputController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Vehicle configuration deleted successfully!',
-            'deleted_count' => $deleted
+            'deleted_count' => $deleted,
         ]);
     }
-
-
 
     public function post_services(Request $request)
     {
@@ -1316,14 +1373,15 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This service already exists. It has been selected for you.'
+                'message' => 'This service already exists. It has been selected for you.',
             ]);
         }
         $enginecc = Services::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $enginecc->id,
-            'name' => $enginecc->name
+            'name' => $enginecc->name,
         ]);
     }
 
@@ -1331,7 +1389,6 @@ class AddInputController extends Controller
     {
         return response()->json(Services::findOrFail($id));
     }
-
 
     public function update_service(Request $request, $id)
     {
@@ -1342,12 +1399,14 @@ class AddInputController extends Controller
                 if (is_array($d)) {
                     return [
                         'text' => trim($d['text'] ?? $d['label'] ?? ''),
-                        'price' => isset($d['price']) ? (is_numeric($d['price']) ? (float) $d['price'] : trim((string) $d['price'])) : ''
+                        'price' => isset($d['price']) ? (is_numeric($d['price']) ? (float) $d['price'] : trim((string) $d['price'])) : '',
                     ];
                 }
+
                 return ['text' => trim((string) $d), 'price' => ''];
             }, array_filter($request->details, function ($d) {
                 $t = is_array($d) ? ($d['text'] ?? $d['label'] ?? '') : $d;
+
                 return trim((string) $t) !== '';
             })));
         }
@@ -1358,21 +1417,19 @@ class AddInputController extends Controller
             'id' => $service->id,
             'name' => $service->name,
             'details' => $service->details ?? [],
-            'message' => "Service Update Successfully"
+            'message' => 'Service Update Successfully',
         ]);
     }
 
     public function destory_service($id)
     {
         Services::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Service deleted Successfully"
+            'message' => 'Service deleted Successfully',
         ]);
     }
-
-
-
 
     public function post_warrenty(Request $request)
     {
@@ -1387,14 +1444,15 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This warranty already exists. It has been selected for you.'
+                'message' => 'This warranty already exists. It has been selected for you.',
             ]);
         }
         $warrenty = Warrenty::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $warrenty->id,
-            'name' => $warrenty->name
+            'name' => $warrenty->name,
         ]);
     }
 
@@ -1402,7 +1460,6 @@ class AddInputController extends Controller
     {
         return response()->json(Warrenty::findOrFail($id));
     }
-
 
     public function update_warrenty(Request $request, $id)
     {
@@ -1413,21 +1470,19 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $Warrenty->id,
             'name' => $Warrenty->name,
-            'message' => "Warrenty Update Successfully"
+            'message' => 'Warrenty Update Successfully',
         ]);
     }
 
     public function destory_warrenty($id)
     {
         Warrenty::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Warrenty deleted Successfully"
+            'message' => 'Warrenty deleted Successfully',
         ]);
     }
-
-
-
 
     public function post_show($id)
     {
@@ -1436,10 +1491,22 @@ class AddInputController extends Controller
 
     public function post_groups(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255'
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first() ?: 'Group name is required.',
+            ], 422);
+        }
+
         $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Group name is required.'], 422);
+        }
+
         $existingGroup = Group::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
         if ($existingGroup) {
             return response()->json([
@@ -1447,16 +1514,29 @@ class AddInputController extends Controller
                 'id' => $existingGroup->id,
                 'name' => $existingGroup->name,
                 'already_exists' => true,
-                'message' => 'This group already exists. It has been selected for you.'
+                'message' => 'This group already exists. It has been selected for you.',
             ]);
         }
-        $group = Group::create(['name' => $name]);
-        return response()->json([
-            'success' => true,
-            'id' => $group->id,
-            'name' => $group->name,
-            'message' => 'Group created successfully'
-        ]);
+
+        try {
+            $data = ['name' => $name, 'status' => 'active'];
+            if (\Schema::hasColumn((new Group)->getTable(), 'base_name')) {
+                $data['base_name'] = $name;
+            }
+            $group = Group::create($data);
+
+            return response()->json([
+                'success' => true,
+                'id' => $group->id,
+                'name' => $group->name,
+                'message' => 'Group created successfully',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('post_groups error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $message = config('app.debug') ? $e->getMessage() : 'Could not create group. Please try again.';
+
+            return response()->json(['success' => false, 'message' => $message], 500);
+        }
     }
 
     public function post_update(Request $request, $id)
@@ -1468,24 +1548,120 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $group->id,
             'name' => $group->name,
-            'message' => "Group Update Successfully"
+            'message' => 'Group Update Successfully',
         ]);
     }
 
     public function post_destroy($id)
     {
         Group::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Group deleted Successfully"
+            'message' => 'Group deleted Successfully',
         ]);
     }
 
+    /** GET /groups?q= — searchable list with phone count (for dropdowns) */
+    public function groups_index(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+        $query = Group::orderBy('name')->withCount('phoneNumbers');
+        if ($q !== '') {
+            $query->where(function ($qb) use ($q) {
+                $qb->where('name', 'like', '%'.$q.'%')
+                    ->orWhere('base_name', 'like', '%'.$q.'%');
+            });
+        }
+        $groups = $query->get()->map(function ($g) {
+            return [
+                'id' => $g->id,
+                'name' => $g->name,
+                'base_name' => $g->base_name,
+                'status' => $g->status,
+                'phone_numbers_count' => (int) ($g->phone_numbers_count ?? 0),
+            ];
+        });
 
-    public function post_made_ins(Request $request)
+        return response()->json(['groups' => $groups]);
+    }
+
+    /** GET /groups/{id}/numbers — list all numbers in a group (including frozen) */
+    public function group_numbers_index($id)
+    {
+        $group = Group::findOrFail($id);
+        $numbers = $group->phoneNumbers()->orderBy('id')->get();
+
+        return response()->json([
+            'group' => ['id' => $group->id, 'name' => $group->name],
+            'numbers' => $numbers,
+        ]);
+    }
+
+    /** GET /groups/all/numbers — list all numbers from all groups (for "all groups" view when search is empty) */
+    public function group_all_numbers()
+    {
+        $numbers = GroupPhoneNumber::with('group')->orderBy('group_id')->orderBy('id')->get();
+        $list = $numbers->map(function ($n) {
+            return [
+                'id' => $n->id,
+                'group_id' => $n->group_id,
+                'group_name' => $n->group ? $n->group->name : null,
+                'country_code' => $n->country_code,
+                'phone_number' => $n->phone_number,
+                'company_name' => $n->company_name,
+                'is_frozen' => $n->is_frozen,
+            ];
+        });
+
+        return response()->json(['numbers' => $list]);
+    }
+
+    /** PUT /groups/numbers/{id} — update a group phone number (and optionally the group's name) */
+    public function group_number_update(Request $request, $id)
+    {
+        $num = GroupPhoneNumber::where('id', $id)->firstOrFail();
+        $request->validate([
+            'phone_number' => 'sometimes|string|max:50',
+            'country_code' => 'nullable|string|max:10',
+            'company_name' => 'nullable|string|max:255',
+            'group_name' => 'nullable|string|max:255',
+        ]);
+        if ($request->has('phone_number')) {
+            $num->phone_number = $request->phone_number;
+        }
+        if ($request->has('country_code')) {
+            $num->country_code = $request->country_code;
+        }
+        if ($request->has('company_name')) {
+            $num->company_name = $request->company_name;
+        }
+        if ($request->filled('group_name')) {
+            Group::where('id', $num->group_id)->update(['name' => $request->group_name]);
+        }
+        $num->save();
+
+        return response()->json(['success' => true, 'number' => $num->fresh()]);
+    }
+
+    /** POST /groups/numbers/{id}/freeze — toggle is_frozen */
+    public function group_number_freeze($id)
+    {
+        $num = GroupPhoneNumber::findOrFail($id);
+        $num->is_frozen = ! $num->is_frozen;
+        $num->save();
+
+        return response()->json([
+            'success' => true,
+            'is_frozen' => $num->is_frozen,
+            'number' => $num->fresh(),
+        ]);
+    }
+
+    public function post_madeins(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
         $name = trim((string) $request->name);
         $existing = MadeIn::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
@@ -1495,24 +1671,23 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This Made In already exists. It has been selected for you.'
+                'message' => 'This Made In already exists. It has been selected for you.',
             ]);
         }
         $group = MadeIn::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $group->id,
             'name' => $group->name,
-            'message' => 'Made In created successfully'
+            'message' => 'Made In created successfully',
         ]);
     }
-
 
     public function show_madeins($id)
     {
         return response()->json(MadeIn::findOrFail($id));
     }
-
 
     public function update_madeins(Request $request, $id)
     {
@@ -1523,23 +1698,24 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $MadeIn->id,
             'name' => $MadeIn->name,
-            'message' => "MadeIn Update Successfully"
+            'message' => 'MadeIn Update Successfully',
         ]);
     }
 
     public function destory_madeins($id)
     {
         MadeIn::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "MadeIn deleted Successfully"
+            'message' => 'MadeIn deleted Successfully',
         ]);
     }
 
     public function post_levels(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
         $name = trim((string) $request->name);
         $existing = Level::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
@@ -1549,15 +1725,16 @@ class AddInputController extends Controller
                 'id' => $existing->id,
                 'name' => $existing->name,
                 'already_exists' => true,
-                'message' => 'This level already exists. It has been selected for you.'
+                'message' => 'This level already exists. It has been selected for you.',
             ]);
         }
         $group = Level::create(['name' => $name]);
+
         return response()->json([
             'success' => true,
             'id' => $group->id,
             'name' => $group->name,
-            'message' => 'Level created successfully'
+            'message' => 'Level created successfully',
         ]);
     }
 
@@ -1565,7 +1742,6 @@ class AddInputController extends Controller
     {
         return response()->json(Level::findOrFail($id));
     }
-
 
     public function update_level(Request $request, $id)
     {
@@ -1576,16 +1752,17 @@ class AddInputController extends Controller
             'success' => true,
             'id' => $level->id,
             'name' => $level->name,
-            'message' => "level Update Successfully"
+            'message' => 'level Update Successfully',
         ]);
     }
 
     public function destory_level($id)
     {
         Level::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "level deleted Successfully"
+            'message' => 'level deleted Successfully',
         ]);
     }
 }

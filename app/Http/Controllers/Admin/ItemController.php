@@ -2,51 +2,50 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\Cca;
-use App\Models\Item;
-use App\Models\Unit;
-use App\Models\Volt;
-use App\Models\Brand;
-use App\Models\Grade;
-use App\Models\Scale;
+use App\Http\Controllers\Controller;
 use App\Models\Amphor;
 use App\Models\BatterySize;
-use App\Models\Platos;
-use App\Models\CarName;
-use App\Models\Company;
-use App\Models\Formula;
-use App\Models\Mileage;
-use App\Models\Packing;
-use App\Models\Product;
-use App\Models\Quality;
-use App\Models\CarModel;
-use App\Models\Category;
-use App\Models\EngineCc;
-use App\Models\LineItem;
-use App\Models\Minuspool;
-use App\Models\PoleThickness;
-use App\Models\PoolDirection;
+use App\Models\Brand;
 use App\Models\CarCompany;
 use App\Models\CarCountry;
-use App\Models\PartNumber;
-use App\Models\Technology;
-use App\Models\Producttype;
-use App\Models\VehicalType;
-use Illuminate\Http\Request;
 use App\Models\CarManufacturer;
-use Milon\Barcode\DNS1D;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use App\Http\Controllers\Controller;
+use App\Models\CarModel;
+use App\Models\CarName;
+use App\Models\Category;
+use App\Models\Cca;
+use App\Models\Company;
+use App\Models\EngineCc;
+use App\Models\Formula;
+use App\Models\Grade;
 use App\Models\Group;
+use App\Models\Item;
 use App\Models\Level;
+use App\Models\LineItem;
 use App\Models\MadeIn;
+use App\Models\Mileage;
+use App\Models\Minuspool;
+use App\Models\Packing;
+use App\Models\PartNumber;
+use App\Models\Platos;
+use App\Models\PoolDirection;
+use App\Models\Product;
+use App\Models\Producttype;
+use App\Models\Quality;
+use App\Models\Scale;
+use App\Models\Series;
 use App\Models\Services;
+use App\Models\Technology;
+use App\Models\Unit;
+use App\Models\VehicalType;
+use App\Models\Volt;
 use App\Models\Warrenty;
-use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use GuzzleHttp\Client;
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Milon\Barcode\DNS1D;
 
 class ItemController extends Controller
 {
@@ -54,6 +53,7 @@ class ItemController extends Controller
     protected function getAddPermissionForType(?string $type): string
     {
         $map = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
+
         return $map[$type ?? ''] ?? 'add_items';
     }
 
@@ -61,6 +61,7 @@ class ItemController extends Controller
     protected function getUpdatePermissionForType(?string $type): string
     {
         $map = ['parts' => 'update_parts', 'filters' => 'update_filters', 'breakpad' => 'update_break_pad', 'oil' => 'update_oil', 'battery' => 'update_battery', 'scrap' => 'update_scrap', 'services' => 'update_services'];
+
         return $map[$type ?? ''] ?? 'update_items';
     }
 
@@ -68,6 +69,7 @@ class ItemController extends Controller
     protected function getViewPermissionForType(?string $type): string
     {
         $map = ['parts' => 'view_parts', 'filters' => 'view_filters', 'breakpad' => 'view_break_pad', 'oil' => 'view_oil', 'battery' => 'view_battery', 'scrap' => 'view_scrap', 'services' => 'view_services'];
+
         return $map[$type ?? ''] ?? 'view_items';
     }
 
@@ -75,39 +77,138 @@ class ItemController extends Controller
     protected function getDeletePermissionForType(?string $type): string
     {
         $map = ['parts' => 'delete_parts', 'filters' => 'delete_filters', 'breakpad' => 'delete_break_pad', 'oil' => 'delete_oil', 'battery' => 'delete_battery', 'scrap' => 'delete_scrap', 'services' => 'delete_services'];
+
         return $map[$type ?? ''] ?? 'delete_items';
     }
 
+    /**
+     * Check if an item is referenced in any transaction or stock ledger tables.
+     * If referenced, deletion must be blocked to keep reports consistent.
+     */
+    protected function getItemUsageCounts(int $itemId): array
+    {
+        $tables = [
+            // Core transactional lines
+            'sale_items' => 'item_id',
+            'purchase_items' => 'item_id',
+            // Stock ledgers / current stock
+            'warehouse_items' => 'item_id',
+            'claim_warehouse_items' => 'item_id',
 
+            // Optional tables (based on your policy spec). We only count them if they exist.
+            'scrap_items' => 'item_id',
+            'claim_items' => 'item_id',
+            'stock_ledgers' => 'item_id',
+            'stock_ledger' => 'item_id',
+        ];
+
+        $counts = [];
+        foreach ($tables as $table => $col) {
+            if (! Schema::hasTable($table)) {
+                $counts[$table] = 0;
+
+                continue;
+            }
+            if (! Schema::hasColumn($table, $col)) {
+                $counts[$table] = 0;
+
+                continue;
+            }
+            $counts[$table] = (int) DB::table($table)->where($col, $itemId)->count();
+        }
+
+        return $counts;
+    }
+
+    protected function isItemDeletableByUsage(Item $item): bool
+    {
+        $counts = $this->getItemUsageCounts((int) $item->id);
+        foreach ($counts as $cnt) {
+            if ($cnt > 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * UI helper endpoint: return whether delete is allowed for this item.
+     */
+    public function canDeleteItem($id)
+    {
+        $item = Item::findOrFail($id);
+        $this->authorize($this->getDeletePermissionForType($item->type));
+
+        $counts = $this->getItemUsageCounts((int) $item->id);
+        $usedIn = array_filter($counts, fn ($v) => (int) $v > 0);
+        $canDelete = empty($usedIn);
+
+        Log::info('Item canDelete check', [
+            'item_id' => (int) $item->id,
+            'item_bar_code' => $item->bar_code ?? null,
+            'item_type' => $item->type ?? null,
+            'counts' => $counts,
+            'can_delete' => $canDelete,
+        ]);
+
+        return response()->json([
+            'can_delete' => $canDelete,
+            'message' => 'This item cannot be deleted because it is already used in transactions.',
+            'used_in' => $usedIn,
+        ]);
+    }
 
     public function all_items(Request $request)
     {
         $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
-        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+        if (! collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
             abort(403, 'You do not have permission to view items.');
         }
-        $items = Item::with([
-            'item_user', 
+        $perPage = $request->input('per_page', 50);
+
+        $query = Item::with([
+            'item_user',
             'item_user.branch',
-            'product_item', 
-            'partnumber_item', 
-            'updated_by_user', 
+            'product_item',
+            'partnumber_item',
+            'updated_by_user',
             'category',
             'company_item',
             'quality_item',
             'unit_item',
-            'vehical_item',
-            'volt_item',
-            'plate_item',
-            'amphors_item',
-            'cca_item'
-        ])->latest()->get();
-        
+        ]);
+
+        if ($request->input('type') === 'battery') {
+            $query->with(['volt_item', 'plate_item', 'amphors_item', 'cca_item']);
+        }
+
+        if ($request->filled('type') && $request->type !== 'all') {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->filled('technology_id')) {
+            $query->where('technology', $request->technology_id);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('short_disc', 'like', "%{$search}%")
+                    ->orWhere('pro_dis', 'like', "%{$search}%")
+                    ->orWhere('bar_code', 'like', "%{$search}%");
+            });
+        }
+
+        $items = $query->latest()->paginate($perPage);
+
         // If AJAX request, return JSON
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'items' => $items->map(function($item) {
+                'items' => $items->getCollection()->map(function ($item) {
                     // Build item name for sales
                     $itemName = $item->short_disc ?? $item->pro_dis ?? '';
                     if (empty($itemName) && $item->product_item) {
@@ -119,19 +220,19 @@ class ItemController extends Controller
                     if (empty($itemName)) {
                         $itemName = $item->bar_code ?? 'N/A';
                     }
-                    
+
                     // Add part number to name if available
                     if ($item->partnumber_item && $item->partnumber_item->name) {
                         $partNum = $item->partnumber_item->name;
-                        if ($itemName && !str_contains($itemName, $partNum)) {
-                            $itemName .= ' - ' . $partNum;
+                        if ($itemName && ! str_contains($itemName, $partNum)) {
+                            $itemName .= ' - '.$partNum;
                         }
                     }
-                    
+
                     return [
                         'id' => $item->id,
                         'name' => $itemName,
-                        'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/' . ltrim($item->image, '/')) : '/assets/img/media/default.png',
+                        'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/'.ltrim($item->image, '/')) : '/assets/img/media/default.png',
                         'bar_code' => $item->bar_code ?? '',
                         'barcode_image' => $item->barcode_image,
                         'type' => $item->type ?? '',
@@ -142,10 +243,10 @@ class ItemController extends Controller
                         'category_name' => $item->category ? $item->category->name : 'N/A',
                         'company_name' => $item->company_item->name ?? '',
                         'quality_name' => $item->quality_item->name ?? null,
-                        'volt_name' => $item->volt_item ? (str_ends_with((string)$item->volt_item->name, 'V') ? $item->volt_item->name : $item->volt_item->name . 'V') : null,
-                        'plate_name' => $item->plate_item ? (str_ends_with((string)$item->plate_item->name, 'PL') ? $item->plate_item->name : $item->plate_item->name . 'PL') : null,
-                        'amphors_name' => $item->amphors_item ? (str_ends_with((string)$item->amphors_item->name, 'AH') ? $item->amphors_item->name : $item->amphors_item->name . 'AH') : null,
-                        'cca_name' => $item->cca_item ? (str_contains((string)$item->cca_item->name, 'CCA') ? $item->cca_item->name : $item->cca_item->name . 'CCA') : null,
+                        'volt_name' => $item->volt_item ? (str_ends_with((string) $item->volt_item->name, 'V') ? $item->volt_item->name : $item->volt_item->name.'V') : null,
+                        'plate_name' => $item->plate_item ? (str_ends_with((string) $item->plate_item->name, 'PL') ? $item->plate_item->name : $item->plate_item->name.'PL') : null,
+                        'amphors_name' => $item->amphors_item ? (str_ends_with((string) $item->amphors_item->name, 'AH') ? $item->amphors_item->name : $item->amphors_item->name.'AH') : null,
+                        'cca_name' => $item->cca_item ? (str_contains((string) $item->cca_item->name, 'CCA') ? $item->cca_item->name : $item->cca_item->name.'CCA') : null,
                         'branch_name' => $item->item_user && $item->item_user->branch ? $item->item_user->branch->branch_name : '',
                         'sale_price' => floatval($item->sale_price ?? 0),
                         'on_hand' => floatval($item->on_hand ?? 0),
@@ -163,12 +264,19 @@ class ItemController extends Controller
                         'duplicate_url' => route('item.duplicate', $item->id),
                         'has_vehicle' => $item->vehical_item ? true : false,
                     ];
-                })
+                }),
+                'pagination' => [
+                    'current_page' => $items->currentPage(),
+                    'last_page' => $items->lastPage(),
+                    'per_page' => $items->perPage(),
+                    'total' => $items->total(),
+                ],
             ]);
         }
-        
+
         // Regular page load - categories for bulk edit modal
         $categories = Category::where('status', 'active')->orderBy('name')->get();
+
         return view('admin.item.index', compact('items', 'categories'));
     }
 
@@ -178,15 +286,35 @@ class ItemController extends Controller
     public function priceList(Request $request)
     {
         $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
-        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+        if (! collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
             abort(403, 'You do not have permission to view items.');
         }
 
-        $categories = Category::whereNull('parent_id')
-            ->orderBy('name')
-            ->get();
+        if ($request->filled('type') && $request->type === 'battery') {
+            $batteryCategoryIds = Item::where('type', 'battery')
+                ->whereNotNull('category_id')
+                ->distinct()
+                ->pluck('category_id');
 
-        $query = Item::with(['category', 'unit_item', 'plate_item', 'amphors_item', 'volt_item', 'cca_item', 'company_item', 'product_item', 'partnumber_item', 'updated_by_user.branch', 'priceUpdatedBranch'])
+            if ($batteryCategoryIds->isNotEmpty()) {
+                $batteryCategories = Category::whereIn('id', $batteryCategoryIds)->get(['id', 'parent_id']);
+                $topCategoryIds = $batteryCategories->map(function ($cat) {
+                    return $cat->parent_id ?: $cat->id;
+                })->unique()->values();
+
+                $categories = Category::whereIn('id', $topCategoryIds)
+                    ->orderBy('name')
+                    ->get();
+            } else {
+                $categories = collect();
+            }
+        } else {
+            $categories = Category::whereNull('parent_id')
+                ->orderBy('name')
+                ->get();
+        }
+
+        $query = Item::with(['category', 'unit_item', 'plate_item', 'amphors_item', 'volt_item', 'cca_item', 'company_item', 'product_item', 'partnumber_item', 'group_item', 'updated_by_user.branch', 'priceUpdatedBranch'])
             ->orderBy('category_id')
             ->orderBy('short_disc');
 
@@ -194,18 +322,68 @@ class ItemController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
+        if ($request->filled('company_id')) {
+            $query->where('company_id', $request->company_id);
+        }
+
         if ($request->filled('type') && $request->type !== 'all') {
             $query->where('type', $request->type);
+        }
+
+        if ($request->filled('technology_id')) {
+            $query->where('technology', $request->technology_id);
         }
 
         $items = $query->get();
 
         $currentBranchName = session('selected_branch_name');
-        if (!$currentBranchName && auth()->user() && auth()->user()->branch_id) {
+        if (! $currentBranchName && auth()->user() && auth()->user()->branch_id) {
             $currentBranchName = \App\Models\Branch::where('id', auth()->user()->branch_id)->value('branch_name');
         }
 
-        return view('admin.item.price-list', compact('items', 'categories', 'currentBranchName'));
+        $plates = Platos::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        $amphors = Amphor::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        $groups = Group::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+
+        if ($request->filled('type') && $request->type === 'battery') {
+            // Base query for all battery items (for companies list)
+            $batteryItemQuery = Item::where('type', 'battery');
+
+            $batteryCompanyIds = (clone $batteryItemQuery)
+                ->whereNotNull('company_id')
+                ->distinct()
+                ->pluck('company_id');
+
+            // For technologies list we must respect selected company (if any)
+            $batteryTechQuery = Item::where('type', 'battery');
+            if ($request->filled('company_id')) {
+                $batteryTechQuery->where('company_id', $request->company_id);
+            }
+            $batteryTechnologyIds = $batteryTechQuery
+                ->whereNotNull('technology')
+                ->distinct()
+                ->pluck('technology');
+
+            $companies = Company::where('status', 'active')
+                ->whereIn('id', $batteryCompanyIds)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+
+            $technologies = Technology::where('status', 'active')
+                ->whereIn('id', $batteryTechnologyIds)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        } else {
+            $companies = Company::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+            $technologies = Technology::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        }
+
+        $products = Product::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        $partnumbers = PartNumber::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        $volts = Volt::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        $ccas = Cca::where('status', 'active')->orderBy('name')->get(['id', 'name']);
+
+        return view('admin.item.price-list', compact('items', 'categories', 'currentBranchName', 'plates', 'amphors', 'groups', 'companies', 'products', 'partnumbers', 'volts', 'ccas', 'technologies'));
     }
 
     /**
@@ -214,7 +392,7 @@ class ItemController extends Controller
     public function stockReport(Request $request)
     {
         $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
-        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+        if (! collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
             abort(403, 'You do not have permission to view items.');
         }
 
@@ -256,7 +434,7 @@ class ItemController extends Controller
         // Merge aggregates keyed by item + branch
         $rows = [];
         foreach ($purchaseAgg as $row) {
-            $key = $row->item_id . ':' . ($row->branch_id ?? 0);
+            $key = $row->item_id.':'.($row->branch_id ?? 0);
             $rows[$key] = [
                 'item_id' => $row->item_id,
                 'branch_id' => $row->branch_id,
@@ -265,8 +443,8 @@ class ItemController extends Controller
             ];
         }
         foreach ($saleAgg as $row) {
-            $key = $row->item_id . ':' . ($row->branch_id ?? 0);
-            if (!isset($rows[$key])) {
+            $key = $row->item_id.':'.($row->branch_id ?? 0);
+            if (! isset($rows[$key])) {
                 $rows[$key] = [
                     'item_id' => $row->item_id,
                     'branch_id' => $row->branch_id,
@@ -318,7 +496,7 @@ class ItemController extends Controller
             }
 
             // 2) Fallback to filling (per-can liters)
-            if ($literPerCan === null && $it->filling !== null && $it->filling !== '' && !is_nan((float) $it->filling)) {
+            if ($literPerCan === null && $it->filling !== null && $it->filling !== '' && ! is_nan((float) $it->filling)) {
                 $literPerCan = (float) $it->filling;
             }
 
@@ -344,7 +522,7 @@ class ItemController extends Controller
 
             $purchaseDetailsByKey = $purchaseDetailsRaw
                 ->groupBy(function ($row) {
-                    return $row->item_id . ':' . ($row->branch_id ?? 0);
+                    return $row->item_id.':'.($row->branch_id ?? 0);
                 })
                 ->map(function ($group) {
                     return $group->first();
@@ -357,10 +535,11 @@ class ItemController extends Controller
                     $primaryName = $supplier->names[0] ?? null;
                     if ($supplier->company) {
                         return $primaryName
-                            ? $primaryName . ' (' . $supplier->company . ')'
+                            ? $primaryName.' ('.$supplier->company.')'
                             : $supplier->company;
                     }
-                    return $primaryName ?: 'Supplier #' . $supplier->id;
+
+                    return $primaryName ?: 'Supplier #'.$supplier->id;
                 });
             }
         }
@@ -383,7 +562,7 @@ class ItemController extends Controller
 
             $saleDetailsByKey = $saleDetailsRaw
                 ->groupBy(function ($row) {
-                    return $row->item_id . ':' . ($row->branch_id ?? 0);
+                    return $row->item_id.':'.($row->branch_id ?? 0);
                 })
                 ->map(function ($group) {
                     return $group->first();
@@ -396,26 +575,27 @@ class ItemController extends Controller
                     $primaryName = $customer->names[0] ?? null;
                     if ($customer->company) {
                         return $primaryName
-                            ? $primaryName . ' (' . $customer->company . ')'
+                            ? $primaryName.' ('.$customer->company.')'
                             : $customer->company;
                     }
-                    return $primaryName ?: 'Customer #' . $customer->id;
+
+                    return $primaryName ?: 'Customer #'.$customer->id;
                 });
             }
         }
 
         $reportRows = collect($rows)->map(function ($row) use ($items, $branchNames, $purchaseDetailsByKey, $supplierNamesById, $saleDetailsByKey, $customerNamesById) {
             $item = $items->get($row['item_id']);
-            if (!$item) {
+            if (! $item) {
                 return null;
             }
 
-            $key = $row['item_id'] . ':' . ($row['branch_id'] ?? 0);
+            $key = $row['item_id'].':'.($row['branch_id'] ?? 0);
 
             $rawName = $item->short_disc ?? $item->pro_dis ?? '';
             $productName = trim(strip_tags((string) $rawName));
             if ($productName === '' && $item->partnumber_item) {
-                $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #' . $item->id;
+                $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #'.$item->id;
             }
 
             $purchaseMeta = $purchaseDetailsByKey->get($key);
@@ -458,7 +638,7 @@ class ItemController extends Controller
             $transactionsByKey = [];
 
             foreach ($purchaseDetailsRaw as $row) {
-                $key = $row->item_id . ':' . ($row->branch_id ?? 0);
+                $key = $row->item_id.':'.($row->branch_id ?? 0);
                 $occurredAt = $row->created_at ?: $row->purchase_date;
                 $transactionsByKey[$key][] = [
                     'item_id' => $row->item_id,
@@ -472,7 +652,7 @@ class ItemController extends Controller
             }
 
             foreach ($saleDetailsRaw as $row) {
-                $key = $row->item_id . ':' . ($row->branch_id ?? 0);
+                $key = $row->item_id.':'.($row->branch_id ?? 0);
                 $occurredAt = $row->created_at ?: $row->sale_date;
                 $transactionsByKey[$key][] = [
                     'item_id' => $row->item_id,
@@ -495,14 +675,17 @@ class ItemController extends Controller
                 $itemId = (int) $parts[0];
                 $branchIdForKey = (int) ($parts[1] ?? 0);
                 $item = $items->get($itemId);
-                if (!$item) {
+                if (! $item) {
                     continue;
                 }
 
                 $rawName = $item->short_disc ?? $item->pro_dis ?? '';
                 $productName = trim(strip_tags((string) $rawName));
                 if ($productName === '' && $item->partnumber_item) {
-                    $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #' . $item->id;
+                    $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #'.$item->id;
+                }
+                if ($productName === '') {
+                    $productName = $item->bar_code ?? 'Item #'.$item->id;
                 }
 
                 $branchName = $branchIdForKey ? ($branchNames[$branchIdForKey] ?? 'Unknown') : 'All';
@@ -520,9 +703,9 @@ class ItemController extends Controller
 
                     $partyName = null;
                     if ($entry['party_type'] === 'supplier' && $entry['party_id']) {
-                        $partyName = $supplierNamesById[$entry['party_id']] ?? ('Supplier #' . $entry['party_id']);
+                        $partyName = $supplierNamesById[$entry['party_id']] ?? ('Supplier #'.$entry['party_id']);
                     } elseif ($entry['party_type'] === 'customer' && $entry['party_id']) {
-                        $partyName = $customerNamesById[$entry['party_id']] ?? ('Customer #' . $entry['party_id']);
+                        $partyName = $customerNamesById[$entry['party_id']] ?? ('Customer #'.$entry['party_id']);
                     }
 
                     // Oil running balance breakdown (can / liter / ml)
@@ -580,20 +763,94 @@ class ItemController extends Controller
             ->when($categoryId, fn ($q) => $q->where('items.category_id', $categoryId));
 
         $maxWarehouseItems = (int) (config('app.max_warehouse_items_report', 10000) ?: 10000);
-        $warehouseItems = $wiQuery->with(['item.category', 'item.company_item', 'item.partnumber_item'])->limit($maxWarehouseItems)->get();
+        $warehouseItems = $wiQuery->with([
+            'item.category', 'item.company_item', 'item.partnumber_item',
+            'item.group_item', 'item.plate_item', 'item.amphors_item', 'item.volt_item', 'item.cca_item', 'item.product_item',
+            'item.quality_item', 'item.grade_item', 'item.level_item', 'item.unit_item',
+        ])->limit($maxWarehouseItems)->get();
 
         $warehouseRows = [];
         foreach ($warehouseItems as $wi) {
             $item = $wi->item;
-            if (!$item) {
+            if (! $item) {
                 continue;
             }
             $rawName = $item->short_disc ?? $item->pro_dis ?? '';
             $productName = trim(strip_tags((string) $rawName));
             if ($productName === '' && $item->partnumber_item) {
-                $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #' . $item->id;
+                $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #'.$item->id;
+            }
+            if ($productName === '') {
+                $productName = $item->bar_code ?? 'Item #'.$item->id;
             }
             $warehouse = $warehouses->firstWhere('id', $wi->warehouse_id);
+
+            $battery_display = null;
+            if (($item->type ?? null) === 'battery') {
+                $v = $item->volt_item ? trim((string) ($item->volt_item->name ?? '')) : '';
+                $voltDisplay = $v !== '' ? (preg_match('/\d*\s*V$/i', $v) ? $v : $v.'V') : '';
+                $p = $item->plate_item ? trim((string) ($item->plate_item->name ?? '')) : '';
+                $plateDisplay = $p !== '' ? (preg_match('/\d*\s*PL$/i', $p) ? $p : $p.'PL') : '';
+                $a = $item->amphors_item ? trim((string) ($item->amphors_item->name ?? '')) : '';
+                $ampDisplay = $a !== '' ? (preg_match('/\d*\s*AH$/i', $a) ? $a : $a.'AH') : '';
+                $c = $item->cca_item ? trim((string) ($item->cca_item->name ?? '')) : '';
+                $ccaDisplay = $c !== '' ? (preg_match('/\d*\s*CCA$/i', $c) ? $c : $c.'CCA') : '';
+                $groupDisplay = $item->group_item ? trim((string) ($item->group_item->name ?? '')) : '';
+                $companyDisplay = $item->company_item ? trim((string) ($item->company_item->name ?? '')) : '';
+                $battery_display = [
+                    'product_name' => $item->product_item ? trim((string) ($item->product_item->name ?? '')) : '',
+                    'group' => $groupDisplay,
+                    'plate' => $plateDisplay,
+                    'amp' => $ampDisplay,
+                    'company' => $companyDisplay,
+                    'volt' => $voltDisplay,
+                    'cca' => $ccaDisplay,
+                    'bar_code' => $item->bar_code ?? '',
+                ];
+            }
+
+            $oil_display = null;
+            if (($item->type ?? null) === 'oil') {
+                $qualityName = $item->quality_item ? trim((string) ($item->quality_item->name ?? '')) : '';
+                $gradeName = $item->grade_item ? trim((string) ($item->grade_item->name ?? '')) : '';
+                $levelName = $item->level_item ? trim((string) ($item->level_item->name ?? '')) : '';
+                $companyName = $item->company_item ? trim((string) ($item->company_item->name ?? '')) : '';
+                $unitName = $item->unit_item ? trim((string) ($item->unit_item->name ?? $item->unit_item->short_name ?? '')) : '';
+                $unitVolume = '';
+                if (preg_match('/(\d+(?:\.\d+)?)\s*(?:liter|ltr|L)\b/i', $unitName, $m)) {
+                    $unitVolume = $m[1].' LITER';
+                } elseif (preg_match('/\b(?:liter|ltr|L)\s*(\d+(?:\.\d+)?)/i', $unitName, $m)) {
+                    $unitVolume = $m[1].' LITER';
+                }
+                if ($unitVolume === '' && ! empty($oilConfigByItemId[$item->id]['liter_per_can'])) {
+                    $unitVolume = $oilConfigByItemId[$item->id]['liter_per_can'].' LITER';
+                }
+                if ($unitVolume === '' && $item->filling !== null && $item->filling !== '' && ! is_nan((float) $item->filling) && (float) $item->filling > 0) {
+                    $unitVolume = (float) $item->filling.' LITER';
+                }
+                if ($unitVolume === '' && $item->unit_option !== null && $item->unit_option !== '' && strpos($item->unit_option, '_') !== false) {
+                    $parts = explode('_', $item->unit_option);
+                    $last = end($parts);
+                    if (is_numeric($last) && (float) $last > 0) {
+                        $unitVolume = $last.' LITER';
+                    }
+                }
+                $unitType = '';
+                if (stripos($unitName, 'can') !== false) {
+                    $unitType = 'CAN';
+                } elseif ($item->unit_item && trim((string) ($item->unit_item->short_name ?? '')) !== '') {
+                    $unitType = strtoupper(trim($item->unit_item->short_name));
+                }
+                $oil_display = [
+                    'quality' => $qualityName,
+                    'grade' => $gradeName,
+                    'level' => $levelName,
+                    'company' => $companyName,
+                    'unit_volume' => $unitVolume,
+                    'unit_type' => $unitType,
+                    'bar_code' => $item->bar_code ?? '',
+                ];
+            }
 
             $isOil = ($item->type ?? null) === 'oil';
             $literPerCanForItem = $oilConfigByItemId[$item->id]['liter_per_can'] ?? null;
@@ -613,29 +870,113 @@ class ItemController extends Controller
             }
 
             $warehouseRows[] = [
+                'item_id' => $item->id,
+                'branch_id' => $warehouse && $warehouse->branch ? $warehouse->branch->id : null,
                 'item_type' => $item->type ?: 'Item',
                 'product_name' => $productName,
                 'part_number' => optional($item->partnumber_item)->name ?: $item->bar_code,
+                'battery_display' => $battery_display,
+                'oil_display' => $oil_display ?? null,
                 'category' => optional($item->category)->name,
                 'company' => optional($item->company_item)->name,
                 'branch' => $warehouse && $warehouse->branch ? $warehouse->branch->branch_name : '—',
-                'warehouse' => $warehouse ? $warehouse->warehouse_name : 'Warehouse #' . $wi->warehouse_id,
+                'warehouse' => $warehouse ? $warehouse->warehouse_name : 'Warehouse #'.$wi->warehouse_id,
                 'warehouse_code' => $warehouse ? ($warehouse->warehouse_code ?? '') : '',
                 'quantity' => (float) $wi->quantity,
+                'available_quantity' => (float) ($wi->available_quantity ?? $wi->quantity),
+                'min_stock_level' => $wi->min_stock_level !== null && $wi->min_stock_level !== '' ? (float) $wi->min_stock_level : null,
+                'item_l_stock' => $item->l_stock !== null && $item->l_stock !== '' ? (float) $item->l_stock : null,
+                'item_m_stock' => $item->m_stock !== null && $item->m_stock !== '' ? (float) $item->m_stock : null,
                 'qty_can' => $qtyCan,
                 'qty_liter' => $qtyLiter,
                 'qty_ml' => $qtyMl,
             ];
         }
 
+        // Summary: total stock grouped by Product (item_id) + Branch
+        $summaryRows = [];
+        $grouped = collect($warehouseRows)->groupBy(function ($r) {
+            return ($r['item_id'] ?? 0).'_'.($r['branch_id'] ?? 0);
+        });
+        foreach ($grouped as $key => $rows) {
+            $first = $rows->first();
+            $totalQty = $rows->sum('quantity');
+            $totalMinStock = $rows->sum(function ($r) {
+                $whMin = isset($r['min_stock_level']) && $r['min_stock_level'] !== null && is_numeric($r['min_stock_level']) ? (float) $r['min_stock_level'] : null;
+                $itemLow = isset($r['item_l_stock']) && $r['item_l_stock'] !== null && is_numeric($r['item_l_stock']) ? (float) $r['item_l_stock'] : null;
+                $effective = $whMin !== null ? $whMin : $itemLow;
+
+                return $effective !== null ? $effective : 0;
+            });
+            $itemLStock = null;
+            $itemMStock = null;
+            $firstRow = $rows->first();
+            if ($firstRow) {
+                if (isset($firstRow['item_l_stock']) && $firstRow['item_l_stock'] !== null) {
+                    $itemLStock = (float) $firstRow['item_l_stock'];
+                }
+                if (isset($firstRow['item_m_stock']) && $firstRow['item_m_stock'] !== null) {
+                    $itemMStock = (float) $firstRow['item_m_stock'];
+                }
+            }
+            $requiredQty = null;
+            if ($itemMStock !== null && (float) $itemMStock > 0) {
+                $requiredQty = max(0, $itemMStock - $totalQty);
+            } elseif ($totalMinStock > 0) {
+                $requiredQty = max(0, $totalMinStock - $totalQty);
+            } elseif ($itemLStock !== null && (float) $itemLStock > 0 && $totalQty < (float) $itemLStock) {
+                $requiredQty = max(0, (float) $itemLStock - $totalQty);
+            }
+            $displayMinStock = $totalMinStock > 0 ? $totalMinStock : $itemLStock;
+            $isVeryLowStock = $itemLStock !== null && (float) $itemLStock > 0 && $totalQty < (float) $itemLStock;
+            $totalCan = $rows->sum(function ($r) {
+                return isset($r['qty_can']) && is_numeric($r['qty_can']) ? $r['qty_can'] : 0;
+            });
+            $totalLiter = $rows->sum(function ($r) {
+                return isset($r['qty_liter']) && is_numeric($r['qty_liter']) ? $r['qty_liter'] : 0;
+            });
+            $totalMl = $rows->sum(function ($r) {
+                return isset($r['qty_ml']) && is_numeric($r['qty_ml']) ? $r['qty_ml'] : 0;
+            });
+            $summaryRows[] = [
+                'item_id' => $first['item_id'],
+                'branch_id' => $first['branch_id'],
+                'product_name' => $first['product_name'],
+                'battery_display' => $first['battery_display'],
+                'oil_display' => $first['oil_display'] ?? null,
+                'branch' => $first['branch'],
+                'total_quantity' => $totalQty,
+                'min_stock' => $displayMinStock !== null && (float) $displayMinStock > 0 ? (float) $displayMinStock : null,
+                'required_quantity' => $requiredQty,
+                'maintain_stock' => $itemMStock !== null && (float) $itemMStock > 0 ? (float) $itemMStock : null,
+                'is_very_low_stock' => $isVeryLowStock,
+                'total_can' => $totalCan,
+                'total_liter' => $totalLiter,
+                'total_ml' => $totalMl,
+                'warehouse_count' => $rows->count(),
+            ];
+        }
+
+        // Group warehouse rows under each summary for drill-down display
+        $summaryWithDetails = [];
+        foreach ($summaryRows as $sr) {
+            $details = collect($warehouseRows)->filter(function ($wr) use ($sr) {
+                return ($wr['item_id'] ?? null) == $sr['item_id'] && ($wr['branch_id'] ?? null) == $sr['branch_id'];
+            })->values()->all();
+            $summaryWithDetails[] = ['summary' => $sr, 'details' => $details];
+        }
+
         return view('admin.item.stock-report', [
             'rows' => $reportRows,
             'transactions' => $transactions,
             'warehouseRows' => $warehouseRows,
+            'summaryRows' => $summaryRows,
+            'summaryWithDetails' => $summaryWithDetails,
             'branches' => $branches,
             'warehouses' => $warehouses,
             'users' => $users,
             'categories' => $categories,
+            'print_mode' => $request->get('print') === '1',
             'filters' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
@@ -649,12 +990,195 @@ class ItemController extends Controller
     }
 
     /**
-     * Scrap Report: list scrap items with Total Weight and Total Scrap Value.
+     * A4 print-friendly stock report: item name, category, company, branch,
+     * current qty, min stock, low-stock highlight, purchase qty needed,
+     * canister details (liters per can / remaining), recommended vendors with rates.
      */
+    public function stockReportA4(Request $request)
+    {
+        $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
+        if (! collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to view items.');
+        }
+
+        $branches = \App\Models\Branch::orderBy('branch_name')->get();
+        $categories = Category::whereNull('parent_id')->orderBy('name')->get();
+        $warehouses = \App\Models\Warehouse::with('branch')->orderBy('warehouse_name')->get();
+
+        $branchId = $request->branch_id ?: null;
+        $warehouseIdFilter = $request->warehouse_id ?: null;
+        $typeFilter = $request->type;
+        $categoryId = $request->category_id;
+
+        $wiQuery = \App\Models\WarehouseItem::query()
+            ->select('warehouse_items.*')
+            ->join('warehouses', 'warehouse_items.warehouse_id', '=', 'warehouses.id')
+            ->join('items', 'warehouse_items.item_id', '=', 'items.id')
+            ->when($branchId, fn ($q) => $q->where('warehouses.branch_id', $branchId))
+            ->when($warehouseIdFilter, fn ($q) => $q->where('warehouse_items.warehouse_id', $warehouseIdFilter))
+            ->when($typeFilter && $typeFilter !== 'all', fn ($q) => $q->where('items.type', $typeFilter))
+            ->when($categoryId, fn ($q) => $q->where('items.category_id', $categoryId));
+
+        $maxItems = (int) (config('app.max_warehouse_items_report', 10000) ?: 10000);
+        $warehouseItems = $wiQuery->with([
+            'item.category', 'item.company_item', 'item.partnumber_item', 'item.unit_item',
+        ])->limit($maxItems)->get();
+
+        $itemIds = $warehouseItems->pluck('item_id')->unique()->values();
+        $items = Item::with(['category', 'company_item', 'partnumber_item', 'unit_item'])
+            ->whereIn('id', $itemIds)->get()->keyBy('id');
+
+        // Oil/canister: liters per can per item
+        $oilConfigByItemId = [];
+        foreach ($items as $it) {
+            if (($it->type ?? null) !== 'oil') {
+                continue;
+            }
+            $literPerCan = null;
+            $unitName = $it->unit_item ? trim($it->unit_item->name ?? $it->unit_item->short_name ?? '') : '';
+            $unitOption = $it->unit_option ? trim((string) $it->unit_option) : '';
+            if ($unitOption !== '' && strpos($unitOption, '_') !== false) {
+                $parts = explode('_', $unitOption);
+                $lastPart = end($parts);
+                if (is_numeric($lastPart) && (float) $lastPart > 0) {
+                    $literPerCan = (float) $lastPart;
+                }
+            }
+            if ($literPerCan === null && preg_match('/(\d+(?:\.\d+)?)\s*(?:liter|ltr|L)\b/i', $unitName, $m)) {
+                $literPerCan = (float) $m[1];
+            } elseif ($literPerCan === null && preg_match('/\b(?:liter|ltr|L)\s*(\d+(?:\.\d+)?)/i', $unitName, $m)) {
+                $literPerCan = (float) $m[1];
+            }
+            if ($literPerCan === null && $it->filling !== null && $it->filling !== '' && ! is_nan((float) $it->filling)) {
+                $literPerCan = (float) $it->filling;
+            }
+            $oilConfigByItemId[$it->id] = ['liter_per_can' => $literPerCan && $literPerCan > 0 ? $literPerCan : null];
+        }
+
+        // Recommended vendors per item: latest purchase rate per supplier
+        $vendorsByItemId = [];
+        if ($itemIds->isNotEmpty()) {
+            $purchaseItems = \App\Models\PurchaseItem::query()
+                ->select('purchase_items.item_id', 'purchase_items.rate', 'purchases.supplier_id', 'purchases.purchase_date')
+                ->join('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
+                ->whereIn('purchase_items.item_id', $itemIds)
+                ->whereNotNull('purchases.supplier_id')
+                ->orderBy('purchases.purchase_date', 'desc')
+                ->get();
+            $seen = [];
+            foreach ($purchaseItems as $pi) {
+                $key = $pi->item_id.'_'.$pi->supplier_id;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $vendorsByItemId[$pi->item_id] = $vendorsByItemId[$pi->item_id] ?? [];
+                $vendorsByItemId[$pi->item_id][] = [
+                    'supplier_id' => $pi->supplier_id,
+                    'rate' => (float) $pi->rate,
+                ];
+            }
+            $supplierIds = collect($vendorsByItemId)->flatten(1)->pluck('supplier_id')->unique()->filter();
+            $suppliers = \App\Models\Supplier::whereIn('id', $supplierIds)->get()->keyBy('id');
+            foreach ($vendorsByItemId as $iid => $list) {
+                foreach ($list as $idx => $v) {
+                    $sup = $suppliers->get($v['supplier_id']);
+                    $name = $sup ? (($sup->names[0] ?? null) ?: $sup->company ?: 'Supplier #'.$sup->id) : 'Supplier #'.$v['supplier_id'];
+                    $vendorsByItemId[$iid][$idx]['name'] = $name;
+                }
+            }
+        }
+
+        $rows = [];
+        foreach ($warehouseItems as $wi) {
+            $item = $items->get($wi->item_id);
+            if (! $item) {
+                continue;
+            }
+            $rawName = $item->short_disc ?? $item->pro_dis ?? '';
+            $productName = trim(strip_tags((string) $rawName));
+            if ($productName === '' && $item->partnumber_item) {
+                $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #'.$item->id;
+            }
+            $warehouse = $warehouses->firstWhere('id', $wi->warehouse_id);
+            $branchName = $warehouse && $warehouse->branch ? $warehouse->branch->branch_name : '—';
+            $warehouseName = $warehouse ? $warehouse->warehouse_name : 'Warehouse #'.$wi->warehouse_id;
+
+            $minStock = $wi->min_stock_level !== null && $wi->min_stock_level !== ''
+                ? (float) $wi->min_stock_level
+                : (isset($item->min_qty) ? (float) $item->min_qty : null);
+            $maxStock = $wi->max_stock_level !== null && $wi->max_stock_level !== ''
+                ? (float) $wi->max_stock_level
+                : (isset($item->max_qty) ? (float) $item->max_qty : null);
+            $available = (float) $wi->available_quantity;
+            $isLow = $minStock !== null && $available <= $minStock;
+            $qtyToPurchase = null;
+            if ($minStock !== null && $available < $minStock) {
+                $qtyToPurchase = $minStock - $available;
+            } elseif ($maxStock !== null && $available < $maxStock && $isLow) {
+                $qtyToPurchase = $maxStock - $available;
+            }
+
+            $literPerCan = $oilConfigByItemId[$item->id]['liter_per_can'] ?? null;
+            $canisterDetail = null;
+            $qtyCan = $qtyLiter = $qtyMl = null;
+            if (($item->type ?? null) === 'oil' && $literPerCan && $literPerCan > 0) {
+                $totalLiters = (float) $wi->quantity;
+                $fullCans = (int) floor($totalLiters / $literPerCan);
+                $remainder = $totalLiters - ($fullCans * $literPerCan);
+                $wholeLiters = (int) floor($remainder);
+                $ml = (int) round(($remainder - $wholeLiters) * 1000);
+                $qtyCan = $fullCans;
+                $qtyLiter = $wholeLiters;
+                $qtyMl = $ml;
+                $canisterDetail = $literPerCan.' L/can';
+                if ($fullCans > 0 || $wholeLiters > 0 || $ml > 0) {
+                    $canisterDetail .= ' — '.$fullCans.' can(s), '.$wholeLiters.' L, '.$ml.' ml remaining';
+                }
+            }
+
+            $rows[] = [
+                'product_name' => $productName,
+                'part_number' => optional($item->partnumber_item)->name ?: $item->bar_code,
+                'category' => optional($item->category)->name,
+                'company' => optional($item->company_item)->name,
+                'branch' => $branchName,
+                'warehouse' => $warehouseName,
+                'current_qty' => $available,
+                'min_stock' => $minStock,
+                'max_stock' => $maxStock,
+                'is_low_stock' => $isLow,
+                'qty_to_purchase' => $qtyToPurchase,
+                'liter_per_can' => $literPerCan,
+                'canister_detail' => $canisterDetail,
+                'qty_can' => $qtyCan,
+                'qty_liter' => $qtyLiter,
+                'qty_ml' => $qtyMl,
+                'vendors' => $vendorsByItemId[$item->id] ?? [],
+            ];
+        }
+
+        $filters = [
+            'branch_id' => $branchId,
+            'warehouse_id' => $warehouseIdFilter,
+            'type' => $typeFilter ?: 'all',
+            'category_id' => $categoryId,
+        ];
+
+        return view('admin.item.stock-report-a4', [
+            'rows' => $rows,
+            'branches' => $branches,
+            'warehouses' => $warehouses,
+            'categories' => $categories,
+            'filters' => $filters,
+            'print_mode' => $request->get('print') === '1',
+        ]);
+    }
+
     public function scrapReport(Request $request)
     {
         $viewPerms = ['view_items', 'view_scrap'];
-        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+        if (! collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
             abort(403, 'You do not have permission to view scrap report.');
         }
 
@@ -665,7 +1189,7 @@ class ItemController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        $items = $query->orderBy('created_at', 'desc')->get();
+        $items = $query->orderBy('created_at', 'desc')->limit(1000)->get();
 
         $totalWeight = $items->sum(fn ($item) => (float) ($item->weight_for_delivery ?? 0));
         $totalScrapValue = $items->sum(fn ($item) => (float) ($item->total_price ?? 0));
@@ -689,7 +1213,7 @@ class ItemController extends Controller
     public function bulkPriceUpdate(Request $request)
     {
         $updatePerms = ['update_items', 'update_parts', 'update_filters', 'update_break_pad', 'update_oil', 'update_battery', 'update_scrap', 'update_services'];
-        if (!collect($updatePerms)->contains(fn ($p) => auth()->user()->can($p))) {
+        if (! collect($updatePerms)->contains(fn ($p) => auth()->user()->can($p))) {
             abort(403, 'You do not have permission to update item prices.');
         }
 
@@ -700,22 +1224,178 @@ class ItemController extends Controller
             'items.*.sale_price' => 'nullable|numeric|min:0',
             'items.*.retail_price' => 'nullable|numeric|min:0',
             'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.r_tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.amount_adjustment_pct' => 'nullable|numeric|min:-99|max:99',
+            'items.*.plat_id' => 'nullable',
+            'items.*.amphors' => 'nullable',
+            'items.*.company_id' => 'nullable',
+            'items.*.gorup' => 'nullable',
+            'items.*.p_id' => 'nullable',
+            'items.*.part_number_id' => 'nullable',
+            'items.*.volt' => 'nullable',
+            'items.*.cca' => 'nullable',
+            'items.*.gorup_name' => 'nullable|string|max:255',
+            'items.*.company_name' => 'nullable|string|max:255',
+            'items.*.p_name' => 'nullable|string|max:255',
+            'items.*.volt_name' => 'nullable|string|max:255',
+            'items.*.cca_name' => 'nullable|string|max:255',
+            'items.*.plat_name' => 'nullable|string|max:255',
+            'items.*.amphors_name' => 'nullable|string|max:255',
         ]);
 
         $updated = 0;
         $changed = false;
         foreach ($request->items as $row) {
             $item = Item::find($row['id']);
-            if (!$item) continue;
+            if (! $item) {
+                continue;
+            }
             $changed = false;
-            if (isset($row['total_price']) && $row['total_price'] !== '') { $item->total_price = $row['total_price']; $changed = true; }
-            if (isset($row['sale_price']) && $row['sale_price'] !== '') { $item->sale_price = $row['sale_price']; $changed = true; }
+            if (isset($row['total_price']) && $row['total_price'] !== '') {
+                $item->total_price = $row['total_price'];
+                $changed = true;
+            }
+            if (isset($row['sale_price']) && $row['sale_price'] !== '') {
+                $item->sale_price = $row['sale_price'];
+                $changed = true;
+            }
             if (array_key_exists('retail_price', $row)) {
                 $item->retail_price = $row['retail_price'] !== '' && $row['retail_price'] !== null ? $row['retail_price'] : null;
                 $changed = true;
             }
             if (array_key_exists('tax_percentage', $row)) {
                 $item->tax_percentage = $row['tax_percentage'] !== '' && $row['tax_percentage'] !== null ? $row['tax_percentage'] : 0;
+                $changed = true;
+            }
+            if (array_key_exists('r_tax_percentage', $row)) {
+                $item->r_tax_percentage = $row['r_tax_percentage'] !== '' && $row['r_tax_percentage'] !== null ? $row['r_tax_percentage'] : 0.05;
+                $changed = true;
+            }
+            if (array_key_exists('amount_adjustment_pct', $row)) {
+                $item->amount_adjustment_pct = $row['amount_adjustment_pct'] !== '' && $row['amount_adjustment_pct'] !== null ? $row['amount_adjustment_pct'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('plat_id', $row)) {
+                $item->plat_id = $row['plat_id'] !== '' && $row['plat_id'] !== null ? $row['plat_id'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('amphors', $row)) {
+                $item->amphors = $row['amphors'] !== '' && $row['amphors'] !== null ? $row['amphors'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('company_id', $row)) {
+                $item->company_id = $row['company_id'] !== '' && $row['company_id'] !== null ? $row['company_id'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('gorup', $row)) {
+                $item->gorup = $row['gorup'] !== '' && $row['gorup'] !== null ? $row['gorup'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('p_id', $row)) {
+                $item->p_id = $row['p_id'] !== '' && $row['p_id'] !== null ? $row['p_id'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('part_number_id', $row)) {
+                $item->part_number_id = $row['part_number_id'] !== '' && $row['part_number_id'] !== null ? $row['part_number_id'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('volt', $row)) {
+                $item->volt = $row['volt'] !== '' && $row['volt'] !== null ? $row['volt'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('cca', $row)) {
+                $item->cca = $row['cca'] !== '' && $row['cca'] !== null ? $row['cca'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('gorup_name', $row)) {
+                $name = trim((string) ($row['gorup_name'] ?? ''));
+                if ($name !== '') {
+                    $group = Group::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+                    if (! $group) {
+                        $group = Group::create(['name' => $name, 'status' => 'active']);
+                    }
+                    $item->gorup = $group->id;
+                } else {
+                    $item->gorup = null;
+                }
+                $changed = true;
+            }
+            if (array_key_exists('company_name', $row)) {
+                $name = trim((string) ($row['company_name'] ?? ''));
+                if ($name !== '') {
+                    $company = Company::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+                    if (! $company) {
+                        $company = Company::create(['name' => $name, 'status' => 'active']);
+                    }
+                    $item->company_id = $company->id;
+                } else {
+                    $item->company_id = null;
+                }
+                $changed = true;
+            }
+            if (array_key_exists('p_name', $row)) {
+                $name = trim((string) ($row['p_name'] ?? ''));
+                if ($name !== '') {
+                    $product = Product::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+                    if (! $product) {
+                        $product = Product::create(['name' => $name, 'status' => 'active']);
+                    }
+                    $item->p_id = $product->id;
+                } else {
+                    $item->p_id = null;
+                }
+                $changed = true;
+            }
+            if (array_key_exists('volt_name', $row)) {
+                $name = trim((string) ($row['volt_name'] ?? ''));
+                if ($name !== '') {
+                    $volt = Volt::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+                    if (! $volt) {
+                        $volt = Volt::create(['name' => $name, 'status' => 'active']);
+                    }
+                    $item->volt = $volt->id;
+                } else {
+                    $item->volt = null;
+                }
+                $changed = true;
+            }
+            if (array_key_exists('cca_name', $row)) {
+                $name = trim((string) ($row['cca_name'] ?? ''));
+                if ($name !== '') {
+                    $cca = Cca::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+                    if (! $cca) {
+                        $cca = Cca::create(['name' => $name, 'status' => 'active']);
+                    }
+                    $item->cca = $cca->id;
+                } else {
+                    $item->cca = null;
+                }
+                $changed = true;
+            }
+            if (array_key_exists('plat_name', $row)) {
+                $name = trim((string) ($row['plat_name'] ?? ''));
+                if ($name !== '') {
+                    $plat = Platos::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+                    if (! $plat) {
+                        $plat = Platos::create(['name' => $name, 'status' => 'active']);
+                    }
+                    $item->plat_id = $plat->id;
+                } else {
+                    $item->plat_id = null;
+                }
+                $changed = true;
+            }
+            if (array_key_exists('amphors_name', $row)) {
+                $name = trim((string) ($row['amphors_name'] ?? ''));
+                if ($name !== '') {
+                    $amphor = Amphor::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+                    if (! $amphor) {
+                        $amphor = Amphor::create(['name' => $name, 'status' => 'active']);
+                    }
+                    $item->amphors = $amphor->id;
+                } else {
+                    $item->amphors = null;
+                }
                 $changed = true;
             }
             if ($changed) {
@@ -742,196 +1422,262 @@ class ItemController extends Controller
                     ];
                 }
             }
+
             return response()->json(['success' => true, 'message' => "{$updated} item(s) updated.", 'updated' => $updated, 'updated_items' => $updatedItems]);
         }
+
         return redirect()->route('items.price.list', $request->only(['type', 'category_id']))->with('success', "{$updated} item(s) updated.");
     }
 
     public function items_create($hideVehicleTable = false)
     {
-        $addPerms = ['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'];
-        if (!auth()->check()) {
-            return redirect('/')->with('error', 'Please login to continue.');
+        if (! auth()->check()) {
+            return redirect()->route('login')->with('error', 'Please login to continue.');
         }
-        if (!collect($addPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+        $addPerms = ['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'];
+        if (! collect($addPerms)->contains(fn ($p) => auth()->user()->can($p))) {
             abort(403, 'You do not have permission to create items.');
         }
-        $platos      = Platos::where('status', 'active')->get();
-        $amphors     = Amphor::where('status', 'active')->get();
-        $lineitems   = LineItem::where('status', 'active')->get();
-        $Companies   = Company::where('status', 'active')->get();
-        // Parent categories
-        $Categories = Category::whereNull('parent_id')
-            ->where('status', 'active')
-            ->with('children') // Eager load subcategories
-            ->get();
 
-        $packings    = Packing::where('status', 'active')->get();
-        $scales      = Scale::where('status', 'active')->get();
-        // Optimize: Limit vehicle query - only load if needed, use chunking for large datasets
-        $Vehicals    = VehicalType::select('id', 'v_part_number_id', 'car_manufacturer', 'car_model_name', 'engine_cc', 'car_manufactured_country', 'year_from', 'year_to')
-            ->where('status', 'active')
-            ->limit(1000) // Limit to prevent timeout
-            ->get();
+        try {
+            // Only load what's needed at page load — rest loads via AJAX /api/dropdown
+            $Categories = Category::whereNull('parent_id')
+                ->where('status', 'active')
+                ->with('children')
+                ->orderBy('name')
+                ->get();
 
-        $milleages   = Mileage::where('status', 'active')->get();
-        $item_types  = Producttype::where('status', 'active')->get();
-        // return $Vehicals;
-        // Optimize: Don't load all items - empty collection to prevent timeout
-        // Items can be loaded via AJAX if needed for autocomplete/search
-        $items = collect([]);
-        $units = Unit::with('baseUnits')->orderBy('name')->get();
+            $item_types = Producttype::where('status', 'active')->get(['id', 'name']);
+            try {
+                $units = Unit::with('baseUnits')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: units load failed', ['message' => $e->getMessage()]);
+                $units = collect([]);
+            }
+            $items = collect([]);
 
-        // return $units;
-        $carCompanies     = CarCompany::orderBy('name')->get();
-        $carNames         = CarName::orderBy('name')->get();
-        $carModels        = CarModel::orderBy('name')->get();
-        $carCountries     = CarCountry::orderBy('name')->get();
-        $carManufacturers = CarManufacturer::orderBy('name')->get();
-        // return $carModels;
-        $volts      = Volt::where('status', 'active')->get();
-        $ccas      = Cca::where('status', 'active')->get();
-        $minspols      = Minuspool::where('status', 'active')->get();
-        $poleThicknesses = PoleThickness::where('status', 'active')->get();
-        $poolDirections = PoolDirection::where('status', 'active')->get();
-        $technologies      = Technology::where('status', 'active')->get();
-        $grades      = Grade::where('status', 'active')->get();
-        $brands      = Brand::where('status', 'active')->get();
-        $formulas      = Formula::where('status', 'active')->get();
-        $product      = Product::where('status', 'active')->get();
-        $qualities      = Quality::where('status', 'active')->get();
-        // Optimize: Limit part numbers query to avoid timeout - only select needed columns
-        $partnumbers      = PartNumber::select('id', 'name', 'type')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
-        // return $partnumbers;
-        $engineccs      = EngineCc::where('status', 'active')->get();
-        // Optimize: Limit to prevent timeout - load only 5 latest items with relationships
-        // Don't use select() to avoid column name issues - just limit the query
-        $latestItems = Item::with([
-            'item_user',
-            'item_user.branch',
-            'item_user.assignedBranches',
-            'product_item:id,name',
-            'category:id,name',
-            'partnumber_item:id,name',
-            'company_item:id,name',
-            'quality_item:id,name',
-            'volt_item:id,name',
-            'plate_item:id,name',
-            'amphors_item:id,name',
-            'cca_item:id,name'
-        ])
-            ->latest()
-            ->take(5)
-            ->get();
-        // Get all vehicles and group by configuration (part, manufacturer, model, engine, country)
-        // Multiple records exist per vehicle configuration with different year ranges
-        // Optimize: Remove eager loading to prevent timeout - select only needed columns and limit results
-        $Vehis = VehicalType::where('status', 'active')
-            ->with(['vehical_part_number'])
-            ->select('id', 'v_part_number_id', 'car_manufacturer', 'car_model_name', 'engine_cc', 'car_manufactured_country', 'year_from', 'year_to')
-            ->orderBy('id', 'desc') // Order by latest first
-            ->limit(2000) // Limit to prevent timeout
-            ->get()
-            ->groupBy(function($vehicle) {
-                // Group by configuration fields
-                return implode('|', [
-                    $vehicle->v_part_number_id,
-                    $vehicle->car_manufacturer,
-                    $vehicle->car_model_name,
-                    $vehicle->engine_cc,
-                    $vehicle->car_manufactured_country
-                ]);
-            })
-            ->map(function($vehicles) {
-                // Get the first vehicle as representative (all have same config except years)
-                $first = $vehicles->first();
-                
-                // Collect all year ranges for this configuration
-                $yearRanges = $vehicles
-                    ->map(function($v) {
-                        $from = (int)$v->year_from;
-                        $to = (int)$v->year_to;
-                        if ($from && $to) {
-                            return [
-                                'from' => $from,
-                                'to' => $to,
-                                'display' => $from == $to ? (string)$from : $from . '-' . $to
-                            ];
-                        }
-                        return null;
-                    })
-                    ->filter()
-                    ->sortBy('from') // Sort by 'from' year in ascending order
-                    ->values()
-                    ->map(function($range) {
-                        return $range['display'];
-                    });
-                
-                // Add year_ranges to the first vehicle object
-                $first->year_ranges = $yearRanges;
-                $first->years = $yearRanges->implode(', ');
-                return $first;
-            })
-            ->values() // Reset keys
-            ->take(5); // Limit to 5 latest vehicles
+            try {
+                $latestItems = Item::with([
+                    'item_user', 'item_user.branch', 'product_item:id,name',
+                    'category:id,name', 'partnumber_item:id,name', 'company_item:id,name',
+                    'quality_item:id,name',
+                ])->latest()->take(5)->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: latestItems load failed', ['message' => $e->getMessage()]);
+                $latestItems = collect([]);
+            }
 
-        $services      = Services::where('status', 'active')->get();
-        $warrenties      = Warrenty::where('status', 'active')->get();
-        $groups      = Group::where('status', 'active')->get();
+            $typePermMap = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
+            $allowedItemTypes = collect($typePermMap)->filter(fn ($perm) => auth()->user()->can($perm) || auth()->user()->can('add_items'))->keys()->values()->all();
 
-        $made_ins      = MadeIn::where('status', 'active')->get();
-        $levels      = Level::where('status', 'active')->get();
-        $batterySizes = BatterySize::where('status', 'active')->orderBy('name')->get();
+            // Load dropdown data from DB (like category) so list persists after save/refresh
+            try {
+                $Companies = Company::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: Companies load failed', ['message' => $e->getMessage()]);
+                $Companies = collect();
+            }
+            try {
+                $product = Product::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: product load failed', ['message' => $e->getMessage()]);
+                $product = collect();
+            }
+            try {
+                $groups = Group::orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: groups load failed', ['message' => $e->getMessage()]);
+                $groups = collect();
+            }
+            try {
+                $technologies = Technology::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: technologies load failed', ['message' => $e->getMessage()]);
+                $technologies = collect();
+            }
+            try {
+                $series = Series::orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: series load failed', ['message' => $e->getMessage()]);
+                $series = collect();
+            }
+            try {
+                $qualities = Quality::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: qualities load failed', ['message' => $e->getMessage()]);
+                $qualities = collect();
+            }
+            try {
+                $platos = Platos::where('status', 'active')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: platos load failed', ['message' => $e->getMessage()]);
+                $platos = collect();
+            }
+            try {
+                $amphors = Amphor::where('status', 'active')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: amphors load failed', ['message' => $e->getMessage()]);
+                $amphors = collect();
+            }
+            try {
+                $volts = Volt::where('status', 'active')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: volts load failed', ['message' => $e->getMessage()]);
+                $volts = collect();
+            }
+            try {
+                $ccas = Cca::where('status', 'active')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: ccas load failed', ['message' => $e->getMessage()]);
+                $ccas = collect();
+            }
+            try {
+                $minspols = Minuspool::where('status', 'active')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: minspols load failed', ['message' => $e->getMessage()]);
+                $minspols = collect();
+            }
 
-        // Permission-based allowed item types (jo permission active ho)
-        $typePermMap = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
-        $allowedItemTypes = collect($typePermMap)->filter(fn ($perm) => auth()->user()->can($perm) || auth()->user()->can('add_items'))->keys()->values()->all();
+            // Battery sizes for Scrap -> Battery Size dropdown
+            try {
+                $batterySizes = BatterySize::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: batterySizes load failed', ['message' => $e->getMessage()]);
+                $batterySizes = collect();
+            }
 
-        return view('admin.item.create', compact(
-            'hideVehicleTable',
-            'platos',
-            'amphors',
-            'lineitems',
-            'Companies',
-            'Categories',
-            'packings',
-            'scales',
-            'Vehicals',
-            'milleages',
-            'item_types',
-            'items',
-            'carCompanies',
-            'carNames',
-            'carModels',
-            'carCountries',
-            'carManufacturers',
-            'volts',
-            'ccas',
-            'minspols',
-            'poleThicknesses',
-            'poolDirections',
-            'technologies',
-            'grades',
-            'brands',
-            'formulas',
-            'product',
-            'qualities',
-            'partnumbers',
-            'engineccs',
-            'latestItems',
-            'Vehis',
-            'units',
-            'services',
-            'warrenties',
-            'groups',
-            'made_ins',
-            'levels',
-            'batterySizes',
-            'allowedItemTypes'
-        ));
+            $poolDirections = collect();
+            $warrenties = collect();
+            $grades = collect();
+            $brands = collect();
+            $milleages = collect();
+            $levels = collect();
+            $made_ins = collect();
+            $formulas = collect();
+            $services = collect();
+            try {
+                $grades = Grade::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: grades load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $milleages = Mileage::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: milleages load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $levels = Level::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: levels load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $brands = Brand::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: brands load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $poolDirections = PoolDirection::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: poolDirections load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $warrenties = Warrenty::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: warrenties load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $made_ins = MadeIn::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: made_ins load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $formulas = Formula::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: formulas load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $services = Services::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: services load failed', ['message' => $e->getMessage()]);
+            }
+            try {
+                $Vehicals = VehicalType::with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number'])->where('status', 'active')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: Vehicals load failed', ['message' => $e->getMessage()]);
+                $Vehicals = collect();
+            }
+            try {
+                $carManufacturers = CarManufacturer::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: carManufacturers load failed', ['message' => $e->getMessage()]);
+                $carManufacturers = collect();
+            }
+            try {
+                $carNames = CarName::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: carNames load failed', ['message' => $e->getMessage()]);
+                $carNames = collect();
+            }
+            try {
+                $carModels = CarModel::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: carModels load failed', ['message' => $e->getMessage()]);
+                $carModels = collect();
+            }
+            try {
+                $carCountries = CarCountry::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: carCountries load failed', ['message' => $e->getMessage()]);
+                $carCountries = collect();
+            }
+            try {
+                $engineccs = EngineCc::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: engineccs load failed', ['message' => $e->getMessage()]);
+                $engineccs = collect();
+            }
+            try {
+                $Vehis = VehicalType::with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number'])
+                    ->where('status', 'active')
+                    ->orderBy('id', 'desc')
+                    ->take(5)
+                    ->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: Vehis load failed', ['message' => $e->getMessage()]);
+                $Vehis = collect();
+            }
+            try {
+                $partnumbers = PartNumber::where('status', 'active')->orderBy('name')->get();
+            } catch (\Throwable $e) {
+                Log::warning('items_create: partnumbers load failed', ['message' => $e->getMessage()]);
+                $partnumbers = collect();
+            }
+
+            // Clear any previous error from failed load so toast does not show again
+            session()->forget('error');
+
+            return view('admin.item.create', compact(
+                'hideVehicleTable', 'Categories', 'item_types', 'units', 'items', 'latestItems', 'allowedItemTypes',
+                'poolDirections', 'warrenties', 'grades', 'brands', 'milleages', 'levels', 'made_ins', 'formulas', 'services',
+                'Vehicals', 'carManufacturers', 'carNames', 'carModels', 'carCountries', 'engineccs', 'Vehis', 'partnumbers',
+                'Companies', 'product', 'groups', 'technologies', 'qualities', 'platos', 'amphors', 'volts', 'ccas', 'minspols', 'batterySizes', 'series'
+            ));
+        } catch (\Throwable $e) {
+            Log::error('items_create failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => config('app.debug') ? $e->getMessage() : 'Failed to load create page. Please try again.',
+                ], 500);
+            }
+
+            return redirect()->route('home')->with('error', config('app.debug') ? $e->getMessage() : 'Failed to load create page. Please try again.');
+        }
     }
 
     /**
@@ -952,19 +1698,45 @@ class ItemController extends Controller
         return response()->json($subcategories);
     }
 
-
     public function items_store(Request $request)
     {
         $type = $request->input('type');
         $perm = $this->getAddPermissionForType($type);
         $this->authorize($perm);
 
-        // return $request->all(); 
+        // Normalize empty part_number_id and p_id so validation (nullable|exists) and DB don't fail on ""
+        $pn = $request->input('part_number_id');
+        $pid = $request->input('p_id');
+        if ($pn === '' || (is_string($pn) && trim($pn) === '')) {
+            $request->merge(['part_number_id' => null]);
+        }
+        if ($pid === '' || (is_string($pid) && trim($pid) === '')) {
+            $request->merge(['p_id' => null]);
+        }
+        // Normalize user_id so validation and DB don't fail (items.user_id is required)
+        $uid = $request->input('user_id');
+        if ($uid === '' || $uid === null || (is_string($uid) && trim($uid) === '')) {
+            $request->merge(['user_id' => auth()->id()]);
+        }
+
+        // return $request->all();
         // Validate fields first (before transaction)
+        $categoriesEmpty = Category::whereNull('parent_id')
+            ->where('status', 'active')
+            ->count() <= 0;
+        $categoryId = $request->input('category_id');
+        $categoryName = '';
+        if (! empty($categoryId)) {
+            $categoryName = (string) (Category::where('id', $categoryId)->value('name') ?? '');
+        }
+        $isPetrolEngineOilCategory = strtoupper(trim(preg_replace('/\s+/', ' ', $categoryName))) === 'PETROL ENGINE OIL';
+        $seriesRequired = ($type === 'battery' || $categoriesEmpty) && ! $isPetrolEngineOilCategory;
+        $seriesRule = ($seriesRequired ? 'required' : 'nullable').'|string';
+
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code',
             'user_id' => 'nullable|exists:users,id',
-            'p_id' => 'nullable|string|max:255',
+            'p_id' => 'nullable|exists:products,id',
             'vehical_id' => 'nullable',
             'vehical_id.*' => 'nullable|integer|exists:vehical_types,id',
             'total_price' => 'nullable',
@@ -992,6 +1764,7 @@ class ItemController extends Controller
             'pole_thickness_id' => 'nullable|exists:pole_thicknesses,id',
             'pool_direction_id' => 'nullable|exists:pool_directions,id',
             'technology' => 'nullable|string',
+            'series_id' => $seriesRule,
             'grade' => 'nullable|string',
             'services' => 'nullable|string',
             'formulas' => 'nullable|string',
@@ -1017,6 +1790,11 @@ class ItemController extends Controller
             'scrap_rate_count' => 'nullable|numeric|min:0',
             'scrap_total_count_hidden' => 'nullable|numeric|min:0',
             'scrap_measurement' => 'nullable|string|in:weight,count',
+            'scrap_dim_width' => 'nullable|numeric|min:0',
+            'scrap_dim_height' => 'nullable|numeric|min:0',
+            'scrap_dim_length' => 'nullable|numeric|min:0',
+            'scrap_dim_depth' => 'nullable|numeric|min:0',
+            'scrap_dim_unit' => 'nullable|string|in:cm,inch',
             'packing_purchase_rate' => 'nullable|numeric|min:0',
             'update_date' => 'nullable|date',
             'rack' => 'nullable|string',
@@ -1027,7 +1805,7 @@ class ItemController extends Controller
             'made_in' => 'nullable|string',
             'pro_dis' => 'nullable|string',
             'short_disc' => 'nullable|string',
-            'part_number_id' => 'nullable|string',
+            'part_number_id' => 'nullable|exists:part_numbers,id',
             'is_active' => 'sometimes|boolean',
             'auto_deactive' => 'sometimes|boolean',
             'is_dead' => 'sometimes|boolean',
@@ -1039,36 +1817,41 @@ class ItemController extends Controller
         if (in_array($type, ['parts', 'filters', 'breakpad', 'battery'])) {
             $partNumberId = $request->input('part_number_id');
             $pId = $request->input('p_id');
-            $hasPart = !empty($partNumberId) && trim((string) $partNumberId) !== '';
-            $hasProduct = !empty($pId) && trim((string) $pId) !== '';
-            if (!$hasPart && !$hasProduct) {
+            $hasPart = ! empty($partNumberId) && trim((string) $partNumberId) !== '';
+            $hasProduct = ! empty($pId) && trim((string) $pId) !== '';
+            if (! $hasPart && ! $hasProduct) {
+                $err = ['part_number_id' => ['Please select at least one: Part Number or Product Name.'], 'p_id' => ['Please select at least one: Part Number or Product Name.']];
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $err], 422);
+                }
+
                 return redirect()->back()
                     ->withInput()
-                    ->withErrors([
-                        'part_number_id' => 'Please select at least one: Part Number or Product Name.',
-                        'p_id' => 'Please select at least one: Part Number or Product Name.',
-                    ]);
+                    ->withErrors($err);
             }
         }
 
         if (in_array($type, ['parts', 'filters', 'breakpad'])) {
             // Only check if required fields are present
-            if ($request->has('category_id') && $request->has('quality_id') && 
+            if ($request->has('category_id') && $request->has('quality_id') &&
                 $request->has('company_id') && $request->has('part_number_id')) {
-                
+
                 $query = Item::where('category_id', $request->category_id)
                     ->where('quality_id', $request->quality_id)
                     ->where('company_id', $request->company_id)
                     ->where('part_number_id', $request->part_number_id)
                     ->where('type', $type);
-                
+
                 $exists = $query->exists();
                 if ($exists) {
+                    $err = ['duplicate' => ['This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.']];
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $err], 422);
+                    }
+
                     return redirect()->back()
                         ->withInput()
-                        ->withErrors([
-                            'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.'
-                        ]);
+                        ->withErrors($err);
                 }
             }
         }
@@ -1080,16 +1863,26 @@ class ItemController extends Controller
             if ($scrapMeas === 'count') {
                 $qty = $request->input('scrap_quantity');
                 if ($qty === null || $qty === '' || (is_numeric($qty) && (float) $qty < 0)) {
+                    $err = ['scrap_quantity' => ['Quantity is required for count-based scrap items.']];
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $err], 422);
+                    }
+
                     return redirect()->back()
                         ->withInput()
-                        ->withErrors(['scrap_quantity' => 'Quantity is required for count-based scrap items.']);
+                        ->withErrors($err);
                 }
             } else {
                 $scrapWeight = $request->input('scrap_weight_kg');
                 if (empty($scrapWeight) || (is_numeric($scrapWeight) && (float) $scrapWeight <= 0)) {
+                    $err = ['scrap_weight_kg' => ['Weight (KG) is required for weight-based scrap items.']];
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $err], 422);
+                    }
+
                     return redirect()->back()
                         ->withInput()
-                        ->withErrors(['scrap_weight_kg' => 'Weight (KG) is required for weight-based scrap items.']);
+                        ->withErrors($err);
                 }
             }
         }
@@ -1098,18 +1891,45 @@ class ItemController extends Controller
             DB::beginTransaction();
 
             $data = $validated;
-            
+
             // Ensure quality_id and technology are in $data if present in request
             // This handles cases where fields might not be in validated array
-            if ($request->has('quality_id') && !isset($data['quality_id'])) {
+            if ($request->has('quality_id') && ! isset($data['quality_id'])) {
                 $data['quality_id'] = $request->input('quality_id');
             }
-            if ($request->has('technology') && !isset($data['technology'])) {
+            if ($request->has('technology') && ! isset($data['technology'])) {
                 $data['technology'] = $request->input('technology');
             }
             // Ensure short_disc and pro_dis (descriptions) are always passed from request
             $data['short_disc'] = $request->input('short_disc', $data['short_disc'] ?? null);
             $data['pro_dis'] = $request->input('pro_dis', $data['pro_dis'] ?? null);
+            // Ensure part_number_id and p_id are saved to DB (same as category_id) so data persists after save
+            if ($request->filled('part_number_id')) {
+                $data['part_number_id'] = (int) $request->input('part_number_id');
+            } else {
+                $data['part_number_id'] = null;
+            }
+            if ($request->filled('p_id')) {
+                $data['p_id'] = (int) $request->input('p_id');
+            } else {
+                $data['p_id'] = null;
+            }
+
+            // Required by items table: user_id (name is a virtual accessor from short_disc/pro_dis/partnumber, not a DB column)
+            $data['user_id'] = $data['user_id'] ?? auth()->id();
+            // Ensure short_disc or pro_dis has a fallback for display; do NOT set $data['name'] - items table has no name column
+            if (empty($data['short_disc']) && empty($data['pro_dis'])) {
+                if (! empty($data['part_number_id'])) {
+                    $partNum = PartNumber::find($data['part_number_id']);
+                    $data['short_disc'] = $partNum ? $partNum->name : ($request->input('bar_code') ?? null);
+                } elseif (! empty($data['p_id'])) {
+                    $product = Product::find($data['p_id']);
+                    $data['short_disc'] = $product ? $product->name : ($request->input('bar_code') ?? null);
+                } else {
+                    $data['short_disc'] = $request->input('bar_code') ?? null;
+                }
+            }
+            unset($data['name']);
 
             /* ============================
             ✅ Unit / unit_option (e.g. Can - 1 Liter vs Can - 4 Liter)
@@ -1126,7 +1946,7 @@ class ItemController extends Controller
                         $data['unit'] = $rawUnit;
                         $data['unit_option'] = null;
                     }
-                    if (isset($data['unit']) && $data['unit'] !== '' && !is_numeric($data['unit'])) {
+                    if (isset($data['unit']) && $data['unit'] !== '' && ! is_numeric($data['unit'])) {
                         $data['unit_option'] = null;
                     }
                 }
@@ -1136,13 +1956,13 @@ class ItemController extends Controller
             ✅ Barcode Generation
             ============================ */
             if ($request->bar_code) {
-                $barcode = new DNS1D();
+                $barcode = new DNS1D;
                 $barcode->setStorPath(public_path('items/barcodes/'));
                 $barcodeImage = $barcode->getBarcodePNG($request->bar_code, 'C128', 2, 70);
 
-                $barcodePath = 'items/barcodes/' . uniqid() . '.png';
+                $barcodePath = 'items/barcodes/'.uniqid().'.png';
 
-                if (!file_exists(public_path('items/barcodes'))) {
+                if (! file_exists(public_path('items/barcodes'))) {
                     mkdir(public_path('items/barcodes'), 0777, true);
                 }
 
@@ -1167,7 +1987,7 @@ class ItemController extends Controller
             $data['is_active'] = $data['is_active'] ?? true;
             $data['auto_deactive'] = $data['auto_deactive'] ?? false;
             $data['is_dead'] = $data['is_dead'] ?? false;
-            
+
             /* ============================
             ✅ Serial Number - Only use if provided
             ============================ */
@@ -1194,7 +2014,7 @@ class ItemController extends Controller
                 $data['farmula'] = $data['formulas'];
                 unset($data['formulas']);
             }
-            if (!empty($data['battery_size_id'])) {
+            if (! empty($data['battery_size_id'])) {
                 $data['battery_size'] = BatterySize::find($data['battery_size_id'])->name;
                 unset($data['battery_size_id']);
             }
@@ -1235,26 +2055,29 @@ class ItemController extends Controller
             $vehicleIds = [];
             if (isset($data['vehical_id']) && is_array($data['vehical_id'])) {
                 $vehicleIds = array_values(array_filter(array_map('intval', $data['vehical_id'])));
-            } elseif (isset($data['vehical_id']) && !empty($data['vehical_id']) && is_numeric($data['vehical_id'])) {
+            } elseif (isset($data['vehical_id']) && ! empty($data['vehical_id']) && is_numeric($data['vehical_id'])) {
                 $vehicleIds = [(int) $data['vehical_id']];
             }
-            
+
             unset($data['vehical_id']);
             $data['vehical_ids'] = $vehicleIds;
             $data['vehical_id'] = $vehicleIds[0] ?? null;
-            
+
+            // items table has no 'name' column (name is a model accessor); prevent insert error
+            unset($data['name']);
+
             /* Create ONE item */
             $item = Item::create($data);
-            
+
             Log::info('Item created successfully', ['item_id' => $item->id, 'vehicle_ids' => $vehicleIds]);
 
             DB::commit();
 
             $vehicleCount = count($vehicleIds);
-            $successMessage = $vehicleCount > 0 
-                ? 'Item created successfully with ' . $vehicleCount . ' vehicle(s)!' 
+            $successMessage = $vehicleCount > 0
+                ? 'Item created successfully with '.$vehicleCount.' vehicle(s)!'
                 : 'Item created successfully!';
-            
+
             // Return JSON response for AJAX requests
             if ($request->ajax() || $request->wantsJson()) {
                 if ($request->action === 'save_new') {
@@ -1262,20 +2085,21 @@ class ItemController extends Controller
                         'success' => true,
                         'message' => $successMessage,
                         'items_count' => 1,
-                        'redirect' => route('all.items.create.new')
+                        'redirect' => route('all.items.create.new'),
                     ]);
                 }
-                
+
                 return response()->json([
                     'success' => true,
                     'message' => $successMessage,
-                    'items_count' => 1
+                    'items_count' => 1,
                 ]);
             }
-            
+
             // Regular redirect for non-AJAX requests
             if ($request->action === 'save_new') {
                 Log::info('Item created (Save & New)', ['item_id' => $item->id]);
+
                 return redirect()->route('all.items.create.new')
                     ->with('success', 'Item created successfully!');
             }
@@ -1287,16 +2111,16 @@ class ItemController extends Controller
                 ->with('success', 'Item created successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
-            
+
             // Return JSON response for validation errors in AJAX requests
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
-                    'errors' => $e->errors()
+                    'errors' => $e->errors(),
                 ], 422);
             }
-            
+
             return redirect()->back()
                 ->withErrors($e->errors())
                 ->withInput();
@@ -1306,19 +2130,19 @@ class ItemController extends Controller
             Log::error('Item creation failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'data' => $request->except(['image', 'images'])
+                'data' => $request->except(['image', 'images']),
             ]);
-            
+
             // Return JSON response for errors in AJAX requests
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to create item: ' . $e->getMessage()
+                    'message' => 'Failed to create item: '.$e->getMessage(),
                 ], 500);
             }
 
             return redirect()->back()
-                ->with('error', 'Failed to create item: ' . $e->getMessage())
+                ->with('error', 'Failed to create item: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -1349,45 +2173,49 @@ class ItemController extends Controller
             'level_item',
             'group_item',
             'made_in_item',
-           
-            'unit_item'
+
+            'unit_item',
         ])->findOrFail($id);
-        $this->authorize($this->getUpdatePermissionForType($item->type));
+        $updatePerm = $this->getUpdatePermissionForType($item->type);
+        if (! auth()->check() || ! (auth()->user()->can($updatePerm) || auth()->user()->can('update_items'))) {
+            abort(403, 'You do not have permission to edit this item.');
+        }
         // return $item;
         // All the collections you already had
-        $platos     = Platos::where('status', 'active')->get();
-        $amphors    = Amphor::where('status', 'active')->get();
-        $lineitems  = LineItem::where('status', 'active')->get();
-        $Companies  = Company::where('status', 'active')->get();
+        $platos = Platos::where('status', 'active')->get();
+        $amphors = Amphor::where('status', 'active')->get();
+        $lineitems = LineItem::where('status', 'active')->get();
+        $Companies = Company::where('status', 'active')->get();
         $Categories = Category::whereNull('parent_id')
             ->where('status', 'active')
             ->with('children')
             ->get();
-        $packings   = Packing::where('status', 'active')->get();
-        $scales     = Scale::where('status', 'active')->get();
-        $Vehicals    = VehicalType::with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number'])->where('status', 'active')->get();
+        $packings = Packing::where('status', 'active')->get();
+        $scales = Scale::where('status', 'active')->get();
+        $Vehicals = VehicalType::with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number'])->where('status', 'active')->get();
 
-        $milleages  = Mileage::where('status', 'active')->get();
+        $milleages = Mileage::where('status', 'active')->get();
         $item_types = Producttype::where('status', 'active')->get();
-        $units      = Unit::where('status', 'active')->get();
+        $units = Unit::where('status', 'active')->get();
         // Optional – car-related dropdowns (only if they exist)
-        $carCompanies     = CarCompany::where('status', 'active')->get();
-        $carNames         = CarName::where('status', 'active')->get();
-        $carModels        = CarModel::where('status', 'active')->get();
-        $carCountries     = CarCountry::where('status', 'active')->get();
+        $carCompanies = CarCompany::where('status', 'active')->get();
+        $carNames = CarName::where('status', 'active')->get();
+        $carModels = CarModel::where('status', 'active')->get();
+        $carCountries = CarCountry::where('status', 'active')->get();
         $carManufacturers = CarManufacturer::where('status', 'active')->get();
         // return $carManufacturers;
-        $volts      = Volt::where('status', 'active')->get();
-        $ccas      = Cca::where('status', 'active')->get();
-        $minspols      = Minuspool::where('status', 'active')->get();
-        $technologies      = Technology::where('status', 'active')->get();
-        $grades      = Grade::where('status', 'active')->get();
-        $brands      = Brand::where('status', 'active')->get();
-        $formulas      = Formula::where('status', 'active')->get();
-        $product      = Product::where('status', 'active')->get();
-        $qualities      = Quality::where('status', 'active')->get();
-        $partnumbers      = PartNumber::with('part_number_vehical')->where('status', 'active')->get();
-        $engineccs      = EngineCc::where('status', 'active')->get();
+        $volts = Volt::where('status', 'active')->get();
+        $ccas = Cca::where('status', 'active')->get();
+        $minspols = Minuspool::where('status', 'active')->get();
+        $technologies = Technology::where('status', 'active')->get();
+        $series = Series::orderBy('name')->get();
+        $grades = Grade::where('status', 'active')->get();
+        $brands = Brand::where('status', 'active')->get();
+        $formulas = Formula::where('status', 'active')->get();
+        $product = Product::where('status', 'active')->get();
+        $qualities = Quality::where('status', 'active')->get();
+        $partnumbers = PartNumber::with('part_number_vehical')->where('status', 'active')->get();
+        $engineccs = EngineCc::where('status', 'active')->get();
         $latestItems = Item::with([
             'item_user',
             'item_user.branch',
@@ -1400,13 +2228,13 @@ class ItemController extends Controller
             'volt_item',
             'plate_item',
             'amphors_item',
-            'cca_item'
+            'cca_item',
         ])->latest()->take(5)->get();
-        $services      = Services::where('status', 'active')->get();
-        $groups      = Group::where('status', 'active')->get();
-        $warrenties      = Warrenty::where('status', 'active')->get();
-        $made_ins      = MadeIn::where('status', 'active')->get();
-        $levels      = Level::where('status', 'active')->get();
+        $services = Services::where('status', 'active')->get();
+        $groups = Group::where('status', 'active')->get();
+        $warrenties = Warrenty::where('status', 'active')->get();
+        $made_ins = MadeIn::where('status', 'active')->get();
+        $levels = Level::where('status', 'active')->get();
         $batterySizes = BatterySize::where('status', 'active')->orderBy('name')->get();
         // Get latest 5 vehicles - each record already has all year ranges in years JSON column
         $Vehis = VehicalType::with([
@@ -1414,46 +2242,48 @@ class ItemController extends Controller
             'model_vehical',
             'engine_vehical',
             'country_vehical',
-            'vehical_part_number'
+            'vehical_part_number',
         ])
             ->where('status', 'active')
             ->orderBy('id', 'desc')
             ->take(5) // Limit to 5 latest vehicles
             ->get()
-            ->map(function($vehicle) {
+            ->map(function ($vehicle) {
                 // Format year ranges from JSON column and sort them by 'from' year
                 $yearRanges = collect($vehicle->years ?? [])
-                    ->map(function($range) {
+                    ->map(function ($range) {
                         if (isset($range['from']) && isset($range['to'])) {
                             return [
-                                'from' => (int)$range['from'],
-                                'to' => (int)$range['to'],
-                                'display' => $range['from'] == $range['to'] 
-                                    ? (string)$range['from'] 
-                                    : $range['from'] . '-' . $range['to']
+                                'from' => (int) $range['from'],
+                                'to' => (int) $range['to'],
+                                'display' => $range['from'] == $range['to']
+                                    ? (string) $range['from']
+                                    : $range['from'].'-'.$range['to'],
                             ];
                         }
+
                         return null;
                     })
                     ->filter()
                     ->sortBy('from') // Sort by 'from' year in ascending order
                     ->values()
-                    ->map(function($range) {
+                    ->map(function ($range) {
                         return $range['display'];
                     });
-                
+
                 $vehicle->year_ranges = $yearRanges;
                 $vehicle->years = $yearRanges->implode(', ');
+
                 return $vehicle;
             });
         // Full unit option value for dropdown (e.g. "12_8" for CAN 2 Liter) so exact option is selected
         $itemUnitOptionForSelect = null;
-        if (!empty($item->unit_option) && is_string($item->unit_option)) {
+        if (! empty($item->unit_option) && is_string($item->unit_option)) {
             $itemUnitOptionForSelect = trim($item->unit_option);
         }
         // Fallback: resolve unit id for edit form (when no unit_option saved)
         $itemUnitIdForSelect = null;
-        if (!$itemUnitOptionForSelect && isset($item->unit) && $item->unit !== null && $item->unit !== '') {
+        if (! $itemUnitOptionForSelect && isset($item->unit) && $item->unit !== null && $item->unit !== '') {
             $raw = trim((string) $item->unit);
             if (is_numeric($raw)) {
                 $itemUnitIdForSelect = (int) $raw;
@@ -1465,7 +2295,7 @@ class ItemController extends Controller
                     $itemUnitIdForSelect = (int) $unitByName->id;
                 }
             }
-        } elseif (!$itemUnitOptionForSelect && $item->relationLoaded('unit_item') && $item->unit_item && isset($item->unit_item->id)) {
+        } elseif (! $itemUnitOptionForSelect && $item->relationLoaded('unit_item') && $item->unit_item && isset($item->unit_item->id)) {
             $itemUnitIdForSelect = (int) $item->unit_item->id;
         }
 
@@ -1510,6 +2340,7 @@ class ItemController extends Controller
             'ccas',
             'minspols',
             'technologies',
+            'series',
             'grades',
             'brands',
             'qualities',
@@ -1527,18 +2358,27 @@ class ItemController extends Controller
         ));
     }
 
-
     public function item_update(Request $request, $id)
     {
         $item = Item::findOrFail($id);
         $type = $request->input('type', $item->type);
-        $this->authorize($this->getUpdatePermissionForType($type));
+        $updatePerm = $this->getUpdatePermissionForType($type);
+        if (! auth()->check() || ! (auth()->user()->can($updatePerm) || auth()->user()->can('update_items'))) {
+            abort(403, 'You do not have permission to update this item.');
+        }
         // return $request->all();
         // Validate ONLY fields that exist in $fillable
+        $categoryId = $request->input('category_id');
+        $categoryName = '';
+        if (! empty($categoryId)) {
+            $categoryName = (string) (Category::where('id', $categoryId)->value('name') ?? '');
+        }
+        $isPetrolEngineOilCategory = strtoupper(trim(preg_replace('/\s+/', ' ', $categoryName))) === 'PETROL ENGINE OIL';
+        $seriesRule = ((($type === 'battery') && ! $isPetrolEngineOilCategory) ? 'required' : 'nullable').'|string';
         $validated = $request->validate([
-            'bar_code' => 'required|unique:items,bar_code,' . $item->id,
+            'bar_code' => 'required|unique:items,bar_code,'.$item->id,
             'user_id' => 'nullable|exists:users,id',
-            'p_id' => 'nullable|string|max:255',
+            'p_id' => 'nullable|exists:products,id',
             'vehical_id' => 'nullable',
             'vehical_id.*' => 'nullable|integer|exists:vehical_types,id',
             'total_price' => 'nullable',
@@ -1564,6 +2404,7 @@ class ItemController extends Controller
             'minus_pole_direction' => 'nullable|string',
             'minus_pool_direction' => 'nullable|string', // Keep both for backward compatibility
             'technology' => 'nullable|string',
+            'series_id' => $seriesRule,
             'grade' => 'nullable|string',
             'farmula' => 'nullable|string',
             'serial_number' => 'nullable|string',
@@ -1586,12 +2427,17 @@ class ItemController extends Controller
             'scrap_rate_count' => 'nullable|numeric|min:0',
             'scrap_total_count_hidden' => 'nullable|numeric|min:0',
             'scrap_measurement' => 'nullable|string|in:weight,count',
+            'scrap_dim_width' => 'nullable|numeric|min:0',
+            'scrap_dim_height' => 'nullable|numeric|min:0',
+            'scrap_dim_length' => 'nullable|numeric|min:0',
+            'scrap_dim_depth' => 'nullable|numeric|min:0',
+            'scrap_dim_unit' => 'nullable|string|in:cm,inch',
             'packing_purchase_rate' => 'nullable|numeric|min:0',
             'update_date' => 'nullable|date',
             'rack' => 'nullable|string',
             'supplier' => 'nullable|string',
             'pro_dis' => 'nullable|string',
-            'part_number_id' => 'nullable|string',
+            'part_number_id' => 'nullable|exists:part_numbers,id',
             'short_disc' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
             'auto_deactive' => 'sometimes|boolean',
@@ -1613,7 +2459,7 @@ class ItemController extends Controller
             $qualityId = $request->has('quality_id') ? $request->quality_id : $item->quality_id;
             $companyId = $request->has('company_id') ? $request->company_id : $item->company_id;
             $partNumberId = $request->has('part_number_id') ? $request->part_number_id : $item->part_number_id;
-            
+
             if ($categoryId && $qualityId && $companyId && $partNumberId) {
                 $query = Item::where('category_id', $categoryId)
                     ->where('quality_id', $qualityId)
@@ -1621,13 +2467,14 @@ class ItemController extends Controller
                     ->where('part_number_id', $partNumberId)
                     ->where('type', $type)
                     ->where('id', '!=', $id); // Exclude current item
-                
+
                 $exists = $query->exists();
                 if ($exists) {
                     $msg = 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.';
                     if ($request->ajax() || $request->wantsJson()) {
                         return response()->json(['success' => false, 'message' => $msg], 422);
                     }
+
                     return redirect()->back()
                         ->withInput()
                         ->withErrors(['duplicate' => $msg]);
@@ -1639,15 +2486,22 @@ class ItemController extends Controller
             DB::beginTransaction();
 
             $data = $validated;
-            
+
             // Ensure short_disc and pro_dis are always passed from request
             $data['short_disc'] = $request->input('short_disc');
             $data['pro_dis'] = $request->input('pro_dis');
+            // Ensure part_number_id and p_id are saved (same as category_id) so data persists after save
+            if ($request->has('part_number_id')) {
+                $data['part_number_id'] = $request->filled('part_number_id') ? $request->input('part_number_id') : null;
+            }
+            if ($request->has('p_id')) {
+                $data['p_id'] = $request->filled('p_id') ? $request->input('p_id') : null;
+            }
             // Ensure level (CLASS) is saved when present
             if ($request->has('level')) {
                 $data['level'] = $request->input('level') ?: null;
             }
-            
+
             // Save unit: full option value (e.g. "12_8" for CAN 2 Liter) in unit_option; numeric id in unit for relation
             if ($request->filled('unit') || $request->filled('unit_option')) {
                 $rawUnit = $request->filled('unit')
@@ -1663,7 +2517,7 @@ class ItemController extends Controller
                         $data['unit'] = $rawUnit;
                         $data['unit_option'] = $request->filled('unit_option') ? trim((string) $request->input('unit_option')) : null;
                     }
-                    if ($data['unit'] !== '' && !is_numeric($data['unit'])) {
+                    if ($data['unit'] !== '' && ! is_numeric($data['unit'])) {
                         $data['unit_option'] = null;
                     }
                 }
@@ -1674,7 +2528,7 @@ class ItemController extends Controller
                 'unit_from_request' => $request->input('unit'),
                 'unit_from_validated' => $validated['unit'] ?? 'NOT IN VALIDATED',
                 'unit_in_data' => $data['unit'] ?? 'NOT IN DATA',
-                'request_has_unit' => $request->has('unit')
+                'request_has_unit' => $request->has('unit'),
             ]);
 
             // === Handle Thumbnail (Single Image) ===
@@ -1721,7 +2575,7 @@ class ItemController extends Controller
                 $data['farmula'] = $data['formulas'];
                 unset($data['formulas']);
             }
-            if (!empty($data['battery_size_id'])) {
+            if (! empty($data['battery_size_id'])) {
                 $data['battery_size'] = BatterySize::find($data['battery_size_id'])->name;
                 unset($data['battery_size_id']);
             }
@@ -1781,13 +2635,13 @@ class ItemController extends Controller
 
             // === Update using mass assignment (safe via $fillable) ===
             $item->update($data);
-            
+
             // Debug: Log unit value after update
             $item->refresh();
             Log::info('Item Update - After Save', [
                 'item_id' => $item->id,
                 'unit_in_database' => $item->unit,
-                'unit_was_saved' => isset($data['unit']) ? 'YES' : 'NO'
+                'unit_was_saved' => isset($data['unit']) ? 'YES' : 'NO',
             ]);
 
             DB::commit();
@@ -1797,6 +2651,7 @@ class ItemController extends Controller
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => true, 'message' => 'Item updated successfully!']);
             }
+
             return redirect()->back()->with('success', 'Item updated successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1805,14 +2660,15 @@ class ItemController extends Controller
                 'item_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'data' => $request->except(['image', 'images'])
+                'data' => $request->except(['image', 'images']),
             ]);
 
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to update item: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed to update item: '.$e->getMessage()], 500);
             }
+
             return redirect()->back()
-                ->with('error', 'Failed to update item: ' . $e->getMessage())
+                ->with('error', 'Failed to update item: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -1820,7 +2676,7 @@ class ItemController extends Controller
     public function item_show($id)
     {
         $item = Item::with([
-            'vehical_item' => function($query) {
+            'vehical_item' => function ($query) {
                 $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
             },
             'category',
@@ -1844,13 +2700,14 @@ class ItemController extends Controller
             'level_item',
             'made_in_item',
             'services_item',
-            'updated_by_user'
+            'updated_by_user',
         ])->find($id);
         // return $item;
-        if (!$item) {
+        if (! $item) {
             abort(404, 'Item not found');
         }
         $this->authorize($this->getViewPermissionForType($item->type));
+
         return view('admin.item.show', compact('item'));
     }
 
@@ -1861,24 +2718,24 @@ class ItemController extends Controller
     {
         try {
             $item = Item::with([
-                'vehical_item' => function($query) {
+                'vehical_item' => function ($query) {
                     $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
                 },
                 'product_item',
-                'partnumber_item'
+                'partnumber_item',
             ])->find($id);
 
-            if (!$item) {
+            if (! $item) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Item not found'
+                    'message' => 'Item not found',
                 ], 404);
             }
 
-            if (!$item->vehical_item) {
+            if (! $item->vehical_item) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No vehicle details found for this item'
+                    'message' => 'No vehicle details found for this item',
                 ], 404);
             }
 
@@ -1888,7 +2745,7 @@ class ItemController extends Controller
                 if ($vehicle->year_from == $vehicle->year_to) {
                     $yearRanges[] = $vehicle->year_from;
                 } else {
-                    $yearRanges[] = $vehicle->year_from . '-' . $vehicle->year_to;
+                    $yearRanges[] = $vehicle->year_from.'-'.$vehicle->year_to;
                 }
             }
 
@@ -1908,17 +2765,17 @@ class ItemController extends Controller
                     'id' => $item->id,
                     'name' => $item->product_item->name ?? ($item->partnumber_item->name ?? 'N/A'),
                     'type' => $item->type ?? null,
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error fetching vehicle details', [
                 'item_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching vehicle details: ' . $e->getMessage()
+                'message' => 'Error fetching vehicle details: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1930,127 +2787,127 @@ class ItemController extends Controller
     {
         try {
             $item = Item::with([
-                'vehical_item' => function($query) {
+                'vehical_item' => function ($query) {
                     $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
                 },
                 'product_item',
                 'partnumber_item',
                 'company_item',
-                'quality_item'
+                'quality_item',
             ])->find($id);
 
-            if (!$item) {
+            if (! $item) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Item not found'
+                    'message' => 'Item not found',
                 ], 404);
             }
 
-            if (!$item->vehical_item) {
+            if (! $item->vehical_item) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No vehicle details found for this item'
+                    'message' => 'No vehicle details found for this item',
                 ], 404);
             }
 
             $vehicle = $item->vehical_item;
-            
+
             // Build vehicle information string for AI prompt
             $vehicleInfo = [];
             if ($vehicle->manutacturer_vehical) {
-                $vehicleInfo[] = "Manufacturer: " . $vehicle->manutacturer_vehical->name;
+                $vehicleInfo[] = 'Manufacturer: '.$vehicle->manutacturer_vehical->name;
             }
             if ($vehicle->model_vehical) {
-                $vehicleInfo[] = "Model: " . $vehicle->model_vehical->name;
+                $vehicleInfo[] = 'Model: '.$vehicle->model_vehical->name;
             }
             if ($vehicle->engine_vehical) {
-                $vehicleInfo[] = "Engine: " . $vehicle->engine_vehical->name . " CC";
+                $vehicleInfo[] = 'Engine: '.$vehicle->engine_vehical->name.' CC';
             }
             if ($vehicle->country_vehical) {
-                $vehicleInfo[] = "Country: " . $vehicle->country_vehical->name;
+                $vehicleInfo[] = 'Country: '.$vehicle->country_vehical->name;
             }
             if ($vehicle->year_from && $vehicle->year_to) {
-                $vehicleInfo[] = "Year Range: " . $vehicle->year_from . "-" . $vehicle->year_to;
+                $vehicleInfo[] = 'Year Range: '.$vehicle->year_from.'-'.$vehicle->year_to;
             }
             if ($vehicle->vehical_part_number) {
-                $vehicleInfo[] = "Part Number: " . $vehicle->vehical_part_number->name;
-            }
-            
-            $itemInfo = [];
-            if ($item->product_item) {
-                $itemInfo[] = "Product: " . $item->product_item->name;
-            }
-            if ($item->partnumber_item) {
-                $itemInfo[] = "Part Number: " . $item->partnumber_item->name;
-            }
-            if ($item->company_item) {
-                $itemInfo[] = "Company: " . $item->company_item->name;
-            }
-            if ($item->quality_item) {
-                $itemInfo[] = "Quality: " . $item->quality_item->name;
-            }
-            if ($item->type) {
-                $itemInfo[] = "Type: " . ucfirst($item->type);
+                $vehicleInfo[] = 'Part Number: '.$vehicle->vehical_part_number->name;
             }
 
-            $vehicleInfoStr = implode(", ", $vehicleInfo);
-            $itemInfoStr = implode(", ", $itemInfo);
+            $itemInfo = [];
+            if ($item->product_item) {
+                $itemInfo[] = 'Product: '.$item->product_item->name;
+            }
+            if ($item->partnumber_item) {
+                $itemInfo[] = 'Part Number: '.$item->partnumber_item->name;
+            }
+            if ($item->company_item) {
+                $itemInfo[] = 'Company: '.$item->company_item->name;
+            }
+            if ($item->quality_item) {
+                $itemInfo[] = 'Quality: '.$item->quality_item->name;
+            }
+            if ($item->type) {
+                $itemInfo[] = 'Type: '.ucfirst($item->type);
+            }
+
+            $vehicleInfoStr = implode(', ', $vehicleInfo);
+            $itemInfoStr = implode(', ', $itemInfo);
 
             // Build AI prompt
             $prompt = "As an automotive service history expert, provide a detailed service history tracker and maintenance recommendations for the following vehicle and part information:\n\n";
-            $prompt .= "Vehicle Details: " . $vehicleInfoStr . "\n";
-            $prompt .= "Part Details: " . $itemInfoStr . "\n\n";
+            $prompt .= 'Vehicle Details: '.$vehicleInfoStr."\n";
+            $prompt .= 'Part Details: '.$itemInfoStr."\n\n";
             $prompt .= "Please provide:\n";
             $prompt .= "1. Recommended service intervals\n";
             $prompt .= "2. Common maintenance tasks\n";
             $prompt .= "3. Potential issues to watch for\n";
             $prompt .= "4. Replacement recommendations\n";
             $prompt .= "5. Service history checklist\n\n";
-            $prompt .= "Format the response in a clear, professional manner with sections and bullet points. Keep it concise but informative.";
+            $prompt .= 'Format the response in a clear, professional manner with sections and bullet points. Keep it concise but informative.';
 
             // Call Google Gemini API
             $geminiApiKey = env('GOOGLE_GEMINI_API_KEY');
-            if (!$geminiApiKey) {
+            if (! $geminiApiKey) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Google Gemini API key is not configured. Please add GOOGLE_GEMINI_API_KEY to your .env file.'
+                    'message' => 'Google Gemini API key is not configured. Please add GOOGLE_GEMINI_API_KEY to your .env file.',
                 ], 500);
             }
 
-            $client = new Client();
-            $response = $client->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" . $geminiApiKey, [
+            $client = new Client;
+            $response = $client->post('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key='.$geminiApiKey, [
                 'json' => [
                     'contents' => [
                         [
                             'parts' => [
-                                ['text' => $prompt]
-                            ]
-                        ]
-                    ]
+                                ['text' => $prompt],
+                            ],
+                        ],
+                    ],
                 ],
                 'headers' => [
-                    'Content-Type' => 'application/json'
+                    'Content-Type' => 'application/json',
                 ],
-                'timeout' => 30
+                'timeout' => 30,
             ]);
 
             $responseData = json_decode($response->getBody()->getContents(), true);
-            
+
             if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
                 $serviceHistory = $responseData['candidates'][0]['content']['parts'][0]['text'];
-                
+
                 return response()->json([
                     'success' => true,
-                    'service_history' => $serviceHistory
+                    'service_history' => $serviceHistory,
                 ]);
             } else {
                 Log::error('Unexpected Gemini API response format', [
-                    'response' => $responseData
+                    'response' => $responseData,
                 ]);
-                
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unexpected response format from AI service'
+                    'message' => 'Unexpected response format from AI service',
                 ], 500);
             }
 
@@ -2058,90 +2915,142 @@ class ItemController extends Controller
             Log::error('Error calling Gemini API', [
                 'item_id' => $id,
                 'error' => $e->getMessage(),
-                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null
+                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error calling AI service: ' . $e->getMessage()
+                'message' => 'Error calling AI service: '.$e->getMessage(),
             ], 500);
         } catch (\Exception $e) {
             Log::error('Error generating service history', [
                 'item_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error generating service history: ' . $e->getMessage()
+                'message' => 'Error generating service history: '.$e->getMessage(),
             ], 500);
         }
     }
 
     public function getItemsByType($type, Request $request)
     {
-        $query = Item::with([
-            'item_user',
-            'item_user.branch',
-            'item_user.assignedBranches',
-            'product_item', 
-            'category',
-            'partnumber_item',
-            'company_item',
-            'quality_item',
-            'updated_by_user',
-            'volt_item',
-            'plate_item',
-            'amphors_item',
-            'cca_item'
-        ])
-            ->where('type', $type)
-            ->latest();
-        
-        // Check if 'all' parameter is passed to get all items (capped to avoid OOM)
-        $maxItems = (int) (config('app.max_items_per_request', 1000) ?: 1000);
-        if ($request->has('all') && $request->get('all') == 'true') {
-            $items = $query->limit($maxItems)->get();
-        } else {
-            $items = $query->take(5)->get();
+        try {
+            $query = Item::with([
+                'item_user',
+                'item_user.branch',
+                'item_user.assignedBranches',
+                'product_item',
+                'category',
+                'partnumber_item',
+                'company_item',
+                'quality_item',
+                'updated_by_user',
+                'volt_item',
+                'plate_item',
+                'amphors_item',
+                'cca_item',
+            ])
+                ->where('type', $type)
+                ->latest();
+
+            $maxItems = (int) (config('app.max_items_per_request', 1000) ?: 1000);
+            if ($request->has('all') && $request->get('all') == 'true') {
+                $items = $query->limit($maxItems)->get();
+            } else {
+                $items = $query->take(5)->get();
+            }
+
+            $totalItemsCount = Item::where('type', $type)->count();
+
+            $itemsArray = $items->map(function ($item) {
+                try {
+                    $branchName = '-';
+                    if ($item->item_user) {
+                        $branchName = $item->item_user->branch?->branch_name
+                            ?? $item->item_user->assignedBranches?->first()?->branch_name
+                            ?? '-';
+                    }
+                    $voltItem = $item->volt_item;
+                    $plateItem = $item->plate_item;
+                    $amphorsItem = $item->amphors_item;
+                    $ccaItem = $item->cca_item;
+
+                    return [
+                        'id' => $item->id,
+                        'image' => $item->image ? ((str_starts_with((string) $item->image, 'http://') || str_starts_with((string) $item->image, 'https://')) ? $item->image : '/'.ltrim($item->image, '/')) : '/assets/img/media/default.png',
+                        'bar_code' => $item->bar_code,
+                        'barcode_image' => $item->barcode_image,
+                        'user_name' => $item->item_user?->name ?? '-',
+                        'branch_name' => $branchName,
+                        'product_name' => $item->product_item?->name ?? '-',
+                        'type' => $item->type,
+                        'is_active' => $item->is_active,
+                        'category_name' => $item->category?->name ?? '-',
+                        'part_number' => $item->partnumber_item?->name ?? '-',
+                        'company_name' => $item->company_item?->name ?? '-',
+                        'quality_name' => $item->quality_item?->name ?? '-',
+                        'volt_name' => $voltItem ? (str_ends_with((string) $voltItem->name, 'V') ? $voltItem->name : $voltItem->name.'V') : null,
+                        'plate_name' => $plateItem ? (str_ends_with((string) $plateItem->name, 'PL') ? $plateItem->name : $plateItem->name.'PL') : null,
+                        'amphors_name' => $amphorsItem ? (str_ends_with((string) $amphorsItem->name, 'AH') ? $amphorsItem->name : $amphorsItem->name.'AH') : null,
+                        'cca_name' => $ccaItem ? (str_contains((string) $ccaItem->name, 'CCA') ? $ccaItem->name : $ccaItem->name.'CCA') : null,
+                        'updated_by_user' => $item->updated_by_user ? ['name' => $item->updated_by_user->name] : null,
+                        'last_updated_at' => $item->last_updated_at?->format('d M Y, h:i A'),
+                        'updated_at' => $item->updated_at?->format('d M Y, h:i A'),
+                        'show_url' => route('item.show', $item->id),
+                        'edit_url' => route('item.edit', $item->id),
+                        'delete_url' => route('item.delete', $item->id),
+                        'duplicate_url' => route('item.duplicate', $item->id),
+                    ];
+                } catch (\Throwable $e) {
+                    Log::warning('getItemsByType: failed to map item', ['item_id' => $item->id ?? null, 'error' => $e->getMessage()]);
+
+                    return [
+                        'id' => $item->id,
+                        'image' => '/assets/img/media/default.png',
+                        'bar_code' => $item->bar_code ?? '',
+                        'barcode_image' => $item->barcode_image ?? null,
+                        'user_name' => '-',
+                        'branch_name' => '-',
+                        'product_name' => '-',
+                        'type' => $item->type ?? '',
+                        'is_active' => true,
+                        'category_name' => '-',
+                        'part_number' => '-',
+                        'company_name' => '-',
+                        'quality_name' => '-',
+                        'volt_name' => null,
+                        'plate_name' => null,
+                        'amphors_name' => null,
+                        'cca_name' => null,
+                        'updated_by_user' => null,
+                        'last_updated_at' => null,
+                        'updated_at' => null,
+                        'show_url' => $item->id ? route('item.show', $item->id) : '#',
+                        'edit_url' => $item->id ? route('item.edit', $item->id) : '#',
+                        'delete_url' => $item->id ? route('item.delete', $item->id) : '#',
+                        'duplicate_url' => $item->id ? route('item.duplicate', $item->id) : '#',
+                    ];
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'items' => $itemsArray,
+                'total_count' => $totalItemsCount,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('getItemsByType failed', ['type' => $type, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load items.',
+                'items' => [],
+                'total_count' => 0,
+            ], 500);
         }
-
-        $totalItemsCount = Item::where('type', $type)->count(); // Get total count for the type
-
-        return response()->json([
-            'success' => true,
-            'items' => $items->map(function($item) {
-                return [
-                    'id' => $item->id,
-                    'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/' . ltrim($item->image, '/')) : '/assets/img/media/default.png',
-                    'bar_code' => $item->bar_code,
-                    'barcode_image' => $item->barcode_image,
-                    'user_name' => $item->item_user->name ?? '-',
-                    'branch_name' => $item->item_user ? ($item->item_user->branch?->branch_name ?? $item->item_user->assignedBranches->first()?->branch_name ?? '-') : '-',
-                    'product_name' => $item->product_item->name ?? '-',
-                    'type' => $item->type,
-                    'is_active' => $item->is_active,
-                    'category_name' => $item->category ? $item->category->name : 'N/A',
-                    'part_number' => $item->partnumber_item ? $item->partnumber_item->name : '-',
-                    'company_name' => $item->company_item ? $item->company_item->name : '-',
-                    'quality_name' => $item->quality_item ? $item->quality_item->name : '-',
-                    'volt_name' => $item->volt_item ? (str_ends_with((string)$item->volt_item->name, 'V') ? $item->volt_item->name : $item->volt_item->name . 'V') : null,
-                    'plate_name' => $item->plate_item ? (str_ends_with((string)$item->plate_item->name, 'PL') ? $item->plate_item->name : $item->plate_item->name . 'PL') : null,
-                    'amphors_name' => $item->amphors_item ? (str_ends_with((string)$item->amphors_item->name, 'AH') ? $item->amphors_item->name : $item->amphors_item->name . 'AH') : null,
-                    'cca_name' => $item->cca_item ? (str_contains((string)$item->cca_item->name, 'CCA') ? $item->cca_item->name : $item->cca_item->name . 'CCA') : null,
-                    'updated_by_user' => $item->updated_by_user ? [
-                        'name' => $item->updated_by_user->name,
-                    ] : null,
-                    'last_updated_at' => $item->last_updated_at ? $item->last_updated_at->format('d M Y, h:i A') : null,
-                    'updated_at' => $item->updated_at ? $item->updated_at->format('d M Y, h:i A') : null,
-                    'show_url' => route('item.show', $item->id),
-                    'edit_url' => route('item.edit', $item->id),
-                    'delete_url' => route('item.delete', $item->id),
-                    'duplicate_url' => route('item.duplicate', $item->id),
-                ];
-            }),
-            'total_count' => $totalItemsCount
-        ]);
     }
 
     public function deleteSingleImage($id)
@@ -2151,7 +3060,7 @@ class ItemController extends Controller
         if ($item->image) {
 
             // Remove domain if stored as full URL
-            $imagePath = str_replace(url('/') . '/', '', $item->image);
+            $imagePath = str_replace(url('/').'/', '', $item->image);
 
             if (file_exists(public_path($imagePath))) {
                 unlink(public_path($imagePath));
@@ -2163,7 +3072,7 @@ class ItemController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Image deleted successfully'
+            'message' => 'Image deleted successfully',
         ]);
     }
 
@@ -2171,7 +3080,7 @@ class ItemController extends Controller
     {
         $item = Item::findOrFail($request->item_id);
 
-        if (!$item->images) {
+        if (! $item->images) {
             return response()->json(['status' => false, 'message' => 'No images found']);
         }
 
@@ -2183,7 +3092,7 @@ class ItemController extends Controller
         }));
 
         // Delete the file from folder
-        $imagePath = str_replace(url('/') . '/', '', $request->image); // convert full URL to relative path
+        $imagePath = str_replace(url('/').'/', '', $request->image); // convert full URL to relative path
         if (file_exists(public_path($imagePath))) {
             unlink(public_path($imagePath));
         }
@@ -2195,27 +3104,96 @@ class ItemController extends Controller
         return response()->json(['status' => true, 'message' => 'Image deleted successfully']);
     }
 
-
-
-
-
-
-
     public function itembulkDelete(Request $request)
     {
-        $ids = $request->ids ?? [];
+        $ids = array_values($request->input('ids', []));
+        $isJson = $request->ajax() || $request->wantsJson();
+
         if (count($ids) === 0) {
+            if ($isJson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No items selected.',
+                    'deactivated' => 0,
+                    'blocked_used' => 0,
+                    'permission_skipped' => 0,
+                    'blocked_items' => [],
+                ], 422);
+            }
+
             return back()->with('error', 'No items selected.');
         }
-        $deleted = 0;
+
+        $deactivated = 0;
+        $skippedUsed = 0;
+        $permissionSkipped = 0;
+        $blockedItems = [];
+
         foreach ($ids as $id) {
             $item = Item::find($id);
-            if ($item && auth()->user()->can($this->getDeletePermissionForType($item->type))) {
-                $item->delete();
-                $deleted++;
+            if (! $item) {
+                continue;
             }
+
+            if (! auth()->user()->can($this->getDeletePermissionForType($item->type))) {
+                $permissionSkipped++;
+
+                continue;
+            }
+
+            // Block deletion if item is used in any transaction/stock ledger.
+            if (! $this->isItemDeletableByUsage($item)) {
+                $skippedUsed++;
+
+                $counts = $this->getItemUsageCounts((int) $item->id);
+                $usedIn = array_filter($counts, fn ($v) => (int) $v > 0);
+
+                $blockedItems[] = [
+                    'id' => (int) $item->id,
+                    'message' => 'This item cannot be deleted because it is already used in transactions.',
+                    'used_in' => $usedIn,
+                ];
+
+                continue;
+            }
+
+            // Soft delete recommendation: keep history intact by deactivating item.
+            $item->is_active = false;
+            $item->auto_deactive = true;
+            $item->save();
+            $deactivated++;
         }
-        return back()->with('success', $deleted > 0 ? "{$deleted} item(s) deleted successfully." : 'No items could be deleted (permission denied).');
+
+        $message = null;
+        if ($deactivated > 0 && ($skippedUsed > 0 || $permissionSkipped > 0)) {
+            $message = "{$deactivated} item(s) deactivated successfully. {$skippedUsed} item(s) could not be deleted because they are used in transactions.";
+        } elseif ($deactivated > 0) {
+            $message = "{$deactivated} item(s) deactivated successfully.";
+        } elseif ($skippedUsed > 0) {
+            $message = 'No items could be deleted because they are used in transactions.';
+        } else {
+            $message = $permissionSkipped > 0 ? 'No items could be deleted (permission denied).' : 'No items could be deleted.';
+        }
+
+        if ($isJson) {
+            return response()->json([
+                'success' => $deactivated > 0 && $skippedUsed === 0,
+                'message' => $message,
+                'deactivated' => $deactivated,
+                'blocked_used' => $skippedUsed,
+                'permission_skipped' => $permissionSkipped,
+                'blocked_items' => array_slice($blockedItems, 0, 20),
+            ]);
+        }
+
+        if ($deactivated > 0 && $skippedUsed > 0) {
+            return back()->with('error', "{$deactivated} item(s) deactivated successfully. {$skippedUsed} item(s) could not be deleted because they are used in transactions.");
+        }
+        if ($deactivated > 0) {
+            return back()->with('success', "{$deactivated} item(s) deactivated successfully.");
+        }
+
+        return back()->with('error', $skippedUsed > 0 ? 'No items could be deleted because they are used in transactions.' : 'No items could be deleted (permission denied).');
     }
 
     /**
@@ -2225,7 +3203,7 @@ class ItemController extends Controller
     public function bulkUpdate(Request $request)
     {
         $updatePerms = ['update_items', 'update_parts', 'update_filters', 'update_break_pad', 'update_oil', 'update_battery', 'update_scrap', 'update_services'];
-        if (!collect($updatePerms)->contains(fn ($p) => auth()->user()->can($p))) {
+        if (! collect($updatePerms)->contains(fn ($p) => auth()->user()->can($p))) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'You do not have permission to update items.'], 403);
             }
@@ -2246,7 +3224,7 @@ class ItemController extends Controller
         $updated = 0;
         foreach ($ids as $id) {
             $item = Item::find($id);
-            if (!$item || !auth()->user()->can($this->getUpdatePermissionForType($item->type))) {
+            if (! $item || ! auth()->user()->can($this->getUpdatePermissionForType($item->type))) {
                 continue;
             }
             $changed = false;
@@ -2283,15 +3261,75 @@ class ItemController extends Controller
                 'updated' => $updated,
             ]);
         }
+
         return redirect()->route('all.items')->with('success', $updated > 0 ? "{$updated} item(s) updated successfully." : 'No changes applied.');
     }
 
-    public function item_delete($id)
+    /**
+     * Toggle item is_active (separate from soft delete / recycle bin).
+     */
+    public function toggleItemActive(Request $request, $id)
+    {
+        $item = Item::findOrFail($id);
+        $this->authorize($this->getUpdatePermissionForType($item->type));
+
+        $newActive = ! ((bool) $item->is_active);
+        $item->is_active = $newActive;
+        if ($newActive) {
+            $item->auto_deactive = false;
+        }
+        $item->save();
+
+        $wantsJson = $request->expectsJson()
+            || $request->ajax()
+            || str_contains((string) $request->header('Accept', ''), 'application/json');
+
+        if ($wantsJson) {
+            return response()->json([
+                'success' => true,
+                'is_active' => (bool) $item->is_active,
+                'message' => $item->is_active ? 'Item activated successfully.' : 'Item deactivated successfully.',
+            ]);
+        }
+
+        return redirect()->back()->with(
+            'success',
+            $item->is_active ? 'Item activated successfully.' : 'Item deactivated successfully.'
+        );
+    }
+
+    public function item_delete(Request $request, $id)
     {
         $item = Item::findOrFail($id);
         $this->authorize($this->getDeletePermissionForType($item->type));
-        $item->delete();
-        return redirect()->back()->with('success', 'Item deleted successfully.');
+
+        $wantsJson = $request->expectsJson()
+            || $request->ajax()
+            || str_contains((string) $request->header('Accept', ''), 'application/json');
+
+        // Block deletion if item is used anywhere in transactions/stock ledgers.
+        if (! $this->isItemDeletableByUsage($item)) {
+            $msg = 'This item cannot be deleted because it is already used in transactions.';
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+
+            return redirect()->back()->with('error', $msg);
+        }
+
+        // Recommended soft-delete behavior: deactivate item (keep history intact).
+        $item->is_active = false;
+        $item->auto_deactive = true;
+        $item->save();
+
+        if ($wantsJson) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Item deactivated successfully.',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Item deactivated successfully.');
     }
 
     public function recycleBin()
@@ -2313,19 +3351,22 @@ class ItemController extends Controller
     public function forceDelete($id)
     {
         $item = Item::onlyTrashed()->findOrFail($id);
+
+        // Even permanent delete must be blocked if referenced.
+        if (! $this->isItemDeletableByUsage($item)) {
+            return redirect()->back()->with('error', 'This item cannot be permanently deleted because it is already used in transactions.');
+        }
+
         $item->forceDelete();
 
         return redirect()->back()->with('success', 'Item permanently deleted!');
     }
 
-
-
-
     public function itemduplicate($id)
     {
         $item = Item::findOrFail($id);
         $newItem = $item->replicate();
-        $newItem->bar_code = $item->bar_code . '-COPY';
+        $newItem->bar_code = $item->bar_code.'-COPY';
         $newItem->save();
 
         return response()->json(['success' => true]);
@@ -2342,10 +3383,10 @@ class ItemController extends Controller
         $item->name .= ' (Copy)';
 
         // === FETCH ALL DROPDOWN DATA (Same as Create) ===
-        $platos      = Platos::where('status', 'active')->get();
-        $amphors     = Amphor::where('status', 'active')->get();
-        $lineitems   = LineItem::where('status', 'active')->get();
-        $Companies   = Company::where('status', 'active')->get();
+        $platos = Platos::where('status', 'active')->get();
+        $amphors = Amphor::where('status', 'active')->get();
+        $lineitems = LineItem::where('status', 'active')->get();
+        $Companies = Company::where('status', 'active')->get();
 
         // Parent categories with subcategories eager loaded
         $Categories = Category::whereNull('parent_id')
@@ -2353,12 +3394,12 @@ class ItemController extends Controller
             ->with('children')
             ->get();
 
-        $packings    = Packing::where('status', 'active')->get();
-        $scales      = Scale::where('status', 'active')->get();
-        $Vehicals    = VehicalType::where('status', 'active')->get();
-        $milleages   = Mileage::where('status', 'active')->get();
-        $item_types  = Producttype::where('status', 'active')->get();
-        $units       = Unit::where('status', 'active')->get();
+        $packings = Packing::where('status', 'active')->get();
+        $scales = Scale::where('status', 'active')->get();
+        $Vehicals = VehicalType::where('status', 'active')->get();
+        $milleages = Mileage::where('status', 'active')->get();
+        $item_types = Producttype::where('status', 'active')->get();
+        $units = Unit::where('status', 'active')->get();
 
         return view('admin.items.dublicate', compact(
             'item',
@@ -2376,17 +3417,17 @@ class ItemController extends Controller
         ));
     }
 
-
     public function storeCompany(Request $request)
     {
 
         $company = CarCompany::create(
             ['name' => $request->name]
         );
+
         return response()->json([
             'success' => true,
             'id' => $company->id,
-            'name' => $company->name
+            'name' => $company->name,
         ]);
     }
 
@@ -2395,22 +3436,54 @@ class ItemController extends Controller
         $name = CarName::create(
             ['name' => $request->name]
         );
+
         return response()->json([
             'success' => true,
             'id' => $name->id,
-            'name' => $name->name
+            'name' => $name->name,
         ]);
     }
 
     public function storeModel(Request $request)
     {
-        $model = CarModel::create(
-            ['name' => $request->name]
-        );
+        $rawName = $request->input('name');
+        if (! is_string($rawName) || trim($rawName) === '') {
+            return response()->json(['success' => false, 'message' => 'Model name is required.'], 422);
+        }
+        if (mb_strlen($rawName) > 255) {
+            return response()->json(['success' => false, 'message' => 'Model name is too long.'], 422);
+        }
+        if ($request->filled('car_manufacturer_id')) {
+            $mid = (int) $request->input('car_manufacturer_id');
+            if ($mid > 0 && ! CarManufacturer::query()->whereKey($mid)->exists()) {
+                return response()->json(['success' => false, 'message' => 'Invalid make.'], 422);
+            }
+        }
+
+        $normalized = $this->normalizeVehicleMasterName($rawName);
+        if ($normalized === '') {
+            return response()->json(['success' => false, 'message' => 'Model name is required.'], 422);
+        }
+
+        $dup = $this->findCarModelByNormalizedName($normalized);
+        if ($dup) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A model with this name already exists (same spelling when spaces and case are ignored).',
+                'existing_id' => $dup->id,
+                'name' => $dup->name,
+            ], 422);
+        }
+
+        $model = CarModel::create([
+            'name' => $normalized,
+            'status' => 'active',
+        ]);
+
         return response()->json([
             'success' => true,
             'id' => $model->id,
-            'name' => $model->name
+            'name' => $model->name,
         ]);
     }
 
@@ -2421,40 +3494,60 @@ class ItemController extends Controller
 
     public function update_car_model(Request $request, $id)
     {
+        $rawName = $request->input('name');
+        if (! is_string($rawName) || trim($rawName) === '') {
+            return response()->json(['success' => false, 'message' => 'Model name is required.'], 422);
+        }
+        if (mb_strlen($rawName) > 255) {
+            return response()->json(['success' => false, 'message' => 'Model name is too long.'], 422);
+        }
         $carmodel = CarModel::findOrFail($id);
-        $carmodel->update(['name' => $request->name]);
+        $normalized = $this->normalizeVehicleMasterName($rawName);
+        if ($normalized === '') {
+            return response()->json(['success' => false, 'message' => 'Model name is required.'], 422);
+        }
+        $dup = $this->findCarModelByNormalizedName($normalized);
+        if ($dup && (int) $dup->id !== (int) $carmodel->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Another model already uses this name.',
+                'existing_id' => $dup->id,
+            ], 422);
+        }
+        $carmodel->update(['name' => $normalized]);
+
         return response()->json([
             'success' => true,
             'id' => $carmodel->id,
             'name' => $carmodel->name,
-            'message' => "Car model Update Successfully"
+            'message' => 'Car model Update Successfully',
         ]);
     }
 
     public function destory_car_model($id)
     {
         CarModel::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Car model deleted Successfully"
+            'message' => 'Car model deleted Successfully',
         ]);
     }
-
-
 
     public function storeCountry(Request $request)
     {
         $country = CarCountry::create(
             ['name' => $request->name]
         );
+
         return response()->json([
             'success' => true,
             'id' => $country->id,
-            'name' => $country->name
+            'name' => $country->name,
         ]);
     }
 
-        public function show_car_country($id)
+    public function show_car_country($id)
     {
         return response()->json(CarCountry::findOrFail($id));
     }
@@ -2463,35 +3556,157 @@ class ItemController extends Controller
     {
         $carcountry = CarCountry::findOrFail($id);
         $carcountry->update(['name' => $request->name]);
+
         return response()->json([
             'success' => true,
             'id' => $carcountry->id,
             'name' => $carcountry->name,
-            'message' => "Car Country Update Successfully"
+            'message' => 'Car Country Update Successfully',
         ]);
     }
 
     public function destory_car_country($id)
     {
         CarCountry::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Car Country deleted Successfully"
+            'message' => 'Car Country deleted Successfully',
         ]);
     }
 
     public function storeManufacturer(Request $request)
     {
-        $manufacture = CarManufacturer::create(
-            ['name' => $request->name]
-        );
+        $rawName = $request->input('name');
+        if (! is_string($rawName) || trim($rawName) === '') {
+            return response()->json(['success' => false, 'message' => 'Make name is required.'], 422);
+        }
+        if (mb_strlen($rawName) > 255) {
+            return response()->json(['success' => false, 'message' => 'Make name is too long.'], 422);
+        }
+
+        $normalized = $this->normalizeVehicleMasterName($rawName);
+        if ($normalized === '') {
+            return response()->json(['success' => false, 'message' => 'Make name is required.'], 422);
+        }
+
+        $dup = $this->findCarManufacturerByNormalizedName($normalized);
+        if ($dup) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This make already exists.',
+                'existing_id' => $dup->id,
+                'name' => $dup->name,
+            ], 422);
+        }
+
+        $manufacture = CarManufacturer::create([
+            'name' => $normalized,
+            'status' => 'active',
+        ]);
+
         return response()->json([
             'success' => true,
             'id' => $manufacture->id,
-            'name' => $manufacture->name
+            'name' => $manufacture->name,
         ]);
     }
 
+    /**
+     * JSON: active makes for sales vehicle modal + item fitment (shared master).
+     */
+    public function vehicleMasterMakes()
+    {
+        $makes = CarManufacturer::query()
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json(['success' => true, 'makes' => $makes]);
+    }
+
+    /**
+     * JSON: models for a make — prefers models linked via item fitment (vehical_types), else all active models.
+     * context=sale: skip fitment filter so customer vehicles can use any active model (same master table).
+     */
+    public function vehicleMasterModels(Request $request)
+    {
+        $query = CarModel::query()
+            ->where('status', 'active')
+            ->orderBy('name');
+
+        $forSale = $request->query('context') === 'sale';
+        $manufacturerId = $request->query('manufacturer_id');
+        if (! $forSale && $manufacturerId !== null && $manufacturerId !== '') {
+            $mid = (int) $manufacturerId;
+            $modelIds = VehicalType::query()
+                ->where('car_manufacturer', $mid)
+                ->distinct()
+                ->pluck('car_model_name')
+                ->filter(function ($id) {
+                    return $id !== null && $id !== '';
+                })
+                ->values();
+            if ($modelIds->isNotEmpty()) {
+                $query->whereIn('id', $modelIds);
+            }
+        }
+
+        $models = $query->get(['id', 'name']);
+
+        $includeRaw = $request->query('include_model_ids', '');
+        if (is_string($includeRaw) && $includeRaw !== '') {
+            $extraIds = collect(explode(',', $includeRaw))
+                ->map(fn ($v) => (int) trim($v))
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values();
+            if ($extraIds->isNotEmpty()) {
+                $extras = CarModel::query()
+                    ->where('status', 'active')
+                    ->whereIn('id', $extraIds)
+                    ->get(['id', 'name']);
+                $models = $models->concat($extras)->unique('id')->sortBy('name')->values();
+            }
+        }
+
+        return response()->json(['success' => true, 'models' => $models]);
+    }
+
+    /** Trim and collapse internal whitespace for vehicle master names. */
+    protected function normalizeVehicleMasterName(?string $name): string
+    {
+        $s = trim((string) $name);
+
+        return preg_replace('/\s+/u', ' ', $s) ?? $s;
+    }
+
+    protected function vehicleMasterNameKey(string $normalizedName): string
+    {
+        return mb_strtolower($normalizedName, 'UTF-8');
+    }
+
+    protected function findCarManufacturerByNormalizedName(string $normalizedName): ?CarManufacturer
+    {
+        $key = $this->vehicleMasterNameKey($normalizedName);
+
+        return CarManufacturer::query()
+            ->get()
+            ->first(function (CarManufacturer $row) use ($key) {
+                return $this->vehicleMasterNameKey($this->normalizeVehicleMasterName($row->name)) === $key;
+            });
+    }
+
+    protected function findCarModelByNormalizedName(string $normalizedName): ?CarModel
+    {
+        $key = $this->vehicleMasterNameKey($normalizedName);
+
+        return CarModel::query()
+            ->get()
+            ->first(function (CarModel $row) use ($key) {
+                return $this->vehicleMasterNameKey($this->normalizeVehicleMasterName($row->name)) === $key;
+            });
+    }
 
     public function show_car_manufacturer($id)
     {
@@ -2500,29 +3715,58 @@ class ItemController extends Controller
 
     public function update_car_manufacturer(Request $request, $id)
     {
-        $manufacture = CarManufacturer::findOrFail($id);
-        $manufacture->update(['name' => $request->name]);
-        return response()->json([
-            'success' => true,
-            'id' => $manufacture->id,
-            'name' => $manufacture->name,
-            'message' => "Car Manufacturer Update Successfully"
+        $request->validate([
+            'name' => 'required|string|max:255',
+        ], [
+            'name.required' => 'Name is required.',
         ]);
+
+        try {
+            $manufacture = CarManufacturer::findOrFail($id);
+            $normalized = $this->normalizeVehicleMasterName($request->name);
+            if ($normalized === '') {
+                return response()->json(['success' => false, 'message' => 'Name is required.'], 422);
+            }
+            $dup = $this->findCarManufacturerByNormalizedName($normalized);
+            if ($dup && (int) $dup->id !== (int) $manufacture->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Another make already uses this name.',
+                    'existing_id' => $dup->id,
+                ], 422);
+            }
+            $manufacture->update(['name' => $normalized]);
+
+            return response()->json([
+                'success' => true,
+                'id' => $manufacture->id,
+                'name' => $manufacture->name,
+                'message' => 'Car Manufacturer Update Successfully',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('update_car_manufacturer: '.$e->getMessage(), ['id' => $id, 'trace' => $e->getTraceAsString()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not update make. '.(config('app.debug') ? $e->getMessage() : 'Please try again.'),
+            ], 500);
+        }
     }
 
     public function destory_car_manufacturer($id)
     {
         CarManufacturer::findOrFail($id)->delete();
+
         return response()->json([
             'success' => true,
-            'message' => "Car Manufacturer deleted Successfully"
+            'message' => 'Car Manufacturer deleted Successfully',
         ]);
     }
 
     public function getItemsCountByPartNumber($partNumberId)
     {
         $partNumber = PartNumber::find($partNumberId);
-        if (!$partNumber) {
+        if (! $partNumber) {
             return response()->json([
                 'success' => true,
                 'exists' => false,
@@ -2540,21 +3784,29 @@ class ItemController extends Controller
             ->get();
         $count = $items->count();
 
-        // Group by quality: name => count
+        // Group by quality_id so counts match exact DB slices (same as product name stats).
         $grouped = [];
         $items->each(function ($item) use (&$grouped) {
-            $qualityName = $item->quality_item->name ?? ($item->grade ?? 'Standard');
-            if (!isset($grouped[$qualityName])) {
-                $grouped[$qualityName] = 0;
+            $key = $item->quality_id !== null ? 'id:'.$item->quality_id : 'null';
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'quality_id' => $item->quality_id,
+                    'name' => $item->quality_item->name ?? ($item->grade ?: 'Standard'),
+                    'count' => 0,
+                ];
             }
-            $grouped[$qualityName]++;
+            $grouped[$key]['count']++;
         });
 
         $details = [];
         $qualities = [];
-        foreach ($grouped as $qualityName => $qualityCount) {
-            $details[] = $qualityCount . ' ' . $qualityName;
-            $qualities[] = ['name' => $qualityName, 'count' => $qualityCount];
+        foreach ($grouped as $row) {
+            $details[] = $row['count'].' '.$row['name'];
+            $qualities[] = [
+                'quality_id' => $row['quality_id'],
+                'name' => $row['name'],
+                'count' => $row['count'],
+            ];
         }
 
         return response()->json([
@@ -2575,7 +3827,7 @@ class ItemController extends Controller
     public function getItemsCountByProduct($productId)
     {
         $product = Product::find($productId);
-        if (!$product) {
+        if (! $product) {
             return response()->json([
                 'success' => true,
                 'exists' => false,
@@ -2593,20 +3845,29 @@ class ItemController extends Controller
             ->get();
         $count = $items->count();
 
+        // Group by quality_id so counts match exact DB slices (and badges open the correct rows).
         $grouped = [];
         $items->each(function ($item) use (&$grouped) {
-            $qualityName = $item->quality_item->name ?? ($item->grade ?? 'Standard');
-            if (!isset($grouped[$qualityName])) {
-                $grouped[$qualityName] = 0;
+            $key = $item->quality_id !== null ? 'id:'.$item->quality_id : 'null';
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'quality_id' => $item->quality_id,
+                    'name' => $item->quality_item->name ?? ($item->grade ?: 'Standard'),
+                    'count' => 0,
+                ];
             }
-            $grouped[$qualityName]++;
+            $grouped[$key]['count']++;
         });
 
         $details = [];
         $qualities = [];
-        foreach ($grouped as $qualityName => $qualityCount) {
-            $details[] = $qualityCount . ' ' . $qualityName;
-            $qualities[] = ['name' => $qualityName, 'count' => $qualityCount];
+        foreach ($grouped as $row) {
+            $details[] = $row['count'].' '.$row['name'];
+            $qualities[] = [
+                'quality_id' => $row['quality_id'],
+                'name' => $row['name'],
+                'count' => $row['count'],
+            ];
         }
 
         return response()->json([
@@ -2620,6 +3881,150 @@ class ItemController extends Controller
         ]);
     }
 
+    /**
+     * Items for a product (p_id) and a single quality_id (or null quality rows when quality_id is null in query).
+     */
+    public function getItemsByProductAndQuality(Request $request)
+    {
+        $productId = (int) $request->query('product_id', 0);
+        if ($productId < 1) {
+            return response()->json(['success' => false, 'message' => 'Invalid product.'], 422);
+        }
+
+        $product = Product::find($productId);
+        if (! $product) {
+            return response()->json(['success' => false, 'message' => 'Product not found.'], 404);
+        }
+
+        $rawQuality = $request->query('quality_id');
+        $useNullQuality = $rawQuality === null || $rawQuality === '' || strtolower((string) $rawQuality) === 'null';
+
+        $query = Item::with([
+            'item_user',
+            'product_item',
+            'category',
+            'subcategory',
+            'partnumber_item',
+            'company_item',
+            'quality_item',
+        ])->where('p_id', $productId);
+
+        if ($useNullQuality) {
+            $query->whereNull('quality_id');
+        } else {
+            $qualityId = (int) $rawQuality;
+            if ($qualityId < 1) {
+                return response()->json(['success' => false, 'message' => 'Invalid quality.'], 422);
+            }
+            $query->where('quality_id', $qualityId);
+        }
+
+        $items = $query->latest()->get();
+
+        $qualityLabel = trim((string) $request->query('quality_label', ''));
+        if ($qualityLabel === '') {
+            $qualityLabel = $useNullQuality ? 'No quality set' : ($items->first()?->quality_item?->name ?? '—');
+        }
+
+        return response()->json([
+            'success' => true,
+            'product_name' => $product->name,
+            'quality_name' => $qualityLabel,
+            'items' => $items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/'.ltrim($item->image, '/')) : '/assets/img/media/default.png',
+                    'user_name' => $item->item_user->name ?? '-',
+                    'product_name' => $item->product_item->name ?? '-',
+                    'type' => $item->type,
+                    'bar_code' => $item->bar_code ?? '',
+                    'is_active' => $item->is_active,
+                    'category_name' => $item->category->name ?? 'N/A',
+                    'subcategory_name' => $item->subcategory->name ?? '',
+                    'part_number_name' => $item->partnumber_item->name ?? 'N/A',
+                    'company_name' => $item->company_item->name ?? 'N/A',
+                    'quality_name' => $item->quality_item->name ?? ($item->grade ?? 'N/A'),
+                    'show_url' => route('item.show', $item->id),
+                    'edit_url' => route('item.edit', $item->id),
+                    'delete_url' => route('item.delete', $item->id),
+                ];
+            }),
+            'total' => $items->count(),
+        ]);
+    }
+
+    /**
+     * Items for a part number and a single quality_id (or null quality rows).
+     */
+    public function getItemsByPartNumberAndQuality(Request $request)
+    {
+        $partNumberId = (int) $request->query('part_number_id', 0);
+        if ($partNumberId < 1) {
+            return response()->json(['success' => false, 'message' => 'Invalid part number.'], 422);
+        }
+
+        $partNumber = PartNumber::find($partNumberId);
+        if (! $partNumber) {
+            return response()->json(['success' => false, 'message' => 'Part number not found.'], 404);
+        }
+
+        $rawQuality = $request->query('quality_id');
+        $useNullQuality = $rawQuality === null || $rawQuality === '' || strtolower((string) $rawQuality) === 'null';
+
+        $query = Item::with([
+            'item_user',
+            'product_item',
+            'category',
+            'subcategory',
+            'partnumber_item',
+            'company_item',
+            'quality_item',
+        ])->where('part_number_id', $partNumberId);
+
+        if ($useNullQuality) {
+            $query->whereNull('quality_id');
+        } else {
+            $qualityId = (int) $rawQuality;
+            if ($qualityId < 1) {
+                return response()->json(['success' => false, 'message' => 'Invalid quality.'], 422);
+            }
+            $query->where('quality_id', $qualityId);
+        }
+
+        $items = $query->latest()->get();
+
+        $qualityLabel = trim((string) $request->query('quality_label', ''));
+        if ($qualityLabel === '') {
+            $qualityLabel = $useNullQuality ? 'No quality set' : ($items->first()?->quality_item?->name ?? '—');
+        }
+
+        return response()->json([
+            'success' => true,
+            'part_number_name' => $partNumber->name,
+            'quality_name' => $qualityLabel,
+            'items' => $items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/'.ltrim($item->image, '/')) : '/assets/img/media/default.png',
+                    'user_name' => $item->item_user->name ?? '-',
+                    'product_name' => $item->product_item->name ?? '-',
+                    'type' => $item->type,
+                    'bar_code' => $item->bar_code ?? '',
+                    'is_active' => $item->is_active,
+                    'category_name' => $item->category->name ?? 'N/A',
+                    'subcategory_name' => $item->subcategory->name ?? '',
+                    'part_number_name' => $item->partnumber_item->name ?? 'N/A',
+                    'company_name' => $item->company_item->name ?? 'N/A',
+                    'quality_name' => $item->quality_item->name ?? ($item->grade ?? 'N/A'),
+                    'show_url' => route('item.show', $item->id),
+                    'edit_url' => route('item.edit', $item->id),
+                    'delete_url' => route('item.delete', $item->id),
+                ];
+            }),
+            'total' => $items->count(),
+        ]);
+    }
+
     public function getItemsByPartNumber($partNumberId)
     {
         $items = Item::with([
@@ -2628,7 +4033,7 @@ class ItemController extends Controller
             'category',
             'partnumber_item',
             'company_item',
-            'quality_item'
+            'quality_item',
         ])
             ->where('part_number_id', $partNumberId)
             ->latest()
@@ -2636,10 +4041,10 @@ class ItemController extends Controller
 
         return response()->json([
             'success' => true,
-            'items' => $items->map(function($item) {
+            'items' => $items->map(function ($item) {
                 return [
                     'id' => $item->id,
-                    'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/' . ltrim($item->image, '/')) : '/assets/img/media/default.png',
+                    'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/'.ltrim($item->image, '/')) : '/assets/img/media/default.png',
                     'user_name' => $item->item_user->name ?? '-',
                     'product_name' => $item->product_item->name ?? '-',
                     'type' => $item->type,
@@ -2655,7 +4060,7 @@ class ItemController extends Controller
                     'duplicate_url' => route('item.duplicate', $item->id),
                 ];
             }),
-            'total' => $items->count()
+            'total' => $items->count(),
         ]);
     }
 
@@ -2681,6 +4086,7 @@ class ItemController extends Controller
         $matches = $rows->map(function ($r) {
             return ['weight' => (float) $r->weight, 'unit' => $r->unit];
         })->values()->toArray();
+
         return response()->json(['success' => true, 'matches' => $matches]);
     }
 
@@ -2689,21 +4095,21 @@ class ItemController extends Controller
         try {
             $itemIds = $request->input('item_ids', []);
             $phoneNumber = $request->input('phone_number');
-            
+
             if (empty($itemIds)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No items selected.'
+                    'message' => 'No items selected.',
                 ], 400);
             }
-            
-            if (!$phoneNumber) {
+
+            if (! $phoneNumber) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Phone number is required.'
+                    'message' => 'Phone number is required.',
                 ], 400);
             }
-            
+
             // Fetch items with all relationships
             $items = Item::with([
                 'item_user',
@@ -2727,63 +4133,138 @@ class ItemController extends Controller
                 'made_in_item',
                 'services_item',
                 'unit_item',
-                'vehical_item' => function($query) {
+                'vehical_item' => function ($query) {
                     $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
-                }
+                },
             ])
-            ->whereIn('id', $itemIds)
-            ->get();
-            
+                ->whereIn('id', $itemIds)
+                ->get();
+
             if ($items->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No items found.'
+                    'message' => 'No items found.',
                 ], 404);
             }
-            
+
             // Generate PDF
             $pdf = Pdf::loadView('admin.item.whatsapp-pdf', compact('items', 'phoneNumber'));
             $pdf->setPaper('a4', 'portrait');
-            
+
             // Save PDF temporarily
-            $filename = 'items_' . time() . '_' . rand(1000, 9999) . '.pdf';
-            $pdfPath = public_path('temp_pdfs/' . $filename);
-            
+            $filename = 'items_'.time().'_'.rand(1000, 9999).'.pdf';
+            $pdfPath = public_path('temp_pdfs/'.$filename);
+
             // Create directory if it doesn't exist
-            if (!file_exists(public_path('temp_pdfs'))) {
+            if (! file_exists(public_path('temp_pdfs'))) {
                 mkdir(public_path('temp_pdfs'), 0755, true);
             }
-            
+
             $pdf->save($pdfPath);
-            
+
             // Generate PDF URL
-            $pdfUrl = url('temp_pdfs/' . $filename);
-            
+            $pdfUrl = url('temp_pdfs/'.$filename);
+
             // Create WhatsApp message
             $message = "📦 *Product Details*\n\n";
-            
+
             // Add item names
             foreach ($items as $index => $item) {
-                $itemName = $item->product_item->name ?? 'Item #' . ($index + 1);
-                $message .= "• " . $itemName . "\n";
+                $itemName = $item->product_item->name ?? 'Item #'.($index + 1);
+                $message .= '• '.$itemName."\n";
             }
-            
+
             $message .= "\n📄 *Full Product Specification PDF:*\n";
             $message .= $pdfUrl;
             $message .= "\n\n_This PDF contains complete product details, specifications, and pricing information._";
-            
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'pdf_url' => $pdfUrl,
-                'pdf_path' => $pdfPath
+                'pdf_path' => $pdfPath,
             ]);
-            
+
         } catch (\Exception $e) {
-            Log::error('WhatsApp PDF Generation Error: ' . $e->getMessage());
+            Log::error('WhatsApp PDF Generation Error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate PDF: ' . $e->getMessage()
+                'message' => 'Failed to generate PDF: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate Price List PDF for WhatsApp share (same filters as price list page).
+     */
+    public function generatePriceListWhatsAppPdf(Request $request)
+    {
+        $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
+        if (! collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $phoneNumber = $request->input('phone_number');
+        if (! $phoneNumber) {
+            return response()->json(['success' => false, 'message' => 'Phone number is required.'], 400);
+        }
+
+        try {
+            $query = Item::with([
+                'category', 'unit_item', 'plate_item', 'amphors_item', 'volt_item', 'cca_item',
+                'company_item', 'product_item', 'partnumber_item', 'group_item',
+                'updated_by_user.branch', 'priceUpdatedBranch',
+            ])
+                ->orderBy('category_id')
+                ->orderBy('short_disc');
+
+            if ($request->filled('category_id')) {
+                $query->where('category_id', $request->category_id);
+            }
+            if ($request->filled('company_id')) {
+                $query->where('company_id', $request->company_id);
+            }
+            if ($request->filled('type') && $request->type !== 'all') {
+                $query->where('type', $request->type);
+            }
+            if ($request->filled('technology_id')) {
+                $query->where('technology', $request->technology_id);
+            }
+
+            $items = $query->get();
+
+            $currentBranchName = session('selected_branch_name');
+            if (! $currentBranchName && auth()->user() && auth()->user()->branch_id) {
+                $currentBranchName = \App\Models\Branch::where('id', auth()->user()->branch_id)->value('branch_name');
+            }
+
+            $pdf = Pdf::loadView('admin.item.price-list-pdf', compact('items', 'currentBranchName'));
+            $pdf->setPaper('a4', 'landscape');
+
+            $filename = 'price_list_'.time().'_'.rand(1000, 9999).'.pdf';
+            $pdfPath = public_path('temp_pdfs/'.$filename);
+            if (! file_exists(public_path('temp_pdfs'))) {
+                mkdir(public_path('temp_pdfs'), 0755, true);
+            }
+            $pdf->save($pdfPath);
+
+            $pdfUrl = url('temp_pdfs/'.$filename);
+            $message = "📋 *Price List*\n\n";
+            $message .= '📄 PDF: '.$pdfUrl."\n\n";
+            $message .= '_Download the PDF and attach it in this chat, then press Send._';
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'pdf_url' => $pdfUrl,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Price List WhatsApp PDF Error: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate PDF: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2817,40 +4298,41 @@ class ItemController extends Controller
                 'services_item',
                 'unit_item',
                 'updated_by_user',
-                'vehical_item' => function($query) {
+                'vehical_item' => function ($query) {
                     $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
-                }
+                },
             ])
-            ->findOrFail($id);
+                ->findOrFail($id);
 
             // Generate PDF
             $pdf = Pdf::loadView('admin.item.product-specification-pdf', compact('item'));
             $pdf->setPaper('a4', 'portrait');
 
-            return $pdf->download('product-specification-' . ($item->bar_code ?? $item->id) . '-' . time() . '.pdf');
-            
+            return $pdf->download('product-specification-'.($item->bar_code ?? $item->id).'-'.time().'.pdf');
+
         } catch (\Exception $e) {
-            Log::error('Product Specification PDF Generation Error: ' . $e->getMessage());
-            return back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
+            Log::error('Product Specification PDF Generation Error: '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate PDF: '.$e->getMessage());
         }
     }
 
     public function checkBarcode(Request $request)
     {
         $barCode = $request->input('bar_code');
-        
-        if (!$barCode) {
+
+        if (! $barCode) {
             return response()->json([
                 'exists' => false,
-                'message' => 'Barcode is required'
+                'message' => 'Barcode is required',
             ], 400);
         }
-        
+
         $exists = Item::where('bar_code', $barCode)->exists();
-        
+
         return response()->json([
             'exists' => $exists,
-            'bar_code' => $barCode
+            'bar_code' => $barCode,
         ]);
     }
 }

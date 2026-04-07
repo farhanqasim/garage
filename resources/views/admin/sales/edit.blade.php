@@ -3,11 +3,94 @@
 @section('title', 'Edit Sale')
 
 @section('content')
+<style>
+    .invoice-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        position: relative;
+        overflow: hidden;
+        border-top: 8px solid #2563eb;
+    }
+    .modern-input,
+    .modern-select {
+        width: 100%;
+        padding: 16px;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 16px;
+        font-weight: 800;
+        font-size: 14px;
+        color: #1f2937;
+        transition: all 0.2s;
+    }
+    .modern-input:focus,
+    .modern-select:focus {
+        border-color: #2563eb;
+        outline: none;
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+    .modern-label {
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #9ca3af;
+        margin-left: 4px;
+        margin-bottom: 6px;
+        display: block;
+        letter-spacing: 0.05em;
+    }
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+        gap: 16px;
+    }
+    .invoice-header-left h1 {
+        font-size: 28px;
+        font-weight: 900;
+        color: #1e3a8a;
+        text-transform: uppercase;
+        line-height: 1.1;
+        letter-spacing: -0.01em;
+    }
+    .invoice-header-left .subtitle {
+        font-size: 10px;
+        color: #2563eb;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-top: 4px;
+    }
+    .invoice-header-left .helpline {
+        font-size: 14px;
+        color: #6b7280;
+        font-weight: 700;
+        margin-top: 8px;
+    }
+    .invoice-header-right {
+        text-align: right;
+    }
+    .invoice-header-right .invoice-number {
+        font-size: 18px;
+        font-weight: 900;
+        color: #2563eb;
+    }
+    .invoice-header-right .invoice-date {
+        font-size: 13px;
+        font-weight: 700;
+        color: #374151;
+        margin-top: 4px;
+    }
+</style>
 <div class="content">
     <div class="page-header">
         <div class="page-title">
             <h4>Edit Sale</h4>
-            <h6>Update sale information</h6>
         </div>
         <div class="page-btn">
             <a href="{{ route('all_sales') }}" class="btn btn-secondary">
@@ -24,21 +107,72 @@
                         @csrf
                         @method('PUT')
                         
+                        <div class="mb-4">
+                            <div class="d-inline-flex align-items-center px-3 py-2 rounded-pill" style="border: 1px solid #0d6efd; background: #f8f9fa;">
+                                <i class="ti ti-user me-2 text-muted"></i>
+                                <span class="fw-bold me-2 text-uppercase" style="font-size: 12px;">ACTIVE BRANCH:</span>
+                                <span style="font-weight: 900; color: #1e3a8a;">
+                                    {{ $sale->branch->branch_name ?? '—' }}
+                                    @if(!empty($sale->branch->branch_code)) ({{ $sale->branch->branch_code }}) @endif
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="invoice-card p-5 mb-4">
+                        <div class="invoice-header">
+                            <div class="invoice-header-left">
+                                <div class="subtitle">SOFT AUTO OIL & SPARE PARTS SPECIALIST</div>
+                                <div class="helpline"><i class="ti ti-phone me-1"></i> HELPLINE: {{ setting_value('helpline', '+92-335-08-999-08') }}</div>
+                            </div>
+                            <div class="invoice-header-right">
+                                <div class="invoice-number">INV #{{ str_pad((int) $sale->id, 5, '0', STR_PAD_LEFT) }}</div>
+                                <div class="invoice-date">{{ date('d/m/Y, h:i:s A') }}</div>
+                                <div class="d-flex align-items-center justify-content-end gap-2 mt-2" style="flex-wrap: wrap;">
+                                    <div class="d-inline-block position-relative" style="vertical-align: middle;">
+                                        <button type="button"
+                                            class="custom-3step-switch switch-sale"
+                                            style="position: relative; width: 80px; height: 30px; border-radius: 15px; cursor: default; transition: all 0.3s ease; margin-top: 0; border: none; padding: 0; outline: none; background: #2563eb;"
+                                            aria-label="S/E/O toggle"
+                                            disabled>
+                                            <span class="switch-slider switch-position-0" style="position: absolute; width: 24px; height: 24px; background: white; border-radius: 50%; top: 3px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none;"></span>
+                                            <span class="switch-indicators" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-around; align-items: center; pointer-events: none; left: 0; top: 0;">
+                                                <span style="font-size: 8px; color: rgba(255,255,255,0.5);">S</span>
+                                                <span style="font-size: 8px; color: rgba(255,255,255,0.5);">E</span>
+                                                <span style="font-size: 8px; color: rgba(255,255,255,0.5);">O</span>
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Customer <span class="text-danger">*</span></label>
-                                <select name="customer_id" id="customer_id" class="form-select" required>
+                                <label class="modern-label">Customer <span class="text-danger">*</span></label>
+                                <select name="customer_id" id="customer_id" class="modern-select" required>
                                     <option value="">Select Customer</option>
                                     @foreach($customers as $customer)
+                                        @php
+                                            $customerName = $customer->names[0] ?? 'N/A';
+                                            $displayText = $customerName;
+                                            $company = $customer->company ?? ($customer->company_name ?? null);
+                                            if (!empty($company)) {
+                                                $displayText .= ' - ' . $company;
+                                            }
+                                            $phone = !empty($customer->phones[0]) ? $customer->phones[0] : null;
+                                            if (!empty($phone)) {
+                                                $displayText .= ' - ' . $phone;
+                                            }
+                                        @endphp
                                         <option value="{{ $customer->id }}" {{ $sale->customer_id == $customer->id ? 'selected' : '' }}>
-                                            {{ $customer->names[0] ?? 'N/A' }}
+                                            {{ $displayText }}
                                         </option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Branch <span class="text-danger">*</span></label>
-                                <select name="branch_id" id="branch_id" class="form-select" required>
+                                <label class="modern-label">Branch <span class="text-danger">*</span></label>
+                                <select name="branch_id" id="branch_id" class="modern-select" required>
                                     <option value="">Select Branch</option>
                                     @foreach($branches as $branch)
                                         <option value="{{ $branch->id }}" {{ $sale->branch_id == $branch->id ? 'selected' : '' }}>
@@ -51,19 +185,19 @@
 
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Sale Date <span class="text-danger">*</span></label>
-                                <input type="date" name="sale_date" id="sale_date" class="form-control" value="{{ $sale->sale_date->format('Y-m-d') }}" required>
+                                <label class="modern-label">Sale Date <span class="text-danger">*</span></label>
+                                <input type="date" name="sale_date" id="sale_date" class="modern-input" value="{{ $sale->sale_date->format('Y-m-d') }}" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Reference</label>
-                                <input type="text" name="reference" id="reference" class="form-control" value="{{ $sale->reference ?? '' }}" placeholder="Enter reference number">
+                                <label class="modern-label">Reference</label>
+                                <input type="text" name="reference" id="reference" class="modern-input" value="{{ $sale->reference ?? '' }}" placeholder="Enter reference number">
                             </div>
                         </div>
 
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Status</label>
-                                <select name="status" id="status" class="form-select">
+                                <label class="modern-label">Status</label>
+                                <select name="status" id="status" class="modern-select">
                                     <option value="pending" {{ $sale->status === 'pending' ? 'selected' : '' }}>Pending</option>
                                     <option value="completed" {{ $sale->status === 'completed' ? 'selected' : '' }}>Completed</option>
                                 </select>
@@ -72,16 +206,16 @@
 
                         <div class="row mb-4">
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Discount</label>
-                                <input type="number" name="discount" id="discount" class="form-control" value="{{ $sale->discount ?? 0 }}" step="0.01" min="0" placeholder="0.00">
+                                <label class="modern-label">Discount</label>
+                                <input type="number" name="discount" id="discount" class="modern-input" value="{{ $sale->discount ?? 0 }}" step="0.01" min="0" placeholder="0.00">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Order Tax</label>
-                                <input type="number" name="order_tax" id="order_tax" class="form-control" value="{{ $sale->order_tax ?? 0 }}" step="0.01" min="0" placeholder="0.00">
+                                <label class="modern-label">Order Tax</label>
+                                <input type="number" name="order_tax" id="order_tax" class="modern-input" value="{{ $sale->order_tax ?? 0 }}" step="0.01" min="0" placeholder="0.00">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Shipping</label>
-                                <input type="number" name="shipping" id="shipping" class="form-control" value="{{ $sale->shipping ?? 0 }}" step="0.01" min="0" placeholder="0.00">
+                                <label class="modern-label">Shipping</label>
+                                <input type="number" name="shipping" id="shipping" class="modern-input" value="{{ $sale->shipping ?? 0 }}" step="0.01" min="0" placeholder="0.00">
                             </div>
                         </div>
 
@@ -161,6 +295,7 @@
                             <a href="{{ route('all_sales') }}" class="btn btn-secondary me-2">Cancel</a>
                             <button type="submit" class="btn btn-primary">Update Sale</button>
                         </div>
+                        </div><!-- /invoice-card -->
                     </form>
                 </div>
             </div>

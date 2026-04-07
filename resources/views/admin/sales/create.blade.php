@@ -110,6 +110,7 @@
                                         <input type="hidden" name="customer_id" id="customer_id" required>
                                         <div id="customerSuggestions" class="suggestions-list hidden"></div>
                                     </div>
+                                    <div class="text-muted small mt-1" id="customer-required-hint">Select a party/customer first to enable adding sale items.</div>
                                     @error('customer_id')
                                         <div class="text-danger small">{{ $message }}</div>
                                     @enderror
@@ -262,7 +263,7 @@
                         
                         <!-- Add Item Button -->
                         <div class="mb-4">
-                            <button type="button" class="modern-btn-primary pulse-animation" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                            <button type="button" class="modern-btn-primary pulse-animation" id="add-new-item-btn">
                                 <i class="ti ti-plus"></i> Add Sale Item
                             </button>
                         </div>
@@ -678,6 +679,21 @@
                     </div>
                 </div>
 
+                <!-- Warranty-card Proofs (Retail only, per unit quantity) -->
+                <div id="warranty-proof-section" class="mb-3 d-none">
+                    <div class="border rounded p-3" style="background: #fff7ed; border-color: #fdba74 !important;">
+                        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                            <div>
+                                <div class="fw-bold" style="color:#9a3412;">Warranty card proof required (Retail)</div>
+                                <div class="small text-muted" id="warranty-proof-summary">Please attach warranty card proof for all selected quantity units.</div>
+                            </div>
+                            <span class="badge" id="warranty-proof-badge" style="background:#fed7aa;color:#9a3412;">0 / 0</span>
+                        </div>
+                        <div class="mt-3" id="warranty-proof-units"></div>
+                        <div class="text-danger small mt-2 d-none" id="warranty-proof-error"></div>
+                    </div>
+                </div>
+
                 <!-- Additional Fields (Hidden by default, can be shown if needed) -->
                 <div id="additional-fields" style="display: none;">
                     <!-- Discount -->
@@ -742,6 +758,32 @@
                 <button type="button" class="btn btn-primary fw-bold" id="save-vehicle-btn" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
                     SAVE VEHICLE
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Warranty Proof Viewer Modal (create sale) -->
+<div class="modal fade" id="warranty-proof-viewer-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="warranty-viewer-title">Warranty Proof</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-center">
+                    <img id="warranty-viewer-image" src="" alt="Warranty proof" class="img-fluid rounded border" style="max-height: 60vh; width: auto;">
+                </div>
+                <div class="mt-3 small text-muted">
+                    <div id="warranty-viewer-unit" class="fw-bold text-dark"></div>
+                    <div id="warranty-viewer-code"></div>
+                    <div id="warranty-viewer-time"></div>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" id="warranty-viewer-prev">Prev</button>
+                <button type="button" class="btn btn-outline-secondary" id="warranty-viewer-next">Next</button>
             </div>
         </div>
     </div>
@@ -1570,6 +1612,89 @@ $(document).ready(function() {
     }
     moveAddItemModalToBody();
     window.addEventListener('load', moveAddItemModalToBody);
+
+    function getSelectedCustomerId() {
+        return (($('#customer_id').val() || '') + '').trim();
+    }
+
+    function setAddSaleItemEnabled(enabled) {
+        const $btn = $('#add-new-item-btn');
+        if (!$btn.length) return;
+        $btn.prop('disabled', !enabled);
+        $btn.toggleClass('opacity-50', !enabled);
+        $btn.toggleClass('cursor-not-allowed', !enabled);
+        if (!enabled) {
+            $btn.removeClass('pulse-animation');
+        } else {
+            $btn.addClass('pulse-animation');
+        }
+    }
+
+    function ensureCustomerSelectedOrWarn() {
+        const customerId = getSelectedCustomerId();
+        if (customerId) return true;
+        if (typeof Swal !== 'undefined' && Swal && Swal.fire) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Customer Required',
+                text: 'Please select a party/customer first.',
+                confirmButtonText: 'OK'
+            });
+        } else {
+            alert('Please select a party/customer first.');
+        }
+        $('#customer_search').trigger('focus');
+        return false;
+    }
+
+    // Disable Add Sale Item until customer selected
+    $(function() {
+        setAddSaleItemEnabled(!!getSelectedCustomerId());
+
+        $('#customer_search').on('input', function() {
+            // If user clears the visible search, treat as "no customer selected"
+            if (!String($(this).val() || '').trim()) {
+                $('#customer_id').val('');
+                setAddSaleItemEnabled(false);
+            }
+        });
+
+        $('#add-new-item-btn').on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!ensureCustomerSelectedOrWarn()) return;
+            currentEntryType = 'sale';
+            $('#add-item-modal').modal('show');
+        });
+
+        $('#return-entry-btn').on('click', function(e) {
+            e.preventDefault();
+            if (!ensureCustomerSelectedOrWarn()) return;
+            currentEntryType = 'return';
+            $('#add-item-modal').modal('show');
+        });
+
+        $('#claim-entry-btn').on('click', function(e) {
+            e.preventDefault();
+            if (!ensureCustomerSelectedOrWarn()) return;
+            currentEntryType = 'claim';
+            $('#add-item-modal').modal('show');
+        });
+
+        $('#scrap-in-btn').on('click', function(e) {
+            e.preventDefault();
+            if (!ensureCustomerSelectedOrWarn()) return;
+            currentEntryType = 'scrap_in';
+            $('#add-item-modal').modal('show');
+        });
+
+        $('#scrap-sale-btn').on('click', function(e) {
+            e.preventDefault();
+            if (!ensureCustomerSelectedOrWarn()) return;
+            currentEntryType = 'scrap_sale';
+            $('#add-item-modal').modal('show');
+        });
+    });
     
     // Store customer data for search
     const customersData = [
@@ -1581,6 +1706,7 @@ $(document).ready(function() {
             company: '{{ $customer->company ?? '' }}',
             address: '{{ $customer->address ?? '' }}',
             area: '{{ $customer->area ?? '' }}',
+            customer_type: '{{ $customer->customer_type ?? 'retail' }}',
             displayText: '{{ $customer->names[0] ?? 'N/A' }}@if($customer->company) - {{ $customer->company }}@endif'
         }@if(!$loop->last),@endif
         @endforeach
@@ -1620,12 +1746,20 @@ $(document).ready(function() {
     
     // Select customer function
     window.selectCustomer = function(id, name, phone, address, area, displayText) {
+        try {
+            const c = customersData.find(function(x) { return String(x.id) === String(id); });
+            window.selectedCustomerType = c && c.customer_type ? String(c.customer_type) : 'retail';
+        } catch (e) {
+            window.selectedCustomerType = 'retail';
+        }
         $('#customer_id').val(id);
         $('#customer_search').val(displayText);
         $('#customer_mobile').val(phone);
         $('#customer_address').val(address);
         $('#customer_area').val(area);
         $('#customerSuggestions').addClass('hidden');
+
+        setAddSaleItemEnabled(true);
         
         // Trigger calculation if needed
         if(typeof calculateFinalTotalFromInput === 'function') {
@@ -2287,6 +2421,39 @@ $(document).ready(function() {
                         `;
                         return;
                     }
+
+                    // Handle warranty-code traceability matches (sold sale items)
+                    if (itemData.type === 'warranty_code') {
+                        html += `
+                            <div class="p-3 border-bottom item-search-result"
+                                 data-type="warranty_code"
+                                 data-id="${itemData.sale_item_id || ''}"
+                                 data-item-id="${itemData.item_id || ''}"
+                                 data-sale-id="${itemData.sale_id || ''}"
+                                 data-item-name="${(itemData.item_name || '').replace(/"/g,'&quot;')}"
+                                 data-customer-name="${(itemData.customer_name || '').replace(/"/g,'&quot;')}"
+                                 data-reference="${(itemData.reference || '').replace(/"/g,'&quot;')}"
+                                 data-sale-date="${(itemData.sale_date || '').toString().replace(/"/g,'&quot;')}"
+                                 data-matched-code="${(itemData.matched_code || '').replace(/"/g,'&quot;')}"
+                                 data-branch-name="${(itemData.branch_name || '').replace(/"/g,'&quot;')}"
+                                 data-warehouse-name="${(itemData.warehouse_name || '').replace(/"/g,'&quot;')}"
+                                 data-has-proof="${itemData.has_proof ? 1 : 0}"
+                                 style="cursor:pointer; background: rgba(16,185,129,0.08);">
+                                <div class="d-flex justify-content-between">
+                                    <div style="min-width:0;">
+                                        <div class="fw-bold text-dark text-truncate">${itemData.item_name || 'Item'}</div>
+                                        <div class="small text-success fw-semibold">Matched by warranty code: <span class="fw-bold">${itemData.matched_code || ''}</span></div>
+                                        <div class="small text-muted text-truncate">Customer: ${itemData.customer_name || '—'} • ${itemData.reference || ''} • ${itemData.sale_date || ''}</div>
+                                        <div class="small text-muted text-truncate">Branch: ${itemData.branch_name || '—'} • Warehouse: ${itemData.warehouse_name || '—'} • Proof: ${itemData.has_proof ? 'Attached' : 'Not attached'}</div>
+                                    </div>
+                                    <div class="text-end ms-2">
+                                        <span class="badge bg-success">Trace</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
                     
                     // Extract item and warehouse information
                     const item = itemData.item || itemData;
@@ -2643,6 +2810,49 @@ $(document).ready(function() {
             `);
             // Could add warehouse filter here if needed
             return;
+        } else if (resultType === 'warranty_code') {
+            const itemId = ($(this).data('item-id') || '').toString().trim();
+            const itemName = ($(this).data('item-name') || '').toString();
+            const saleId = ($(this).data('sale-id') || '').toString();
+            const reference = ($(this).data('reference') || '').toString();
+            const saleDate = ($(this).data('sale-date') || '').toString();
+            const customerName = ($(this).data('customer-name') || '').toString();
+            const matchedCode = ($(this).data('matched-code') || '').toString();
+            const branchName = ($(this).data('branch-name') || '').toString();
+            const warehouseName = ($(this).data('warehouse-name') || '').toString();
+            const hasProof = (($(this).data('has-proof') || '').toString() === '1');
+
+            if (itemId) {
+                $('#item-search').val(itemName || matchedCode || '');
+                $('#selected-item-id').val(itemId);
+                $('#item-search-results').hide();
+                if (typeof loadItemStockStatus === 'function') loadItemStockStatus(itemId);
+            }
+
+            Swal.fire({
+                icon: 'info',
+                title: 'Warranty match found',
+                html: `
+                    <div class="text-start">
+                        <div class="mb-1"><span class="fw-bold">Matched code:</span> ${matchedCode || '—'}</div>
+                        <div class="mb-1"><span class="fw-bold">Customer:</span> ${customerName || '—'}</div>
+                        <div class="mb-1"><span class="fw-bold">Invoice:</span> ${reference || '—'}</div>
+                        <div class="mb-1"><span class="fw-bold">Sale date:</span> ${saleDate || '—'}</div>
+                        <div class="mb-1"><span class="fw-bold">Branch:</span> ${branchName || '—'}</div>
+                        <div class="mb-1"><span class="fw-bold">Warehouse:</span> ${warehouseName || '—'}</div>
+                        <div class="mb-1"><span class="fw-bold">Warranty proof:</span> ${hasProof ? 'Attached' : 'Not attached'}</div>
+                    </div>
+                `,
+                showCancelButton: !!saleId,
+                confirmButtonText: 'Use this item',
+                cancelButtonText: 'Open invoice',
+            }).then(function(r) {
+                if (r.dismiss && r.dismiss.toString() === 'cancel' && saleId) {
+                    const url = '{{ route("sales.edit", ":id") }}'.replace(':id', saleId);
+                    window.open(url, '_blank');
+                }
+            });
+            return;
         } else if (resultType === 'item') {
             // Select item - load full details
             const card = $(this).closest('.item-search-result');
@@ -2767,6 +2977,14 @@ $(document).ready(function() {
         // Update modal title based on entry type
         const entryType = currentEntryType || 'sale';
         const modalTitle = $('#add-item-modal .modal-title');
+
+        // Scrap context: force search to show ONLY scrap items
+        if (entryType === 'scrap_in' || entryType === 'scrap_sale') {
+            $('#filter-item-type').val('scrap');
+            $('#filter-item-type').prop('disabled', true);
+        } else {
+            $('#filter-item-type').prop('disabled', false);
+        }
         
         // Determine color based on switch state for sale entries
         let saleColor = '#2563eb'; // Default blue
@@ -2811,6 +3029,19 @@ $(document).ready(function() {
             if ($b.length) $('#add-item-modal').insertAfter($b);
             $('#add-item-modal').css({ 'pointer-events': 'auto', 'z-index': 9999 });
         }, 50);
+
+        // Init warranty-proof UI for default qty=1 (Retail + Battery) without waiting for quantity change
+        try {
+            if (typeof isRetailCustomerSelected === 'function' && typeof isBatteryItemSelected === 'function') {
+                if (isRetailCustomerSelected() && isBatteryItemSelected()) {
+                    const qtyInt = (typeof getSelectedQtyIntForWarranty === 'function' ? (getSelectedQtyIntForWarranty() || 1) : 1);
+                    if (typeof renderWarrantyProofSection === 'function') renderWarrantyProofSection(qtyInt);
+                    if (typeof validateWarrantyProofSection === 'function') validateWarrantyProofSection();
+                } else {
+                    if (typeof renderWarrantyProofSection === 'function') renderWarrantyProofSection(null);
+                }
+            }
+        } catch (e) {}
     });
     
     /* Move add-item-modal to body when opening so it is above everything (fixes blocked/clicks) */
@@ -2818,10 +3049,7 @@ $(document).ready(function() {
         $('#add-item-modal').appendTo('body');
     });
     
-    // Handle "ADD NEW ITEM" button - set entry type to 'sale'
-    $('#add-new-item-btn').on('click', function() {
-        currentEntryType = 'sale';
-    });
+    // "ADD SALE ITEM" button click is handled earlier with customer-required guard.
     
     // ========== NEW SIMPLE ITEM SEARCH WITH DEBUGGING ==========
     let searchTimeout = null;
@@ -2866,7 +3094,11 @@ $(document).ready(function() {
                     $.ajax({
                         url: searchUrl,
                         method: 'GET',
-                        data: { q: query, limit: 20 },
+                        data: {
+                            q: query,
+                            limit: 20,
+                            entry_type: (currentEntryType === 'scrap_in' || currentEntryType === 'scrap_sale') ? 'scrap' : null
+                        },
                         success: function(results) {
                             try {
                                 console.log('AJAX Success!');
@@ -3044,6 +3276,17 @@ $(document).ready(function() {
                 url: '{{ route("sales.items.details", ":id") }}'.replace(':id', itemId),
                 method: 'GET',
                 success: function(response) {
+                    window.currentSelectedSaleItemType = response && response.type ? String(response.type).toLowerCase() : '';
+                    // If Retail + Battery and default qty=1, show proof UI immediately
+                    try {
+                        if (typeof isRetailCustomerSelected === 'function' && typeof isBatteryItemSelected === 'function' && isRetailCustomerSelected() && isBatteryItemSelected()) {
+                            const qtyInt = (typeof getSelectedQtyIntForWarranty === 'function' ? (getSelectedQtyIntForWarranty() || 1) : 1);
+                            if (typeof renderWarrantyProofSection === 'function') renderWarrantyProofSection(qtyInt);
+                            if (typeof validateWarrantyProofSection === 'function') validateWarrantyProofSection();
+                        } else {
+                            if (typeof renderWarrantyProofSection === 'function') renderWarrantyProofSection(null);
+                        }
+                    } catch(e) {}
                     // Show item image if available
                     if (response.image) {
                         $('#item-search-image').attr('src', response.image);
@@ -3111,7 +3354,7 @@ $(document).ready(function() {
                             </div>
                         `;
                     } else if (stock.type === 'warehouse') {
-                        // Warehouse item - same layout as create-new/purchases: display + quantity dropdown (1-60)
+                        // Warehouse item - display + quantity dropdown (1-100)
                         const isSelected = $('#selected-warehouse-id').val() == stock.id;
                         const unitLabel = (stock.unit || 'Unit').trim();
                         const qty = parseFloat(stock.quantity) || 0;
@@ -3119,7 +3362,9 @@ $(document).ready(function() {
                         const mainQtyDisp = Number.isInteger(qty) ? qty : qty.toFixed(2);
                         const whQtyBlock = '<span class="d-block fw-bold ' + (isSelected ? 'text-white' : '') + '">' + mainQtyDisp + ' ' + unitLabel + '</span>';
                         let canOptions = '<option value="" selected>-</option>';
-                        for (let i = 1; i <= 60; i++) { canOptions += '<option value="' + i + '">' + i + '</option>'; }
+                        const maxCans = Math.max(0, Math.floor(qty));
+                        const maxUiCans = Math.min(100, maxCans);
+                        for (let i = 1; i <= maxUiCans; i++) { canOptions += '<option value="' + i + '">' + i + '</option>'; }
                         html += `
                             <div class="p-2 mb-1 stock-warehouse-item ${isSelected ? 'bg-primary text-white' : ''}" 
                                  data-warehouse-id="${stock.id}"
@@ -3610,6 +3855,17 @@ $(document).ready(function() {
             url: '{{ route("sales.items.details", ":id") }}'.replace(':id', itemId),
             method: 'GET',
             success: function(response) {
+                window.currentSelectedSaleItemType = response && response.type ? String(response.type).toLowerCase() : '';
+                // If Retail + Battery and default qty=1, show proof UI immediately
+                try {
+                    if (typeof isRetailCustomerSelected === 'function' && typeof isBatteryItemSelected === 'function' && isRetailCustomerSelected() && isBatteryItemSelected()) {
+                        const qtyInt = (typeof getSelectedQtyIntForWarranty === 'function' ? (getSelectedQtyIntForWarranty() || 1) : 1);
+                        if (typeof renderWarrantyProofSection === 'function') renderWarrantyProofSection(qtyInt);
+                        if (typeof validateWarrantyProofSection === 'function') validateWarrantyProofSection();
+                    } else {
+                        if (typeof renderWarrantyProofSection === 'function') renderWarrantyProofSection(null);
+                    }
+                } catch(e) {}
                 $('#sales-selected-item-id').val(response.id);
                 $('#sales-item-name').val(response.name);
                 $('#sales-item-rate').val(parseFloat(response.rate || 0).toFixed(2));
@@ -3707,6 +3963,690 @@ $(document).ready(function() {
     
     // Entry type tracking
     let currentEntryType = 'sale';
+
+    // ================== Retail Warranty-card Proofs (single scan + multi images) ==================
+    window.warrantyProofDraft = window.warrantyProofDraft || []; // attachments
+    window.warrantyRequiredQty = 0;
+    window.currentWarrantyProofsForNextAdd = null;
+    window.currentSelectedSaleItemType = window.currentSelectedSaleItemType || '';
+    window.pendingWarrantyScannedCode = window.pendingWarrantyScannedCode || null;
+    function isRetailCustomerSelected() {
+        const t = (window.selectedCustomerType || 'retail').toString().toLowerCase();
+        return t === 'retail';
+    }
+    function isBatteryItemSelected() {
+        return (window.currentSelectedSaleItemType || '').toString().toLowerCase() === 'battery';
+    }
+    function normalizeWarrantyCodeJs(code) {
+        return (code || '').toString().trim().toLowerCase();
+    }
+    function toUpperClean(s) {
+        return (s || '').toString().toUpperCase().replace(/[^A-Z0-9\-_]/g, '');
+    }
+    function isRejectedWord(tok) {
+        var t = (tok || '').toString().toUpperCase().trim();
+        if (!t) return true;
+        var stop = {
+            WARRANTY:1, GUARANTEE:1, GUARANTY:1, CARD:1, BATTERY:1, MODEL:1, SERIAL:1, NUMBER:1,
+            DATE:1, NAME:1, PHONE:1, ADDRESS:1, MAINTENANCE:1, FREE:1, MAINTENANCEFREE:1,
+            READYTOUSE:1, TECHNOLOGY:1, KOREAN:1, MADE:1, IN:1, COMPANY:1, LIMITED:1,
+            DAEWOO:1, DAEWOOO:1, EXIDE:1, ATLAS:1, AMARON:1, GS:1, YUASA:1
+        };
+        if (stop[t]) return true;
+        if (/^[A-Z]{3,}$/.test(t)) return true;
+        var wordish = t
+            .replace(/0/g, 'O')
+            .replace(/1/g, 'I')
+            .replace(/5/g, 'S')
+            .replace(/2/g, 'Z')
+            .replace(/6/g, 'G')
+            .replace(/8/g, 'B');
+        if (stop[wordish]) return true;
+        var digits = (t.match(/\d/g) || []).length;
+        var vowels = (wordish.match(/[AEIOU]/g) || []).length;
+        if (digits <= 1 && wordish.length >= 5 && vowels >= 2) return true;
+        return false;
+    }
+    function isCodeCandidate(token) {
+        var t = toUpperClean(token);
+        if (!t) return false;
+        if (isRejectedWord(t)) return false;
+        if (/^\d{2,12}$/.test(t)) return true;
+        if (/^[A-Z0-9]{4,15}$/.test(t) && !/^[A-Z]+$/.test(t)) {
+            var dcnt = (t.match(/\d/g) || []).length;
+            if (t.length <= 5 && dcnt <= 1) return false;
+            return true;
+        }
+        if (/^[A-Z0-9\-_]{4,20}$/.test(t) && (t.indexOf('-') !== -1 || t.indexOf('_') !== -1)) return true;
+        return false;
+    }
+    function fuzzyFixToken(token) {
+        var t = (token || '').toString().toUpperCase();
+        var chars = t.split('');
+        var map = {
+            'O': ['O', '0'],
+            '0': ['0', 'O'],
+            'I': ['I', '1'],
+            'L': ['L', '1'],
+            '1': ['1', 'I', 'L'],
+            'S': ['S', '5'],
+            '5': ['5', 'S'],
+            'B': ['B', '8'],
+            '8': ['8', 'B'],
+            'G': ['G', '6'],
+            '6': ['6', 'G'],
+            'Z': ['Z', '2'],
+            '2': ['2', 'Z'],
+        };
+        var variants = [''];
+        for (var i = 0; i < chars.length; i++) {
+            var c = chars[i];
+            var opts = map[c] || [c];
+            var next = [];
+            for (var v = 0; v < variants.length; v++) {
+                for (var o = 0; o < opts.length; o++) {
+                    next.push(variants[v] + opts[o]);
+                    if (next.length > 120) break;
+                }
+                if (next.length > 120) break;
+            }
+            variants = next;
+            if (variants.length > 120) break;
+        }
+        var best = null;
+        var bestScore = -1;
+        variants.forEach(function(x) {
+            var y = toUpperClean(x);
+            if (!y) return;
+            var s = 0;
+            if (/^[A-Z]{3,6}[-_]\d{2,4}[A-Z]{0,2}$/.test(y)) s += 50;
+            if (/[A-Z]/.test(y) && /\d/.test(y)) s += 25;
+            if (y.indexOf('-') !== -1 || y.indexOf('_') !== -1) s += 10;
+            if (/^\d{4,10}$/.test(y)) s += 18;
+            if (/^\d{3}$/.test(y)) s += 6;
+            s += Math.min(10, y.length);
+            if (s > bestScore) { bestScore = s; best = y; }
+        });
+        return best || toUpperClean(token);
+    }
+    function uniq(arr) {
+        const out = [];
+        const seen = {};
+        (arr || []).forEach(function(x) {
+            const k = normalizeWarrantyCodeJs(x);
+            if (!k) return;
+            if (seen[k]) return;
+            seen[k] = true;
+            out.push(x);
+        });
+        return out;
+    }
+    async function ensureTesseractLoaded() {
+        if (window.Tesseract && window.Tesseract.recognize) return true;
+        return await new Promise(function(resolve) {
+            try {
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                s.async = true;
+                s.onload = function() { resolve(!!(window.Tesseract && window.Tesseract.recognize)); };
+                s.onerror = function() { resolve(false); };
+                document.head.appendChild(s);
+            } catch (e) { resolve(false); }
+        });
+    }
+    function extractLikelyCodesFromText(text) {
+        var t = (text || '').toString().toUpperCase();
+        t = t.replace(/[^A-Z0-9\-_\s]/g, ' ');
+        var tokens = t.split(/\s+/).filter(Boolean);
+        var cleaned = tokens.map(fuzzyFixToken);
+        var codes = uniq(cleaned).filter(isCodeCandidate);
+        codes.sort(function(a, b) {
+            function score(x) {
+                x = String(x || '');
+                var s = 0;
+                if (/^\d{2,12}$/.test(x)) s += 18;
+                if (/[A-Z]/.test(x) && /\d/.test(x)) s += 22;
+                if (x.indexOf('-') !== -1 || x.indexOf('_') !== -1) s += 16;
+                if (/^\d{2,3}$/.test(x)) s += 10;
+                s += Math.min(10, x.length);
+                return s;
+            }
+            return score(b) - score(a);
+        });
+        return codes.slice(0, 30);
+    }
+    function newWarrantyAttachmentId() {
+        return 'wp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    }
+
+    function dataUrlToImage(dataUrl) {
+        return new Promise(function(resolve, reject) {
+            var img = new Image();
+            img.onload = function() { resolve(img); };
+            img.onerror = reject;
+            img.src = dataUrl;
+        });
+    }
+    function clamp255(x) { return x < 0 ? 0 : (x > 255 ? 255 : x); }
+    async function ensureOpenCvLoaded() {
+        if (window.cv && window.cv.Mat) return true;
+        if (window.__loadingOpenCv) return await window.__loadingOpenCv;
+        window.__loadingOpenCv = new Promise(function(resolve) {
+            try {
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/opencv.js-webassembly@4.2.0/opencv.js';
+                s.async = true;
+                s.onload = function() {
+                    var tries = 0;
+                    var tick = function() {
+                        tries++;
+                        if (window.cv && typeof window.cv.onRuntimeInitialized === 'function') {
+                            var old = window.cv.onRuntimeInitialized;
+                            window.cv.onRuntimeInitialized = function() {
+                                try { old && old(); } catch (_) {}
+                                resolve(true);
+                            };
+                            return;
+                        }
+                        if (window.cv && window.cv.Mat) return resolve(true);
+                        if (tries > 40) return resolve(false);
+                        setTimeout(tick, 150);
+                    };
+                    tick();
+                };
+                s.onerror = function() { resolve(false); };
+                document.head.appendChild(s);
+            } catch (e) { resolve(false); }
+        });
+        return await window.__loadingOpenCv;
+    }
+    function orderQuadPoints(pts) {
+        var sum = pts.map(function(p){ return p.x + p.y; });
+        var diff = pts.map(function(p){ return p.x - p.y; });
+        var tl = pts[sum.indexOf(Math.min.apply(null, sum))];
+        var br = pts[sum.indexOf(Math.max.apply(null, sum))];
+        var tr = pts[diff.indexOf(Math.max.apply(null, diff))];
+        var bl = pts[diff.indexOf(Math.min.apply(null, diff))];
+        return [tl, tr, br, bl];
+    }
+    function tryWarpDocumentFromCanvas(srcCanvas) {
+        try {
+            if (!window.cv || !window.cv.Mat) return null;
+            var cv = window.cv;
+            var src = cv.imread(srcCanvas);
+            var gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+            var blur = new cv.Mat();
+            cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+            var edges = new cv.Mat();
+            cv.Canny(blur, edges, 50, 150);
+            var contours = new cv.MatVector();
+            var hierarchy = new cv.Mat();
+            cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+            var best = null;
+            var bestArea = 0;
+            for (var i = 0; i < contours.size(); i++) {
+                var cnt = contours.get(i);
+                var peri = cv.arcLength(cnt, true);
+                var approx = new cv.Mat();
+                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                if (approx.rows === 4) {
+                    var area = cv.contourArea(approx);
+                    if (area > bestArea) {
+                        if (best) best.delete();
+                        best = approx;
+                        bestArea = area;
+                    } else {
+                        approx.delete();
+                    }
+                } else {
+                    approx.delete();
+                }
+                cnt.delete();
+            }
+            if (!best || bestArea < 12000) {
+                src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+                if (best) best.delete();
+                return null;
+            }
+            var pts = [];
+            for (var r = 0; r < 4; r++) pts.push({ x: best.intPtr(r, 0)[0], y: best.intPtr(r, 0)[1] });
+            var o = orderQuadPoints(pts);
+            var tl = o[0], tr = o[1], br = o[2], bl = o[3];
+            var maxW = Math.max(Math.hypot(br.x - bl.x, br.y - bl.y), Math.hypot(tr.x - tl.x, tr.y - tl.y));
+            var maxH = Math.max(Math.hypot(tr.x - br.x, tr.y - br.y), Math.hypot(tl.x - bl.x, tl.y - bl.y));
+            maxW = Math.max(320, Math.round(maxW));
+            maxH = Math.max(200, Math.round(maxH));
+            var srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y]);
+            var dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, maxW - 1, 0, maxW - 1, maxH - 1, 0, maxH - 1]);
+            var M = cv.getPerspectiveTransform(srcTri, dstTri);
+            var dst = new cv.Mat();
+            cv.warpPerspective(src, dst, M, new cv.Size(maxW, maxH), cv.INTER_LINEAR, cv.BORDER_REPLICATE, new cv.Scalar());
+            var dstGray = new cv.Mat();
+            cv.cvtColor(dst, dstGray, cv.COLOR_RGBA2GRAY, 0);
+            var dstThr = new cv.Mat();
+            cv.adaptiveThreshold(dstGray, dstThr, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 25, 10);
+            var kernel = cv.matFromArray(3, 3, cv.CV_32F, [0, -1, 0, -1, 5, -1, 0, -1, 0]);
+            var sharp = new cv.Mat();
+            cv.filter2D(dstThr, sharp, cv.CV_8U, kernel);
+            var outCanvas = document.createElement('canvas');
+            outCanvas.width = maxW;
+            outCanvas.height = maxH;
+            cv.imshow(outCanvas, sharp);
+            src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+            best.delete(); srcTri.delete(); dstTri.delete(); M.delete();
+            dst.delete(); dstGray.delete(); dstThr.delete(); kernel.delete(); sharp.delete();
+            return outCanvas;
+        } catch (e) {
+            return null;
+        }
+    }
+    function preprocessToCanvas(img, rotateDeg) {
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        var cw = (rotateDeg % 180 === 0) ? w : h;
+        var ch = (rotateDeg % 180 === 0) ? h : w;
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.save();
+        ctx.translate(cw / 2, ch / 2);
+        ctx.rotate((rotateDeg * Math.PI) / 180);
+        ctx.drawImage(img, -w / 2, -h / 2);
+        ctx.restore();
+        try {
+            if (window.cv && window.cv.Mat) {
+                var warped = tryWarpDocumentFromCanvas(canvas);
+                if (warped) {
+                    canvas = warped; cw = canvas.width; ch = canvas.height;
+                    ctx = canvas.getContext('2d', { willReadFrequently: true });
+                }
+            } else {
+                ensureOpenCvLoaded();
+            }
+        } catch (eWarp) {}
+        var id = ctx.getImageData(0, 0, cw, ch);
+        var d = id.data;
+        var factor = 1.45;
+        for (var i = 0; i < d.length; i += 4) {
+            var r = d[i], g = d[i + 1], b = d[i + 2];
+            var y = 0.299 * r + 0.587 * g + 0.114 * b;
+            y = (y - 128) * factor + 128;
+            y = clamp255(y);
+            d[i] = d[i + 1] = d[i + 2] = y;
+        }
+        ctx.putImageData(id, 0, 0);
+        // bbox crop
+        id = ctx.getImageData(0, 0, cw, ch);
+        d = id.data;
+        var minX = cw, minY = ch, maxX = 0, maxY = 0;
+        var has = false;
+        var sum = 0, cnt = 0;
+        for (var s = 0; s < d.length; s += 64 * 4) { sum += d[s]; cnt++; }
+        var thr = cnt ? (sum / cnt) : 180;
+        thr = Math.min(210, Math.max(115, thr));
+        for (var yy = 0; yy < ch; yy++) {
+            for (var xx = 0; xx < cw; xx++) {
+                var p = (yy * cw + xx) * 4;
+                if (d[p] < thr) {
+                    has = true;
+                    if (xx < minX) minX = xx;
+                    if (yy < minY) minY = yy;
+                    if (xx > maxX) maxX = xx;
+                    if (yy > maxY) maxY = yy;
+                }
+            }
+        }
+        if (has) {
+            var padX = Math.floor((maxX - minX + 1) * 0.06);
+            var padY = Math.floor((maxY - minY + 1) * 0.06);
+            minX = Math.max(0, minX - padX);
+            minY = Math.max(0, minY - padY);
+            maxX = Math.min(cw - 1, maxX + padX);
+            maxY = Math.min(ch - 1, maxY + padY);
+            var bw = Math.max(1, maxX - minX + 1);
+            var bh = Math.max(1, maxY - minY + 1);
+            var crop = document.createElement('canvas');
+            crop.width = bw; crop.height = bh;
+            crop.getContext('2d').drawImage(canvas, minX, minY, bw, bh, 0, 0, bw, bh);
+            canvas = crop; cw = bw; ch = bh;
+            ctx = canvas.getContext('2d', { willReadFrequently: true });
+        }
+        // binarize
+        id = ctx.getImageData(0, 0, cw, ch);
+        d = id.data;
+        sum = 0; cnt = 0;
+        for (s = 0; s < d.length; s += 64 * 4) { sum += d[s]; cnt++; }
+        thr = cnt ? (sum / cnt) : 180;
+        thr = Math.min(205, Math.max(110, thr));
+        for (i = 0; i < d.length; i += 4) {
+            var vv = d[i];
+            var out = vv < thr ? 0 : 255;
+            d[i] = d[i + 1] = d[i + 2] = out;
+        }
+        ctx.putImageData(id, 0, 0);
+        var maxSide = Math.max(canvas.width, canvas.height);
+        if (maxSide < 900) {
+            var scale = 1200 / maxSide;
+            var up = document.createElement('canvas');
+            up.width = Math.round(canvas.width * scale);
+            up.height = Math.round(canvas.height * scale);
+            var uctx = up.getContext('2d');
+            uctx.imageSmoothingEnabled = true;
+            uctx.drawImage(canvas, 0, 0, up.width, up.height);
+            canvas = up;
+        }
+        return canvas;
+    }
+    async function ocrBestOfRotations(dataUrl) {
+        var img = await dataUrlToImage(dataUrl);
+        var rotations = [0, 90, 180, 270];
+        var best = { score: -1, codes: [], text: '' };
+        for (var i = 0; i < rotations.length; i++) {
+            var canvas = preprocessToCanvas(img, rotations[i]);
+            var pre = canvas.toDataURL('image/png');
+            var codesAll = [];
+            var res = await window.Tesseract.recognize(pre, 'eng', { tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_', tessedit_pageseg_mode: '6' });
+            // token extraction from words with confidence if present
+            try {
+                if (res && res.data && Array.isArray(res.data.words)) {
+                    res.data.words.forEach(function(w){
+                        if (!w) return;
+                        var txt = (w.text || '').toString();
+                        var conf = (w.confidence == null ? 0 : Number(w.confidence));
+                        if (!isFinite(conf)) conf = 0;
+                        if (conf >= 40) codesAll.push(txt);
+                    });
+                }
+            } catch (eW) {}
+            var text = (res && res.data && res.data.text) ? res.data.text : '';
+            codesAll = codesAll.concat(text.split(/\s+/));
+
+            // Region OCR (3 horizontal bands) to catch model/serial/handwritten
+            try {
+                var w = canvas.width, h = canvas.height;
+                var bands = [
+                    { y: 0, h: Math.floor(h * 0.35) },
+                    { y: Math.floor(h * 0.30), h: Math.floor(h * 0.40) },
+                    { y: Math.floor(h * 0.70), h: h - Math.floor(h * 0.70) },
+                ];
+                for (var bi = 0; bi < bands.length; bi++) {
+                    var b = bands[bi];
+                    if (b.h < 40) continue;
+                    var c2 = document.createElement('canvas');
+                    c2.width = w; c2.height = b.h;
+                    c2.getContext('2d').drawImage(canvas, 0, b.y, w, b.h, 0, 0, w, b.h);
+                    var preBand = c2.toDataURL('image/png');
+                    var resB = await window.Tesseract.recognize(preBand, 'eng', { tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_', tessedit_pageseg_mode: '7' });
+                    var textB = (resB && resB.data && resB.data.text) ? resB.data.text : '';
+                    codesAll = codesAll.concat(textB.split(/\s+/));
+                }
+            } catch (eBand) {}
+
+            var codes = extractLikelyCodesFromText(codesAll.join(' '));
+            var score = 0;
+            codes.forEach(function(c){
+                if (/^[A-Z]{3,6}[-_]\d{2,4}[A-Z]{0,2}$/.test(c)) score += 60;
+                else if (/^[A-Z0-9]{5,10}$/.test(c) && /[A-Z]/.test(c) && /\d/.test(c)) score += 30;
+                else if (/^\d{4,10}$/.test(c)) score += 18;
+                else if (/^\d{3}$/.test(c)) score += 8;
+            });
+            score += Math.min(30, codes.length * 5);
+            if (score > best.score) best = { score: score, codes: codes, text: text };
+        }
+        return best;
+    }
+
+    async function runOcrForAttachmentId(attachmentId) {
+        try {
+            var ok = await ensureTesseractLoaded();
+            if (!ok) return;
+            var attIndex = (window.warrantyProofDraft || []).findIndex(function(a) { return a && a._id === attachmentId; });
+            if (attIndex === -1) return;
+            var att = window.warrantyProofDraft[attIndex];
+            if (!att || !att.image_data) return;
+            att.extracting = true;
+            renderWarrantyProofSection(window.warrantyRequiredQty || 0);
+            var best = await ocrBestOfRotations(att.image_data);
+            var codes = (best && best.codes) ? best.codes : [];
+            att.extracted_codes = uniq((att.extracted_codes || []).concat(codes || []));
+            att.extracting = false;
+            renderWarrantyProofSection(window.warrantyRequiredQty || 0);
+        } catch (e) {
+            try {
+                var i2 = (window.warrantyProofDraft || []).findIndex(function(a) { return a && a._id === attachmentId; });
+                if (i2 !== -1 && window.warrantyProofDraft[i2]) window.warrantyProofDraft[i2].extracting = false;
+            } catch (_) {}
+            renderWarrantyProofSection(window.warrantyRequiredQty || 0);
+        }
+    }
+    function getSelectedQtyIntForWarranty() {
+        // Default qty behavior: if dropdown is empty, fallback to quantity input value (even if hidden; default is usually 1)
+        let q = parseFloat($('#sales-item-quantity').val());
+        if (!isFinite(q) || q <= 0) {
+            const qInputVal = parseFloat($('#sales-item-quantity-input').val());
+            if (isFinite(qInputVal) && qInputVal > 0) q = qInputVal;
+            else q = 0;
+        }
+        if ($('#sales-item-quantity-input').is(':visible') && $('#sales-item-quantity-input').val()) {
+            q = parseFloat($('#sales-item-quantity-input').val()) || q;
+        }
+        const qInt = Math.round(q);
+        if (qInt <= 0) return null;
+        if (Math.abs(q - qInt) > 0.00001) return null;
+        return qInt;
+    }
+    function renderWarrantyProofSection(qtyInt) {
+        const $section = $('#warranty-proof-section');
+        const $units = $('#warranty-proof-units');
+        const $badge = $('#warranty-proof-badge');
+        const $err = $('#warranty-proof-error');
+        const $confirm = $('#confirm-entry');
+        if (!isRetailCustomerSelected() || !isBatteryItemSelected() || !qtyInt) {
+            window.warrantyProofDraft = [];
+            window.warrantyRequiredQty = 0;
+            window.pendingWarrantyScannedCode = null;
+            $section.addClass('d-none');
+            $units.empty();
+            $badge.text('0 / 0');
+            $err.addClass('d-none').text('');
+            $confirm.prop('disabled', false);
+            return;
+        }
+        window.warrantyRequiredQty = qtyInt;
+        if (window.warrantyProofDraft.length > qtyInt) window.warrantyProofDraft = window.warrantyProofDraft.slice(0, qtyInt);
+        const attached = window.warrantyProofDraft.filter(function(a){ return a && a.image_data && String(a.image_data).indexOf('data:image/')===0; }).length;
+        $badge.text(attached + ' / ' + qtyInt);
+        const canAddMore = attached < qtyInt;
+        $units.html(`
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="warranty-proof-scan-btn"><i class="ti ti-scan me-1"></i>Scan</button>
+                <label class="btn btn-sm btn-outline-secondary mb-0 ${canAddMore ? '' : 'disabled'}" style="cursor:${canAddMore ? 'pointer' : 'not-allowed'};">
+                    <i class="ti ti-photo me-1"></i>${canAddMore ? 'Capture / Add Image' : 'Limit reached'}
+                    <input type="file" class="d-none" id="warranty-proof-image-input" accept="image/*" capture="environment" ${canAddMore ? '' : 'disabled'}>
+                </label>
+                <span class="small text-muted ms-auto">Attached: <span class="fw-bold">${attached}</span> / ${qtyInt}</span>
+            </div>
+            <div class="row g-2" id="warranty-proof-grid"></div>
+            <div class="mt-2 small">
+                <div class="fw-bold text-dark">Extracted Codes</div>
+                <div id="warranty-extracted-codes" class="text-muted">—</div>
+            </div>
+        `);
+        // grid
+        const $grid = $('#warranty-proof-grid');
+        let extractedAll = [];
+        window.warrantyProofDraft.forEach(function(att, i){
+            if (!att || !att.image_data) return;
+            extractedAll = extractedAll.concat(att.extracted_codes || []);
+            const extracting = att.extracting === true;
+            const codes = (att.extracted_codes || []);
+            const ocrLine = (codes && codes.length) ? ('OCR: ' + codes.join(', ')) : 'OCR: No readable code detected';
+            const scanLine = att.scanned_code ? ('Scanned: ' + att.scanned_code) : '';
+            const metaLine = extracting
+                ? '<span class="text-warning">Extracting…</span>'
+                : (scanLine ? (scanLine + (codes && codes.length ? '<br>' : '')) : '') + ocrLine;
+            $grid.append(`
+                <div class="col-6 col-md-4">
+                    <div class="border rounded p-2 position-relative" style="background:#fff;">
+                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 btn-warranty-attach-remove" data-attach-index="${i}" style="padding:2px 6px; line-height:1;">×</button>
+                        <img src="${String(att.image_data).replace(/\"/g,'&quot;')}" class="img-fluid rounded border" style="max-height:120px;width:100%;object-fit:cover;" />
+                        <div class="small mt-1">
+                            <div class="fw-bold">Proof ${i+1}</div>
+                            <div class="text-muted" style="font-size:11px;">${metaLine}</div>
+                            <div class="mt-1">
+                                <div class="small fw-bold text-dark">Final code</div>
+                                <input type="text" class="form-control form-control-sm warranty-final-code" data-attach-index="${i}" placeholder="Tap to edit / paste code" value="${(att.final_code || '').toString().replace(/\"/g,'&quot;')}" />
+                                <div class="small text-muted mt-1">Possible detected codes (tap to apply):</div>
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    ${(codes && codes.length ? codes.slice(0, 8) : []).map(function(c){
+                                        var safe = String(c).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+                                        return '<button type="button" class="btn btn-xs btn-outline-primary py-0 px-1 warranty-code-chip" data-attach-index="'+i+'" data-code="'+safe+'" style="font-size:11px;">'+safe+'</button>';
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+        extractedAll = uniq(extractedAll);
+        $('#warranty-extracted-codes').html(extractedAll.length ? ('<ul class="mb-0 ps-3">' + extractedAll.map(function(c){return '<li>'+String(c).replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</li>';}).join('') + '</ul>') : '—');
+        $section.removeClass('d-none');
+        validateWarrantyProofSection();
+    }
+    function validateWarrantyProofSection() {
+        const qtyInt = window.warrantyRequiredQty || 0;
+        const $badge = $('#warranty-proof-badge');
+        const $err = $('#warranty-proof-error');
+        const $confirm = $('#confirm-entry');
+        if (!isRetailCustomerSelected() || !isBatteryItemSelected() || !qtyInt) {
+            $confirm.prop('disabled', false);
+            return true;
+        }
+        const attached = (window.warrantyProofDraft || []).filter(function(a){ return a && a.image_data && String(a.image_data).indexOf('data:image/')===0; }).length;
+        const seen = {};
+        let dup = false;
+        (window.warrantyProofDraft || []).forEach(function(a){
+            if (!a) return;
+            const codes = []
+                .concat(a.final_code ? [a.final_code] : [])
+                .concat(a.scanned_code ? [a.scanned_code] : [])
+                .concat((a.extracted_codes || []));
+            codes.forEach(function(c){
+                const k = normalizeWarrantyCodeJs(c);
+                if (!k) return;
+                if (seen[k]) dup = true;
+                seen[k] = true;
+            });
+        });
+        $badge.text(attached + ' / ' + qtyInt);
+        const ok = (attached === qtyInt && !dup);
+        if (!ok) {
+            let msg = 'Please attach warranty card proof for all selected quantity units.';
+            if (dup) msg = 'Duplicate warranty code detected. Please enter unique codes for this item.';
+            $err.removeClass('d-none').text(msg);
+        } else {
+            $err.addClass('d-none').text('');
+        }
+        if (isRetailCustomerSelected() && isBatteryItemSelected()) {
+            $confirm.prop('disabled', !ok);
+        } else {
+            $confirm.prop('disabled', false);
+        }
+        return ok;
+    }
+    function getWarrantyProofsForSubmit(qtyInt) {
+        const proofs = [];
+        for (let i = 0; i < qtyInt; i++) {
+            const a = window.warrantyProofDraft[i] || {};
+            const codes = []
+                .concat(a.final_code ? [a.final_code] : [])
+                .concat(a.scanned_code ? [a.scanned_code] : [])
+                .concat((a.extracted_codes || []));
+            const firstCode = codes.length ? String(codes[0]).trim() : null;
+            proofs.push({
+                unit_no: i + 1,
+                warehouse_id: ($('#selected-warehouse-id').val() || null),
+                code: firstCode,
+                final_code: a.final_code || null,
+                scanned_code: a.scanned_code || null,
+                extracted_codes: Array.isArray(a.extracted_codes) ? a.extracted_codes : [],
+                image_data: (a.image_data || '').toString() || null,
+                captured_at: a.captured_at || null
+            });
+        }
+        return proofs;
+    }
+    $(document).on('click', '#warranty-proof-scan-btn', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        Swal.fire({ icon: 'info', title: 'Scan code', text: 'Scan the warranty code now (USB scanner) or type it. The next attached image will use this scanned code.' })
+            .then(function() {
+                window.pendingWarrantyScannedCode = null;
+            });
+        // On classic page we don’t have camera scanner modal; allow USB scan by focusing item-search to capture scanner input if needed
+    });
+    $(document).on('change', '#warranty-proof-image-input', function() {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const required = window.warrantyRequiredQty || 0;
+        const attached = (window.warrantyProofDraft || []).filter(function(a){ return a && a.image_data && String(a.image_data).indexOf('data:image/')===0; }).length;
+        if (attached >= required) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const attachmentId = newWarrantyAttachmentId();
+            const att = {
+                _id: attachmentId,
+                image_data: ev.target && ev.target.result ? String(ev.target.result) : '',
+                captured_at: new Date().toISOString(),
+                scanned_code: window.pendingWarrantyScannedCode ? String(window.pendingWarrantyScannedCode).trim() : null,
+                extracted_codes: [],
+                extracting: false
+            };
+            window.pendingWarrantyScannedCode = null;
+            window.warrantyProofDraft.push(att);
+            renderWarrantyProofSection(window.warrantyRequiredQty || 0);
+            validateWarrantyProofSection();
+            runOcrForAttachmentId(attachmentId);
+        };
+        reader.readAsDataURL(file);
+        $(this).val('');
+    });
+    $(document).on('click', '.btn-warranty-attach-remove', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        const idx = parseInt($(this).data('attach-index'), 10);
+        if (!isFinite(idx) || idx < 0) return;
+        window.warrantyProofDraft.splice(idx, 1);
+        renderWarrantyProofSection(window.warrantyRequiredQty || 0);
+        validateWarrantyProofSection();
+    });
+    $(document).on('input', '.warranty-final-code', function() {
+        const idx = parseInt($(this).data('attach-index'), 10);
+        if (!isFinite(idx) || idx < 0) return;
+        window.warrantyProofDraft[idx] = window.warrantyProofDraft[idx] || {};
+        window.warrantyProofDraft[idx].final_code = $(this).val();
+        validateWarrantyProofSection();
+    });
+    $(document).on('click', '.warranty-code-chip', function(e) {
+        e.preventDefault();
+        const idx = parseInt($(this).data('attach-index'), 10);
+        const code = $(this).data('code') || '';
+        if (!isFinite(idx) || idx < 0) return;
+        window.warrantyProofDraft[idx] = window.warrantyProofDraft[idx] || {};
+        window.warrantyProofDraft[idx].final_code = String(code);
+        $('.warranty-final-code[data-attach-index="'+idx+'"]').val(String(code));
+        validateWarrantyProofSection();
+    });
+
+    $('#sales-item-quantity, #sales-item-quantity-input').on('input change', function() {
+        if (!isRetailCustomerSelected()) return;
+        const qtyInt = getSelectedQtyIntForWarranty();
+        if (!qtyInt) {
+            renderWarrantyProofSection(null);
+            return;
+        }
+        renderWarrantyProofSection(qtyInt);
+    });
     
     // Function to add item with entry type
     function addItemWithType(entryType) {
@@ -3773,7 +4713,8 @@ $(document).ready(function() {
             total: total,
             warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
             warehouse_id: warehouseId || null,
-            entry_type: entryType
+            entry_type: entryType,
+            warranty_proofs: (window.currentWarrantyProofsForNextAdd || null)
         };
 
         salesItems.push(item);
@@ -3781,39 +4722,35 @@ $(document).ready(function() {
         resetItemModal();
         $('#add-item-modal').modal('hide');
         calculateTotals();
+        window.currentWarrantyProofsForNextAdd = null;
     }
     
     // Confirm entry - use current entry type or default to 'sale'
     $('#confirm-entry').on('click', function() {
+        // Retail + Battery: enforce warranty proofs per unit quantity
+        if (isRetailCustomerSelected() && isBatteryItemSelected()) {
+            const qtyInt = getSelectedQtyIntForWarranty();
+            if (!qtyInt) {
+                Swal.fire({ icon: 'warning', title: 'Warranty Proof Required', text: 'Retail sale requires integer quantity and warranty proof per unit.', confirmButtonText: 'OK' });
+                return;
+            }
+            renderWarrantyProofSection(qtyInt);
+            if (!validateWarrantyProofSection()) {
+                Swal.fire({ icon: 'warning', title: 'Warranty Proof Required', text: 'Please attach warranty card proof for all selected quantity units.', confirmButtonText: 'OK' });
+                return;
+            }
+            window.currentWarrantyProofsForNextAdd = getWarrantyProofsForSubmit(qtyInt);
+        } else {
+            $('#warranty-proof-section').addClass('d-none');
+            window.currentWarrantyProofsForNextAdd = null;
+        }
         const entryType = currentEntryType || 'sale';
         addItemWithType(entryType);
         // Reset entry type after adding
         currentEntryType = 'sale';
     });
     
-    // Return entry - open modal
-    $('#return-entry-btn').on('click', function() {
-        currentEntryType = 'return';
-        $('#add-item-modal').modal('show');
-    });
-    
-    // Claim entry - open modal
-    $('#claim-entry-btn').on('click', function() {
-        currentEntryType = 'claim';
-        $('#add-item-modal').modal('show');
-    });
-    
-    // Scrap In entry - open modal
-    $('#scrap-in-btn').on('click', function() {
-        currentEntryType = 'scrap_in';
-        $('#add-item-modal').modal('show');
-    });
-    
-    // Scrap Sale entry - open modal
-    $('#scrap-sale-btn').on('click', function() {
-        currentEntryType = 'scrap_sale';
-        $('#add-item-modal').modal('show');
-    });
+    // Entry-type buttons are handled earlier with customer-required guard.
     
     // Delivery entry - open modal
     $('#delivery-entry-btn').on('click', function() {
@@ -4432,6 +5369,15 @@ $(document).ready(function() {
         const totalDisplay = totalValue < 0 ? 'Rs -' + Math.abs(totalValue).toLocaleString() : 'Rs ' + totalValue.toLocaleString();
         const totalClass = totalValue < 0 ? 'text-danger' : '';
         
+        const proofImages = (item.warranty_proofs && Array.isArray(item.warranty_proofs))
+            ? item.warranty_proofs.filter(function(p) { return p && p.image_data && String(p.image_data).indexOf('data:image/') === 0; })
+            : [];
+        const warrantyBtnHtml = proofImages.length > 0
+            ? `<button type="button" class="btn btn-sm btn-outline-secondary btn-view-warranty-proofs me-2" data-row-id="${item.id}" title="View warranty proofs">
+                    <i class="ti ti-camera"></i> <span class="badge bg-dark ms-1">${proofImages.length}</span>
+               </button>`
+            : '';
+
         const row = `
             <div class="item-row" data-item-id="${item.item_id}" data-row-id="${item.id}">
                 <div>
@@ -4440,6 +5386,7 @@ $(document).ready(function() {
                 </div>
                 <div class="d-flex align-items-center gap-3">
                     <span class="item-total ${totalClass}">${totalDisplay}</span>
+                    ${warrantyBtnHtml}
                     <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-item" data-row-id="${item.id}">
                         <i class="ti ti-trash"></i>
                     </button>
@@ -4452,6 +5399,43 @@ $(document).ready(function() {
         const itemCount = $('#items-tbody .item-row').length;
         $('#item-count').text(itemCount + ' Items Listed');
     }
+
+    // Warranty proof viewer (images only) - create sale screen
+    function renderWarrantyProofViewer(item) {
+        var proofs = (item && item.warranty_proofs && Array.isArray(item.warranty_proofs)) ? item.warranty_proofs : [];
+        proofs = proofs.filter(function(p) { return p && p.image_data && String(p.image_data).indexOf('data:image/') === 0; });
+        if (!proofs.length) {
+            Swal.fire({ icon: 'info', title: 'No Warranty Images', text: 'This item has no attached warranty card pictures.' });
+            return;
+        }
+        window._warrantyViewerState = { proofs: proofs, idx: 0, item: item };
+        function fmt(ts) { try { return ts ? new Date(ts).toLocaleString() : ''; } catch(e) { return ''; } }
+        function draw() {
+            var st = window._warrantyViewerState;
+            var p = st.proofs[st.idx];
+            $('#warranty-viewer-image').attr('src', p.image_data);
+            $('#warranty-viewer-title').text((st.item && st.item.name ? st.item.name : 'Warranty Proof') + ' (' + (st.idx + 1) + '/' + st.proofs.length + ')');
+            $('#warranty-viewer-unit').text(p.unit_no != null ? ('Unit ' + p.unit_no) : '');
+            $('#warranty-viewer-code').text(p.code ? ('Code: ' + p.code) : '');
+            $('#warranty-viewer-time').text(p.captured_at ? ('Captured: ' + fmt(p.captured_at)) : '');
+            $('#warranty-viewer-prev').prop('disabled', st.idx === 0);
+            $('#warranty-viewer-next').prop('disabled', st.idx === st.proofs.length - 1);
+        }
+        draw();
+        $('#warranty-proof-viewer-modal').modal('show');
+        $('#warranty-viewer-prev').off('click').on('click', function() { var st = window._warrantyViewerState; if (!st) return; st.idx = Math.max(0, st.idx - 1); draw(); });
+        $('#warranty-viewer-next').off('click').on('click', function() { var st = window._warrantyViewerState; if (!st) return; st.idx = Math.min(st.proofs.length - 1, st.idx + 1); draw(); });
+    }
+
+    $(document).on('click', '.btn-view-warranty-proofs', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var rowId = $(this).data('row-id');
+        var item = (typeof salesItems !== 'undefined' && Array.isArray(salesItems))
+            ? salesItems.find(function(x) { return String(x.id) === String(rowId); })
+            : null;
+        renderWarrantyProofViewer(item);
+    });
 
     // Remove item
     $(document).on('click', '.remove-item', function() {
@@ -4474,6 +5458,15 @@ $(document).ready(function() {
     function resetItemModal() {
         $('#selected-item-id').val('');
         $('#item-search').val('');
+        window.warrantyProofDraft = [];
+        window.warrantyRequiredQty = 0;
+        window.currentWarrantyProofsForNextAdd = null;
+        window.pendingWarrantyScannedCode = null;
+        $('#warranty-proof-section').addClass('d-none');
+        $('#warranty-proof-units').empty();
+        $('#warranty-proof-badge').text('0 / 0');
+        $('#warranty-proof-error').addClass('d-none').text('');
+        $('#confirm-entry').prop('disabled', false);
         $('#sales-item-quantity').val('');
         $('#sales-item-quantity-input').val('1').hide();
         $('#sales-item-unit').val('Can');
@@ -4852,6 +5845,7 @@ $(document).ready(function() {
                 tax_amount: item.tax_amount,
                 total: item.total,
                 warranty: item.warranty || null,
+                warranty_proofs: item.warranty_proofs || null,
                 warehouse_id: item.warehouse_id || null,
                 entry_type: item.entry_type || 'sale'
             }))

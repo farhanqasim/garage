@@ -1,6 +1,7 @@
 <div class="header">
-      <div class="main-header" style="position: relative;">
-        <!-- Logo / Branch & User -->
+      <div class="main-header header-flex">
+        <!-- Left: logo (collapsed when sidebar closed) + menu icon + POS -->
+        <div class="header-left-group">
         <div class="header-left active" style="position: relative;">
           <a href="{{ route('home') }}" class="header-left-home-link" style="position: absolute; inset: 0; z-index: 50; display: block;" title="Go to Home"></a>
           @auth
@@ -21,69 +22,36 @@
             <span></span>
           </span>
         </a>
+        @can('view_pos')
+        <a href="{{ route('point_of_sale') }}" class="btn btn-dark btn-md d-inline-flex align-items-center header-pos-btn">
+          <i class="ti ti-device-laptop me-1"></i>POS
+        </a>
+        @endcan
+        </div>
+        <!-- /Left -->
 
-        <!-- Branch + User (center) -->
+        <!-- Center: store name + user (no absolute; prevents overlap) -->
         @auth
           @php
             $headerBranchId = session('selected_branch_id') ?? auth()->user()->branch_id;
             $headerBranch = $headerBranchId ? \App\Models\Branch::find($headerBranchId) : (auth()->user()->assignedBranches->first() ?? null);
           @endphp
-          <a href="{{ route('home') }}" class="header-center-branch-user text-decoration-none d-inline-block" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: auto; color: inherit; cursor: pointer; z-index: 100;">
+        <div class="header-center-group">
+          <a href="{{ route('home') }}" class="header-center-branch-user text-decoration-none d-inline-block text-center">
             <span class="d-inline-flex flex-column lh-sm">
-              <span class="text-dark fw-bold" style="font-size: 1.25rem;">{{ $headerBranch ? $headerBranch->branch_name : 'Branch' }}</span>
+              <span class="text-dark fw-bold header-store-name">{{ $headerBranch ? $headerBranch->branch_name : 'Branch' }}</span>
               <span class="text-primary fw-bold small">{{ auth()->user()->name ?? 'User' }}</span>
             </span>
           </a>
+        </div>
+        @else
+        <div class="header-center-group"></div>
         @endauth
-        <!-- /Branch + User -->
+        <!-- /Center -->
 
-        <!-- Header Menu -->
+        <!-- Right: nav menu (branch dropdown, icons, profile) -->
+        <div class="header-right-group">
         <ul class="nav user-menu">
-
-          <!-- Search -->
-          <li class="nav-item nav-searchinputs">
-            <div class="top-nav-search">
-              <a href="javascript:void(0);" class="responsive-search">
-                <i class="fa fa-search"></i>
-              </a>
-              <form action="#" class="dropdown">
-                <div class="searchinputs input-group dropdown-toggle" id="dropdownMenuClickable" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                  <input type="text" placeholder="Search">
-                  <div class="search-addon">
-                    <span><i class="ti ti-search"></i></span>
-                  </div>
-                  <span class="input-group-text">
-                    <kbd class="d-flex align-items-center"><img src="{{asset('assets/img/icons/command.svg')}}" alt="img" class="me-1">K</kbd>
-                  </span>
-                </div>
-                <div class="dropdown-menu search-dropdown" aria-labelledby="dropdownMenuClickable">
-                  <div class="search-info">
-                    <h6><span><i data-feather="search" class="feather-16"></i></span>Recent Searches
-                    </h6>
-                    <ul class="search-tags">
-                      <li><a href="javascript:void(0);">Products</a></li>
-                      <li><a href="javascript:void(0);">Sales</a></li>
-                      <li><a href="javascript:void(0);">Applications</a></li>
-                    </ul>
-                  </div>
-                  <div class="search-info">
-                    <h6><span><i data-feather="help-circle" class="feather-16"></i></span>Help</h6>
-                    <p>How to Change Product Volume from 0 to 200 on Inventory management</p>
-                    <p>Change Product Name</p>
-                  </div>
-                  <div class="search-info">
-                    <h6><span><i data-feather="user" class="feather-16"></i></span>Customers</h6>
-                    <ul class="customers">
-                      <li><a href="javascript:void(0);">Aron Varu<img src="{{asset('assets/img/profiles/avator1.jpg')}}" alt="Img" class="img-fluid"></a></li>
-                      <li><a href="javascript:void(0);">Jonita<img src="{{asset('assets/img/profiles/avatar-01.jpg')}}" alt="Img" class="img-fluid"></a></li>
-                      <li><a href="javascript:void(0);">Aaron<img src="{{asset('assets/img/profiles/avatar-10.jpg')}}" alt="Img" class="img-fluid"></a></li>
-                    </ul>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </li>
-          <!-- /Search -->
 
           <!-- Select Store -->
           {{-- <li class="nav-item dropdown has-arrow main-drop select-store-dropdown">
@@ -221,39 +189,21 @@
           </li> --}}
 
           @can('view_pos')
-          <li class="nav-item pos-nav">
-            <a href="{{ route('point_of_sale') }}" class="btn btn-dark btn-md d-inline-flex align-items-center">
-              <i class="ti ti-device-laptop me-1"></i>POS
-            </a>
-          </li>
+          {{-- POS moved to header-left-group --}}
           @endcan
 
-          <!-- Branch Switcher (Admin or view_branch) -->
+          <!-- Branch Switcher (Admin, view_branch, or specific email) -->
           @auth
-            @if(auth()->user()->role === 'admin' || auth()->user()->can('view_branch'))
+            @if(auth()->user()->role === 'admin' || auth()->user()->can('view_branch') || auth()->user()->email === 'malik.bilal.mubarak@gmail.com')
               @php
                 $allBranches = \App\Models\Branch::where('status', 'active')->orderBy('branch_name', 'asc')->get();
                 $currentBranchId = session('selected_branch_id');
                 $currentBranch = $currentBranchId ? \App\Models\Branch::find($currentBranchId) : null;
               @endphp
               <li class="nav-item dropdown has-arrow main-drop branch-switcher-dropdown">
-                <a href="javascript:void(0);" class="dropdown-toggle nav-link" data-bs-toggle="dropdown" aria-expanded="false">
-                  <span class="user-info">
-                    <span class="user-letter">
-                      <i class="ti ti-building-store"></i>
-                    </span>
-                    <span class="user-detail">
-                      <span class="user-name">
-                        @if($currentBranch)
-                          {{ $currentBranch->branch_name }}
-                          @if($currentBranch->branch_code)
-                            ({{ $currentBranch->branch_code }})
-                          @endif
-                        @else
-                          All Branches
-                        @endif
-                      </span>
-                    </span>
+                <a href="javascript:void(0);" class="dropdown-toggle nav-link" data-bs-toggle="dropdown" aria-expanded="false" title="{{ $currentBranch ? $currentBranch->branch_name . ($currentBranch->branch_code ? ' (' . $currentBranch->branch_code . ')' : '') : 'All Branches' }}">
+                  <span class="user-letter">
+                    <i class="ti ti-building-store"></i>
                   </span>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right">
@@ -263,6 +213,7 @@
                   </div>
                   <div class="dropdown-divider"></div>
                   <a href="javascript:void(0);" class="dropdown-item branch-switch-item {{ !$currentBranchId ? 'active' : '' }}" 
+                     data-branch-id="all"
                      onclick="switchBranch(null, 'All Branches')">
                     <i class="ti ti-world me-2"></i>
                     <span>All Branches</span>
@@ -272,7 +223,8 @@
                   </a>
                   @foreach($allBranches as $branch)
                     <a href="javascript:void(0);" class="dropdown-item branch-switch-item {{ $currentBranchId == $branch->id ? 'active' : '' }}" 
-                       onclick="switchBranch({{ $branch->id }}, '{{ $branch->branch_name }}')">
+                       data-branch-id="{{ $branch->id }}"
+                       onclick="switchBranch({{ $branch->id }}, {{ json_encode($branch->branch_name) }})">
                       <i class="ti ti-building-store me-2"></i>
                       <span>{{ $branch->branch_name }}</span>
                       @if($branch->branch_code)
@@ -400,21 +352,27 @@
             <a href="javascript:void(0);" class="nav-link userset" data-bs-toggle="dropdown">
               <span class="user-info p-0">
                 <span class="user-letter">
-                  <img src="{{asset(auth()->user()->profile_img??'assets/img/profiles/avator1.jpg')}}" alt="Img" class="img-fluid">
+                  <img src="{{ asset(optional(auth()->user())->profile_img ?? 'assets/img/profiles/avator1.jpg') }}" alt="Img" class="img-fluid">
                 </span>
               </span>
             </a>
             <div class="dropdown-menu menu-drop-user">
+              @php $headerUser = auth()->check() ? \App\Models\User::find(auth()->id()) : null; @endphp
               <div class="profileset d-flex align-items-center">
                 <span class="user-img me-2">
-                  <img src="{{asset(auth()->user()->profile_img)}}" alt="Img">
+                  <img src="{{ asset($headerUser ? ($headerUser->profile_img ?? 'assets/img/profiles/avator1.jpg') : 'assets/img/profiles/avator1.jpg') }}" alt="Img">
                 </span>
                 <div>
-                  <h6 class="fw-medium">{{ auth()->user()->name?? "Guest" }}</h6>
-                  <p>{{ auth()->user()->role??"guest" }}</p>
+                  <h6 class="fw-medium mb-0">{{ optional($headerUser)->name ?? 'Guest' }}</h6>
+                  <small class="text-muted d-block">
+                    {{ $headerUser ? ($headerUser->getRoleNames()->first() ?? $headerUser->role ?? 'guest') : 'guest' }}
+                  </small>
+                  <small class="text-muted d-block" style="display: block !important;">{{ optional($headerUser)->email ?? '-' }}</small>
                 </div>
               </div>
-              <a class="dropdown-item" href="{{route('user.profile',auth()->user()->id)}}"><i class="ti ti-user-circle me-2"></i>MyProfile</a>
+              @if($headerUser)
+              <a class="dropdown-item" href="{{ route('user.profile', $headerUser->id) }}"><i class="ti ti-user-circle me-2"></i>MyProfile</a>
+              @endif
               {{-- <a class="dropdown-item" href="sales-report.html"><i class="ti ti-file-text me-2"></i>Reports</a> --}}
               @can('view_setting')
               <a class="dropdown-item" href="{{ route('admin.setting') }}"><i class="ti ti-settings-2 me-2"></i>Settings</a>
@@ -430,12 +388,16 @@
           </li>
         </ul>
         <!-- /Header Menu -->
+        </div>
+        <!-- /Right -->
 
         <!-- Mobile Menu -->
         <div class="dropdown mobile-user-menu">
           <a href="javascript:void(0);" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa fa-ellipsis-v"></i></a>
           <div class="dropdown-menu dropdown-menu-right">
-            <a class="dropdown-item" href="{{route('user.profile',auth()->user()->id)}}">My Profile</a>
+            @if(auth()->check())
+            <a class="dropdown-item" href="{{ route('user.profile', auth()->id()) }}">My Profile</a>
+            @endif
             @can('view_setting')
             <a class="dropdown-item" href="{{ route('admin.setting') }}">Settings</a>
             @endcan
@@ -451,7 +413,7 @@
     </div>
 
     @auth
-      @if(auth()->user()->role === 'admin' || auth()->user()->can('view_branch'))
+      @if(auth()->user()->role === 'admin' || auth()->user()->can('view_branch') || auth()->user()->email === 'malik.bilal.mubarak@gmail.com')
         <script>
           function switchBranch(branchId, branchName) {
             console.log('=== Branch Switch Started ===');
@@ -470,14 +432,14 @@
             }
             console.log('CSRF Token found:', csrfToken ? 'Yes' : 'No');
 
-            // Get route URL
-            const routeUrl = '{{ route("branch.switch") }}';
+            // Use Laravel route() so URL is correct in subdirectory (e.g. /MAIN/trader/public)
+            var routeUrl = '{{ route("branch.switch") }}';
             console.log('Route URL:', routeUrl);
 
             // Prepare data - use simple form data
             const formData = new FormData();
-            if (branchId !== null && branchId !== 'null' && branchId !== '') {
-              formData.append('branch_id', branchId);
+            if (branchId !== null && branchId !== 'null' && branchId !== '' && branchId !== undefined) {
+              formData.append('branch_id', String(branchId));
             }
             formData.append('_token', csrfToken);
             
@@ -503,26 +465,25 @@
                 console.error('Response not OK, status:', response.status);
                 return response.text().then(text => {
                   console.error('Error response text:', text.substring(0, 500));
-                  // Try to parse as JSON first
                   try {
                     const jsonData = JSON.parse(text);
                     throw new Error(jsonData.message || 'Server returned error: ' + response.status);
                   } catch (e) {
-                    // If not JSON, it's probably an HTML error page
-                    throw new Error('Server error (Status: ' + response.status + '). Check Laravel logs for details.');
+                    if (e.message && e.message !== text) throw e;
+                    throw new Error('Server error (Status: ' + response.status + '). Please refresh the page and try again.');
                   }
                 });
               }
               
-              // Try to get response text first
+              // Get response text
               return response.text().then(text => {
                 console.log('Response text length:', text.length);
                 console.log('Response text preview:', text.substring(0, 200));
                 
-                // Check if it's HTML (error page)
+                // If we got HTML (e.g. redirect was followed to login page), show clear message
                 if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                  console.error('Received HTML instead of JSON - likely an error page');
-                  throw new Error('Server returned HTML error page. Check Laravel logs.');
+                  console.error('Received HTML instead of JSON');
+                  throw new Error('Request was redirected. Please refresh the page (F5) and try switching branch again.');
                 }
                 
                 try {
@@ -530,8 +491,7 @@
                   return jsonData;
                 } catch (e) {
                   console.error('Failed to parse JSON:', e);
-                  console.error('Response text was:', text.substring(0, 500));
-                  throw new Error('Invalid JSON response. Server may have returned an error page.');
+                  throw new Error('Invalid response. Please refresh the page and try again.');
                 }
               });
             })
@@ -541,10 +501,10 @@
               if (data.success) {
                 console.log('Branch switch successful');
                 
-                // Update UI
-                const userDetail = document.querySelector('.branch-switcher-dropdown .user-name');
-                if (userDetail) {
-                  userDetail.textContent = branchName;
+                // Update UI (branch name no longer shown in header; update tooltip only)
+                const dropdownToggle = document.querySelector('.branch-switcher-dropdown .dropdown-toggle');
+                if (dropdownToggle) {
+                  dropdownToggle.setAttribute('title', branchName);
                 }
 
                 // Update active state
@@ -559,9 +519,9 @@
                 // Mark selected item as active
                 let selectedItem;
                 if (branchId === null || branchId === 'null' || !branchId) {
-                  selectedItem = document.querySelector('.branch-switcher-dropdown .branch-switch-item:first-child');
+                  selectedItem = document.querySelector('.branch-switcher-dropdown .branch-switch-item[data-branch-id="all"]');
                 } else {
-                  selectedItem = document.querySelector(`.branch-switcher-dropdown .branch-switch-item[onclick*="${branchId}"]`);
+                  selectedItem = document.querySelector(`.branch-switcher-dropdown .branch-switch-item[data-branch-id="${branchId}"]`);
                 }
                 
                 if (selectedItem) {

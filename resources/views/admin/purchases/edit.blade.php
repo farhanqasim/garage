@@ -31,7 +31,7 @@
                                 <span class="fw-bold me-2 text-uppercase" style="font-size: 12px;">ACTIVE BRANCH:</span>
                                 <div class="dropdown">
                                     <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle fw-bold" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 14px;">
-                                        <span id="selectedBranchName">{{ $purchase->branch->branch_name ?? 'Select Branch' }}</span>
+                                        <span id="selectedBranchName">{{ optional($purchase->branch)->branch_name ?? 'Select Branch' }}</span>
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="branchDropdown">
                                         @foreach($branches as $branch)
@@ -67,14 +67,14 @@
                                         <span class="text-primary fw-bold" style="font-size: 16px;" id="purchase-number">Bill #{{ $purchase->invoice_no }}</span>
                                     </div>
                                     <div style="font-size: 13px; color: #6c757d;">
-                                        <span id="currentDateTime">{{ $purchase->purchase_date->format('d/m/Y, H:i:s') }}</span>
+                                        <span id="currentDateTime">{{ $purchase->purchase_date ? $purchase->purchase_date->format('d/m/Y, H:i:s') : '' }}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Hidden purchase date field -->
-                        <input type="hidden" name="purchase_date" id="purchase_date" value="{{ $purchase->purchase_date->format('Y-m-d') }}" required>
+                        <input type="hidden" name="purchase_date" id="purchase_date" value="{{ $purchase->purchase_date ? $purchase->purchase_date->format('Y-m-d') : '' }}" required>
 
                         <!-- Supplier/Customer Information -->
                         <div class="row mb-4">
@@ -100,18 +100,7 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NUMBER</label>
-                                <input type="text" id="supplier_mobile" name="supplier_mobile" class="form-control" placeholder="03xx..." style="border-radius: 6px;" value="{{ $purchase->supplier->phones[0] ?? '' }}">
-                            </div>
-                        </div>
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">ADDRESS</label>
-                                <input type="text" id="supplier_address" name="supplier_address" class="form-control" placeholder="Shop/House #" style="border-radius: 6px;" value="{{ $purchase->supplier->address ?? '' }}">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">AREA</label>
-                                <input type="text" id="supplier_area" name="supplier_area" class="form-control" placeholder="Location/City" style="border-radius: 6px;" value="{{ $purchase->supplier->area ?? '' }}">
+                                <input type="text" id="supplier_mobile" name="supplier_mobile" class="form-control" placeholder="03xx..." style="border-radius: 6px;" value="{{ data_get($purchase->supplier, 'phones.0', '') }}">
                             </div>
                         </div>
 
@@ -119,7 +108,7 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">REFERENCE</label>
-                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;" value="{{ $purchase->reference }}">
+                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;" value="{{ $purchase->reference ?? '' }}">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">STATUS</label>
@@ -134,14 +123,14 @@
                         <!-- Items Summary Section -->
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">ITEMS SUMMARY</h5>
-                            <div id="items-summary-container" class="text-center py-5" style="background: #f8f9fa; border-radius: 8px; min-height: 200px;">
+                            <div id="items-summary-container" class="py-5" style="background: #f8f9fa; border-radius: 8px; min-height: 200px;">
                                 @if($purchase->items->count() > 0)
                                 <div id="items-list">
                                     <div class="table-responsive">
                                         <table class="table table-bordered">
                                             <thead>
                                                 <tr>
-                                                    <th>Item</th>
+                                                    <th class="text-center">Item</th>
                                                     <th>Qty</th>
                                                     <th>Unit</th>
                                                     <th>Rate</th>
@@ -154,13 +143,52 @@
                                             <tbody id="items-tbody">
                                                 @foreach($purchase->items as $purchaseItem)
                                                 <tr data-item-id="{{ $purchaseItem->item_id }}" data-row-id="{{ $purchaseItem->id }}">
-                                                    <td>{{ $purchaseItem->item->name ?? $purchaseItem->item->bar_code }}</td>
-                                                    <td>{{ $purchaseItem->quantity }}</td>
-                                                    <td>{{ $purchaseItem->unit }}</td>
-                                                    <td>Rs {{ number_format($purchaseItem->rate, 2) }}</td>
-                                                    <td>Rs {{ number_format($purchaseItem->discount, 2) }}</td>
-                                                    <td>{{ number_format($purchaseItem->tax_percentage, 2) }}%</td>
-                                                    <td>Rs {{ number_format($purchaseItem->total_cost, 2) }}</td>
+                                                    @php
+                                                        $rowItem = $purchaseItem->item;
+                                                        $displayName = null;
+                                                        if ($rowItem) {
+                                                            if (strtolower(trim((string) ($rowItem->type ?? ''))) === 'battery') {
+                                                                $parts = [];
+                                                                $product = trim((string) optional($rowItem->product_item)->name);
+                                                                $plate = trim((string) optional($rowItem->plate_item)->name);
+                                                                $amp = trim((string) optional($rowItem->amphors_item)->name);
+                                                                $company = trim((string) optional($rowItem->company_item)->name);
+                                                                if ($product !== '') $parts[] = $product;
+                                                                if ($plate !== '') $parts[] = str_contains(strtoupper($plate), 'PL') ? $plate : ($plate.'PL');
+                                                                if ($amp !== '') $parts[] = str_contains(strtoupper($amp), 'AH') ? $amp : ($amp.'AH');
+                                                                if ($company !== '') $parts[] = $company;
+                                                                if (!empty($parts)) $displayName = implode(' • ', $parts);
+                                                            }
+                                                            if (!$displayName) {
+                                                                $displayName = trim(strip_tags((string) ($rowItem->short_disc ?? $rowItem->pro_dis ?? '')));
+                                                            }
+                                                            if ($displayName === '') {
+                                                                $displayName = $rowItem->bar_code ?? ('Item #'.$purchaseItem->item_id);
+                                                            }
+                                                        } else {
+                                                            $displayName = 'Item #'.$purchaseItem->item_id;
+                                                        }
+                                                    @endphp
+                                                    @php
+                                                        $rowImage = '';
+                                                        if ($rowItem && !empty($rowItem->image)) {
+                                                            $rowImage = str_starts_with((string) $rowItem->image, 'http') ? $rowItem->image : asset($rowItem->image);
+                                                        }
+                                                    @endphp
+                                                    <td class="text-center">
+                                                        <div class="d-flex align-items-center justify-content-center gap-2">
+                                                            @if($rowImage)
+                                                                <img src="{{ $rowImage }}" alt="{{ $displayName }}" style="width: 34px; height: 34px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                                            @endif
+                                                            <span>{{ $displayName }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>{{ $purchaseItem->quantity ?? 0 }}</td>
+                                                    <td>{{ $purchaseItem->unit ?? '' }}</td>
+                                                    <td>Rs {{ number_format($purchaseItem->rate ?? 0, 2) }}</td>
+                                                    <td>Rs {{ number_format($purchaseItem->discount ?? 0, 2) }}</td>
+                                                    <td>{{ number_format($purchaseItem->tax_percentage ?? 0, 2) }}%</td>
+                                                    <td>Rs {{ number_format($purchaseItem->total_cost ?? 0, 2) }}</td>
                                                     <td>
                                                         <button type="button" class="btn btn-sm btn-danger remove-item" data-row-id="{{ $purchaseItem->id }}">
                                                             <i class="ti ti-x"></i>
@@ -172,12 +200,12 @@
                                         </table>
                                     </div>
                                 </div>
-                                <div id="empty-items-state" style="display: none;">
+                                <div id="empty-items-state" class="text-center" style="display: none;">
                                     <i class="ti ti-package fs-48 text-muted mb-3" style="display: block;"></i>
                                     <p class="text-muted mb-0">ABHI KOI ITEM NAHI HAI</p>
                                 </div>
                                 @else
-                                <div id="empty-items-state">
+                                <div id="empty-items-state" class="text-center">
                                     <i class="ti ti-package fs-48 text-muted mb-3" style="display: block;"></i>
                                     <p class="text-muted mb-0">ABHI KOI ITEM NAHI HAI</p>
                                 </div>
@@ -186,7 +214,7 @@
                                         <table class="table table-bordered">
                                             <thead>
                                                 <tr>
-                                                    <th>Item</th>
+                                                    <th class="text-center">Item</th>
                                                     <th>Qty</th>
                                                     <th>Unit</th>
                                                     <th>Rate</th>
@@ -210,7 +238,7 @@
                             <div class="col-md-6 offset-md-6">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="fw-bold">GROSS AMOUNT</span>
-                                    <span class="fw-bold" id="gross-amount">Rs {{ number_format($purchase->subtotal, 2) }}</span>
+                                    <span class="fw-bold" id="gross-amount">Rs {{ number_format($purchase->subtotal ?? 0, 2) }}</span>
                                 </div>
                                 <div class="bg-primary text-white p-3 rounded mb-3">
                                     <div class="d-flex justify-content-between align-items-center">
@@ -218,16 +246,16 @@
                                             <div class="fw-bold fs-16">GRAND TOTAL</div>
                                             <div class="small">Total Payable Amount</div>
                                         </div>
-                                        <div class="fw-bold fs-24" id="grand-total">Rs {{ number_format($purchase->grand_total, 2) }}</div>
+                                        <div class="fw-bold fs-24" id="grand-total">Rs {{ number_format($purchase->grand_total ?? 0, 2) }}</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Hidden fields -->
-                        <input type="hidden" name="order_tax" id="order_tax" value="{{ $purchase->order_tax }}">
-                        <input type="hidden" name="discount" id="discount" value="{{ $purchase->discount }}">
-                        <input type="hidden" name="shipping" id="shipping" value="{{ $purchase->shipping }}">
+                        <input type="hidden" name="order_tax" id="order_tax" value="{{ $purchase->order_tax ?? 0 }}">
+                        <input type="hidden" name="discount" id="discount" value="{{ $purchase->discount ?? 0 }}">
+                        <input type="hidden" name="shipping" id="shipping" value="{{ $purchase->shipping ?? 0 }}">
 
                         <!-- Add Item Button -->
                         <div class="text-center mb-4">
@@ -627,20 +655,23 @@
 $(document).ready(function() {
     // Load existing items into purchaseItems array
     let purchaseItems = [];
+    let selectedPurchaseItemImage = '';
     let itemCounter = 0;
 
     @foreach($purchase->items as $purchaseItem)
     purchaseItems.push({
         id: itemCounter++,
         item_id: {{ $purchaseItem->item_id }},
-        name: '{{ addslashes($purchaseItem->item->name ?? $purchaseItem->item->bar_code) }}',
-        quantity: {{ $purchaseItem->quantity }},
-        unit: '{{ $purchaseItem->unit }}',
-        rate: {{ $purchaseItem->rate }},
-        discount: {{ $purchaseItem->discount }},
-        tax_percentage: {{ $purchaseItem->tax_percentage }},
-        tax_amount: {{ $purchaseItem->tax_amount }},
-        total: {{ $purchaseItem->total_cost }}
+        name: '{{ addslashes(optional($purchaseItem->item)->name ?? optional($purchaseItem->item)->bar_code ?? "Item #".$purchaseItem->item_id) }}',
+        image: '{{ addslashes((optional($purchaseItem->item) && !empty(optional($purchaseItem->item)->image)) ? (str_starts_with((string) optional($purchaseItem->item)->image, "http") ? optional($purchaseItem->item)->image : asset(optional($purchaseItem->item)->image)) : "") }}',
+        image_path: @json(optional($purchaseItem->item)->getRawOriginal('image')),
+        quantity: {{ $purchaseItem->quantity ?? 0 }},
+        unit: '{{ addslashes($purchaseItem->unit ?? "") }}',
+        rate: {{ $purchaseItem->rate ?? 0 }},
+        discount: {{ $purchaseItem->discount ?? 0 }},
+        tax_percentage: {{ $purchaseItem->tax_percentage ?? 0 }},
+        tax_amount: {{ $purchaseItem->tax_amount ?? 0 }},
+        total: {{ $purchaseItem->total_cost ?? 0 }}
     });
     @endforeach
 
@@ -1081,7 +1112,7 @@ $(document).ready(function() {
             method: 'GET',
             success: function(warehouse) {
                 if (warehouse && !warehouse.error) {
-                    $('#warehouseName').text(warehouse.warehouse_name + (warehouse.warehouse_code ? ' (' + warehouse.warehouse_code + ')' : ''));
+                    $('#warehouseName').text(warehouse.warehouse_name);
                     $('#warehouseItemsCount').text(warehouse.items_count || 0);
                     $('#branchWarehouseInfo').show();
                 } else {
@@ -1229,35 +1260,105 @@ $(document).ready(function() {
                                     </div>
                                 `;
                             } else if (result.type === 'item') {
-                                // Item result
+                                // Item result - battery display aligned with Create Sale
                                 const item = result.item;
-                                const itemName = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
+                                const itemType = (item.type || '').toString().toLowerCase();
                                 const partNumber = item.partnumber_item?.name || '';
                                 const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
                                 const model = item.vehical_item?.model_vehical?.name || '';
-                                
-                                let displayName = itemName;
-                                if (partNumber) displayName += ' - ' + partNumber;
-                                if (manufacturer) displayName += ' ' + manufacturer;
-                                if (model) displayName += ' ' + model;
-                                
+                                const company = item.company_item?.name || '';
+                                const product = item.product_item?.name || '';
+                                const plate = item.plate_item?.name || '';
+                                const amperes = item.amphors_item?.name || '';
+                                const volt = item.volt_item?.name || '';
+                                const cca = item.cca_item?.name || '';
+                                const barCode = item.bar_code || '';
+                                const shortDisc = (item.short_disc || '').trim();
+                                const proDis = (item.pro_dis || '').trim();
+                                const stock = parseFloat((result.stock ?? item.on_hand ?? 0)) || 0;
+                                const rate = item.packing_purchase_rate || item.total_price || 0;
+                                const baseUnit = item.unit || 'Unit';
+
+                                const esc = function(v) {
+                                    return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                };
+                                const isDummy = function(t) {
+                                    if (!t || t.length > 200) return true;
+                                    const lower = String(t).toLowerCase().trim();
+                                    return lower.indexOf('lorem') !== -1 || lower.indexOf('dummy') !== -1 || lower === 'test';
+                                };
+
+                                let productName = '';
+                                if (product && !isDummy(product)) productName = product.trim();
+                                if (!productName && shortDisc && !isDummy(shortDisc)) productName = shortDisc;
+                                if (!productName && proDis && !isDummy(proDis)) productName = proDis;
+                                if (!productName && partNumber) productName = partNumber;
+                                if (!productName) productName = 'Item #' + item.id;
+
+                                let firstLine = productName;
+                                let firstLineHtml = '<div class="fw-bold">' + esc(productName) + '</div>';
+                                let detailsHtml = '';
+                                if (itemType === 'battery') {
+                                    const seq = [];
+                                    if (productName) seq.push(productName);
+                                    if (plate) seq.push(plate + (String(plate).toUpperCase().includes('PL') ? '' : 'PL'));
+                                    if (amperes) seq.push(amperes + (String(amperes).toUpperCase().includes('AH') ? '' : 'AH'));
+                                    if (company && !isDummy(company)) seq.push(company);
+                                    if (seq.length > 0) {
+                                        firstLine = seq.join(' • ');
+                                        firstLineHtml = '<div class="battery-type-sequence fw-bold text-uppercase">' + esc(firstLine) + '</div>';
+                                    }
+                                    const bmeta = [];
+                                    if (volt) bmeta.push(String(volt).includes('V') ? volt : (volt + 'V'));
+                                    if (cca) bmeta.push(String(cca).toUpperCase().includes('CCA') ? cca : (cca + 'CCA'));
+                                    if (manufacturer && model) bmeta.push(manufacturer + ' ' + model);
+                                    if (bmeta.length > 0) {
+                                        detailsHtml = '<div class="small text-muted mt-1">' + esc(bmeta.join(' • ')) + '</div>';
+                                    }
+                                } else {
+                                    const details = [];
+                                    if (partNumber) details.push(partNumber);
+                                    if (manufacturer && model) details.push(manufacturer + ' ' + model);
+                                    if (details.length > 0) {
+                                        detailsHtml = '<div class="small text-muted mt-1">' + esc(details.join(' • ')) + '</div>';
+                                    }
+                                }
+
+                                const stockColor = stock > 10 ? 'success' : (stock > 0 ? 'secondary' : 'danger');
+                                const stockIcon = stock > 10 ? 'ti-check' : (stock > 0 ? '' : 'ti-x');
+                                const stockDisplay = stock % 1 === 0 ? Math.round(stock) : stock.toFixed(2);
+                                const line1Details = itemType === 'battery'
+                                    ? [company, volt ? (String(volt).includes('V') ? volt : volt + 'V') : ''].filter(Boolean).join(' • ')
+                                    : '';
+                                const displayName = firstLine;
+
                                 html += `
-                                    <div class="p-2 border-bottom item-search-result" 
+                                    <div class="p-3 border-bottom item-search-result" 
                                          data-type="item"
                                          data-id="${item.id}" 
-                                         data-name="${displayName.replace(/"/g, '&quot;')}"
-                                         data-rate="${item.packing_purchase_rate || 0}"
-                                         data-unit="${item.unit || 'Unit'}"
-                                         style="cursor: pointer; transition: background 0.2s; padding-left: 30px;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-package me-2 text-muted" style="font-size: 12px;"></i>
-                                            <div class="flex-grow-1">
-                                                <div class="fw-bold">${displayName}</div>
-                                                <div class="small text-muted">
-                                                    ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
-                                                    ${item.on_hand ? ' | Stock: ' + item.on_hand : ''}
-                                                    ${result.warehouse_id ? ' | Warehouse ID: ' + result.warehouse_id : ''}
-                                                </div>
+                                         data-name="${esc(displayName)}"
+                                         data-first-line="${esc(firstLine)}"
+                                         data-line1-details="${esc(line1Details)}"
+                                         data-item-type="${esc(itemType)}"
+                                         data-code="${esc(barCode)}"
+                                         data-volt="${esc(volt)}"
+                                         data-cca="${esc(cca)}"
+                                         data-rate="${rate}"
+                                         data-unit="${esc(baseUnit)}"
+                                         data-warehouse-id="${result.warehouse_id || ''}"
+                                         data-image="${esc(item.image || '')}"
+                                         style="cursor: pointer; transition: background 0.2s;">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1 me-3">
+                                                ${firstLineHtml}
+                                                ${detailsHtml}
+                                                ${barCode ? '<div class="text-primary small fw-semibold mt-1"><i class="ti ti-barcode me-1"></i>' + esc(barCode) + '</div>' : ''}
+                                            </div>
+                                            <div class="text-end" style="min-width: 110px;">
+                                                <div class="fw-bold text-primary mb-1">Rs ${parseFloat(rate).toFixed(2)}</div>
+                                                <span class="badge bg-${stockColor} bg-opacity-10 text-${stockColor} px-2 py-1" style="font-size: 0.8rem;">
+                                                    ${stockIcon ? '<i class="ti ' + stockIcon + ' me-1"></i>' : ''}${stockDisplay} ${itemType === 'battery' ? 'Piece' : esc(baseUnit)}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -1300,14 +1401,18 @@ $(document).ready(function() {
             // Select item - load full details to get total_price and warehouse
             const itemId = resultId;
             const itemName = $(this).data('name');
+            const itemFirstLine = $(this).data('first-line') || itemName;
+            const itemType = (($(this).data('item-type') || '') + '').toLowerCase();
             const itemRate = $(this).data('rate');
             const itemUnit = $(this).data('unit');
             const warehouseId = $(this).closest('.item-search-result').data('warehouse-id');
+            const itemImage = $(this).closest('.item-search-result').data('image') || '';
             
-            $('#item-search').val(itemName);
+            $('#item-search').val(itemFirstLine);
             $('#selected-item-id').val(itemId);
-            $('#item-unit').val(itemUnit || 'Unit');
+            $('#item-unit').val(itemType === 'battery' ? 'Piece' : (itemUnit || 'Unit'));
             $('#item-search-results').hide();
+            selectedPurchaseItemImage = itemImage;
             
             // Load full item details to get total_price and warehouse
             $.ajax({
@@ -1317,6 +1422,10 @@ $(document).ready(function() {
                     // Use total_price if available, otherwise use rate
                     const itemRate = response.total_price || response.rate || itemRate || 0;
                     $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                    if (((response.type || itemType || '') + '').toLowerCase() === 'battery') {
+                        $('#item-unit').val('Piece');
+                    }
+                    selectedPurchaseItemImage = response.image || selectedPurchaseItemImage || '';
                     
                     // Auto-select warehouse if available (from response or from search result)
                     const finalWarehouseId = response.warehouse_id || warehouseId;
@@ -1336,6 +1445,7 @@ $(document).ready(function() {
                     if (warehouseId) {
                         $('#selected-warehouse-id').val(warehouseId);
                     }
+                    selectedPurchaseItemImage = selectedPurchaseItemImage || '';
                     loadItemStockStatus(itemId);
                     loadCustomerHistory(itemId);
                 }
@@ -1566,6 +1676,7 @@ $(document).ready(function() {
             id: itemCounter++,
             item_id: itemId,
             name: itemName,
+            image: selectedPurchaseItemImage || '',
             quantity: quantity,
             unit: unit,
             rate: rate,
@@ -1583,13 +1694,66 @@ $(document).ready(function() {
         calculateTotals();
     });
 
+    function purchaseEditNormalizeImageUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        var u = url.trim();
+        if (u.indexOf('http://') === 0 || u.indexOf('https://') === 0) return u;
+        if (u.indexOf('/') === 0) return u;
+        return '/' + u;
+    }
+    function purchaseEditDefaultPlaceholderUrl() {
+        return '{{ asset('assets/img/icons/image.svg') }}';
+    }
+    function purchaseEditIsNoProductImageUrl(url) {
+        if (!url || typeof url !== 'string') return true;
+        var u = url.trim();
+        if (!u) return true;
+        var def = purchaseEditDefaultPlaceholderUrl();
+        var stripQ = function(s) { return String(s).replace(/\?.*$/, ''); };
+        if (stripQ(u) === stripQ(def)) return true;
+        if (u.toLowerCase().indexOf('assets/img/icons/image.svg') !== -1) return true;
+        var nu = purchaseEditNormalizeImageUrl(u);
+        if (nu && stripQ(nu) === stripQ(def)) return true;
+        return false;
+    }
+    /** Same field order as purchase create: image, photo, image_path, images[0] */
+    function resolvePurchaseEditThumbUrl(item) {
+        if (!item) return '';
+        var list = [];
+        if (item.image && typeof item.image === 'string') list.push(item.image);
+        if (item.photo && typeof item.photo === 'string') list.push(item.photo);
+        if (item.image_path && typeof item.image_path === 'string') list.push(item.image_path);
+        if (item.images && Array.isArray(item.images) && item.images.length && typeof item.images[0] === 'string') {
+            list.push(item.images[0]);
+        }
+        for (var i = 0; i < list.length; i++) {
+            var c = list[i].trim();
+            if (!c) continue;
+            if (purchaseEditIsNoProductImageUrl(c)) continue;
+            var n = purchaseEditNormalizeImageUrl(c);
+            if (!n || purchaseEditIsNoProductImageUrl(n)) continue;
+            return n;
+        }
+        return '';
+    }
+
     function addItemToTable(item) {
         $('#empty-items-state').hide();
         $('#items-list').show();
         
+        const thumbUrl = resolvePurchaseEditThumbUrl(item);
+        const esc = function(s) { return String(s || '').replace(/"/g, '&quot;'); };
+        const imageHtml = thumbUrl
+            ? `<img src="${esc(thumbUrl)}" alt="${esc(item.name)}" class="flex-shrink-0" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb;" onerror="this.onerror=null;this.src='{{ asset('assets/img/icons/image.svg') }}'">`
+            : `<span class="d-inline-flex align-items-center justify-content-center bg-light border flex-shrink-0 text-muted" style="width: 48px; height: 48px; border-radius: 8px;"><i class="ti ti-photo" style="font-size: 1.2rem;"></i></span>`;
         const row = `
             <tr data-item-id="${item.item_id}" data-row-id="${item.id}">
-                <td>${item.name}</td>
+                <td class="text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        ${imageHtml}
+                        <span>${item.name}</span>
+                    </div>
+                </td>
                 <td>${item.quantity}</td>
                 <td>${item.unit}</td>
                 <td>Rs ${parseFloat(item.rate).toFixed(2)}</td>

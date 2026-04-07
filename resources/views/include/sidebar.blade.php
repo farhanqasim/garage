@@ -250,6 +250,12 @@
                                 <span>Cash Transactions History</span></a>
                         </li>
                         @endcan
+                        @canany(['view_cash_accounts', 'view_bank_transactions', 'view_bank_accounts'])
+                        <li><a href="{{ route('admin.reports.cash-ledger') }}">
+                                <i class="ti ti-cash fs-16 me-2"></i>
+                                <span>Cash Ledger Report</span></a>
+                        </li>
+                        @endcanany
                         <li><a href="{{ route('admin.payments.index') }}">
                                 <i class="ti ti-wallet fs-16 me-2"></i>
                                 <span>Payments</span></a>

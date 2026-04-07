@@ -24,6 +24,29 @@
     .card-body {
         background-color: #ffffff !important;
     }
+
+    /* Service details list - highlight */
+    #serviceDetailsDisplayList {
+        background: linear-gradient(135deg, #fef9e7 0%, #fef3cd 100%) !important;
+        border: 1px solid #f0c674 !important;
+        border-left: 4px solid #e8a317 !important;
+        padding: 0.6rem 0.75rem !important;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px rgba(232, 163, 23, 0.15);
+    }
+
+    /* Product Name / Part Number: quality count badges (clickable) */
+    .quality-stat-badge {
+        cursor: pointer;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    .quality-stat-badge:hover,
+    .quality-stat-badge:focus {
+        opacity: 0.92;
+        transform: translateY(-1px);
+        outline: none;
+        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.35);
+    }
     
     /* Add Vehicle modal: modal width = input width on every screen */
     #itemVehicleAddModal .modal-dialog {
@@ -830,7 +853,7 @@
                 </ul>
             </div>
             @endif
-            <form method="POST" action="{{ route('all.items.store') }}" enctype="multipart/form-data" id="mainItemForm">
+            <form method="POST" action="{{ route('all.items.store') }}" enctype="multipart/form-data" id="mainItemForm" novalidate>
                 @csrf
                 <input type="hidden" name="user_id" value="{{ auth()->check() ? auth()->user()->id : '' }}">
                 <input type="hidden" name="action" id="mainFormAction" value="save_new">
@@ -907,6 +930,7 @@
                     <!-- Hidden inputs to ensure quality_id and technology are submitted even when fields are hidden -->
                     <input type="hidden" name="quality_id" id="hidden_quality_id" value="">
                     <input type="hidden" name="technology" id="hidden_technology" value="">
+                    <input type="hidden" name="series_id" id="hidden_series_id" value="">
                     <div class="row" id="itemFormsContainer">
                         <!-- COMMON FIELDS (Visible after type selection) -->
                         <div class="col-md-12 field-group" :class="{ 'active': selectedType }">
@@ -938,15 +962,12 @@
                             <div class="input-group inputswidth">
                                 <select
                                     class="form-control part_number-select searchable-select @error('part_number_id') is-invalid @enderror"
-                                    name="part_number_id" 
-                                    id="part_number_id">
+                                    name="part_number_id"
+                                    id="part_number_id"
+                                    data-placeholder="Select Part Number">
                                     <option value="">Select Part Number</option>
-                                    @foreach ($partnumbers as $partnumber)
-                                    <option value="{{ $partnumber->id??'' }}" 
-                                        data-type="{{ $partnumber->type ?? '' }}"
-                                        {{ old('part_number_id')==$partnumber->id ? 'selected' : '' }}>
-                                        {{ $partnumber->name ?? '-' }}
-                                    </option>
+                                    @foreach($partnumbers as $partnumber)
+                                    <option value="{{ $partnumber->id }}" {{ old('part_number_id') == $partnumber->id ? 'selected' : '' }}>{{ $partnumber->name }}</option>
                                     @endforeach
                                 </select>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
@@ -966,7 +987,7 @@
                                     x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' || selectedType === 'battery' || selectedType === 'scrap'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Product Name: <span class="text-danger">*</span></label>
+                                            <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Product Name:</label>
                                             <div id="productNameStats" class="d-flex gap-1 ms-2 flex-wrap" style="display: none !important;">
                                                 <!-- Quality counts shown when product is selected -->
                                             </div>
@@ -975,14 +996,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control name-select searchable-select @error('p_id') is-invalid @enderror"
-                                            name="p_id" id="product_name_item">
+                                            name="p_id" id="product_name_item"
+                                            data-placeholder="Select Product Name">
                                             <option value="">Select Product Name</option>
-                                            @foreach ($product as $item)
-                                            <option value="{{ $item->id }}" 
-                                                data-type="{{ $item->type ?? '' }}"
-                                                {{ old('p_id')==$item->id ? 'selected' : '' }}>
-                                                {{ $item->name }}
-                                            </option>
+                                            @foreach($product as $prod)
+                                            <option value="{{ $prod->id }}" {{ old('p_id') == $prod->id ? 'selected' : '' }}>{{ $prod->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1015,6 +1033,8 @@
                                                     <option value="{{ $category->id }}" 
                                                         data-type="{{ $category->type ?? '' }}"
                                                         data-scrap-measurement="{{ $category->scrap_measurement ?? 'weight' }}"
+                                                        data-scrap-weight-label="{{ $category->scrap_weight_label ?? 'KG' }}"
+                                                        data-scrap-count-label="{{ $category->scrap_count_label ?? 'count' }}"
                                                         data-image="{{ $category->image ? asset($category->image) : '' }}"
                                                         {{ old('category_id')==$category->id ? 'selected' : '' }}>
                                                         {{ $category->name }}
@@ -1031,9 +1051,6 @@
                                                 </button>
                                             </div>
                                             @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                        <div id="categoryImageDisplay" class="flex-shrink-0" style="display:none;">
-                                            <img id="categoryImageImg" src="" alt="Category" class="rounded border" style="width:60px;height:60px;object-fit:cover;">
                                         </div>
                                     </div>
                                 </div>
@@ -1053,13 +1070,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control group-select searchable-select @error('group') is-invalid @enderror"
-                                            name="group" id="group_select">
+                                            name="group" id="group_select"
+                                            data-placeholder="Select Group Name">
                                             <option value="">Select Group Name</option>
-                                            @foreach ($groups as $group)
-                                            <option value="{{ $group->id }}" {{ old('group')==$group->id ?
-                                                'selected' : '' }}>
-                                                {{ $group->name }}
-                                            </option>
+                                            @foreach($groups as $group)
+                                            <option value="{{ $group->id }}" {{ old('group') == $group->id ? 'selected' : '' }}>{{ $group->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1085,14 +1100,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control company-select searchable-select @error('company_id') is-invalid @enderror"
-                                            name="company_id" id="company_parts">
+                                            name="company_id" id="company_parts"
+                                            data-placeholder="Select Company">
                                             <option value="">Select Company</option>
-                                            @foreach ($Companies as $company)
-                                            <option value="{{ $company->id }}" 
-                                                data-type="{{ $company->type ?? '' }}"
-                                                {{ old('company_id')==$company->id ? 'selected' : '' }}>
-                                                {{ $company->name }}
-                                            </option>
+                                            @foreach($Companies as $company)
+                                            <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1106,20 +1118,17 @@
                                     </div>
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <!-- Technology - visible for Battery and Oil -->
-                                <div class="col-md-4 mb-3" x-show="selectedType === 'battery' || selectedType === 'oil'">
+                                <!-- Technology - visible for Battery and Oil, or when no categories exist -->
+                                <div class="col-md-4 mb-3" id="technology_field_wrapper" x-show="selectedType === 'battery' || selectedType === 'oil' || categoriesEmpty">
                                     <label for="technology_select">Technology:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control technology-select searchable-select @error('technology') is-invalid @enderror"
-                                            name="technology" id="technology_select">
+                                            name="technology" id="technology_select"
+                                            data-placeholder="Select">
                                             <option value="">Select</option>
-                                            @foreach ($technologies as $tech)
-                                            <option value="{{ $tech->id }}" 
-                                                data-type="{{ $tech->type ?? '' }}"
-                                                {{ old('technology')==$tech->id ? 'selected' : '' }}>
-                                                {{ $tech->name }}
-                                            </option>
+                                            @foreach($technologies as $tech)
+                                            <option value="{{ $tech->id }}" {{ old('technology') == $tech->id ? 'selected' : '' }}>{{ $tech->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1134,6 +1143,34 @@
                                     </div>
 
                                     @error('technology')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <!-- Series - visible for Battery and Oil, or when no categories exist -->
+                                <div class="col-md-4 mb-3" id="series_field_wrapper" x-show="selectedType === 'battery' || selectedType === 'oil' || categoriesEmpty">
+                                    <label for="series_select">Series:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control series-select searchable-select @error('series_id') is-invalid @enderror"
+                                            name="series_id" id="series_select"
+                                            data-placeholder="Select">
+                                            <option value="">Select</option>
+                                            @foreach($series as $ser)
+                                            <option value="{{ $ser->id }}" {{ old('series_id') == $ser->id ? 'selected' : '' }}>{{ $ser->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit"
+                                            data-title="Edit Series"
+                                            data-fetch-route="{{ route('show.series', ':id') }}"
+                                            data-update-route="{{ route('update.series', ':id') }}"
+                                            data-delete-route="{{ route('destory.series', ':id') }}"
+                                            data-target-select=".series-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+
+                                    @error('series_id')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -1153,14 +1190,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
-                                            name="quality_id" id="quality">
+                                            name="quality_id" id="quality"
+                                            data-placeholder="Select Quality">
                                             <option value="">Select Quality</option>
-                                            @foreach ($qualities as $item)
-                                            <option value="{{ $item->id }}" 
-                                                data-type="{{ $item->type ?? '' }}"
-                                                {{ old('quality_id')==$item->id ? 'selected' : '' }}>
-                                                {{ $item->name }}
-                                            </option>
+                                            @foreach($qualities as $qaul)
+                                            <option value="{{ $qaul->id }}" {{ old('quality_id') == $qaul->id ? 'selected' : '' }}>{{ $qaul->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1178,453 +1212,6 @@
                             </div>
                         </div>
 
-                        <!-- Weight & Unit row (under Quality) -->
-                        <div class="row p-3 mt-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                        <!-- Weight & Unit (combined): Product Name style – input-group with Edit & Clear icon buttons -->
-                        <div class="col-md-6 mt-3 weight-unit-block"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="weight" class="d-block mb-1">Weight &amp; unit</label>
-                            <div class="input-group inputswidth">
-                                <div class="d-flex align-items-center border rounded flex-grow-1" style="min-width: 120px;">
-                                    <input type="number" step="0.01" class="form-control border-0 @error('weight_for_delivery') is-invalid @enderror" style="max-width: 90px;"
-                                        name="weight_for_delivery" id="weight" value="{{ old('weight_for_delivery') }}" placeholder="Weight" />
-                                    <span class="px-2 text-muted d-none" id="weight_unit_separator"> </span>
-                                    <span id="weight_unit_display" class="d-none align-middle px-2 text-nowrap fw-medium bg-light rounded" style="min-width: 2.5rem;"></span>
-                                    <select class="form-control form-select border-0 d-none" id="weight_unit_select" style="max-width: 200px; min-width: 120px; font-weight: 600;" title="Select unit">
-                                        <option value="">— Select unit —</option>
-                                        <optgroup label="Metric">
-                                            <option value="mg">Milligram (mg)</option>
-                                            <option value="g">Gram (g)</option>
-                                            <option value="kg">Kilogram (kg)</option>
-                                            <option value="ml">MilliLiter (ml)</option>
-                                            <option value="quintal">Quintal (100 kg)</option>
-                                            <option value="tonne">Metric Ton / Tonne (t)</option>
-                                        </optgroup>
-                                        <optgroup label="Imperial / Other">
-                                            <option value="oz">Ounce (oz)</option>
-                                            <option value="lb">Pound (lb)</option>
-                                            <option value="stone">Stone</option>
-                                            <option value="ton_us">Ton (US)</option>
-                                            <option value="ton_uk">Ton (UK)</option>
-                                        </optgroup>
-                                    </select>
-                                    <input type="text" class="form-control border-0 d-none" id="weight_unit_edit_input" placeholder="Or type / rename unit" style="max-width: 100px;" title="Type to rename unit" />
-                                </div>
-                                <button type="button" id="weight_unit_edit_btn" class="btn btn-secondary d-none" title="Edit unit"><i data-feather="edit"></i></button>
-                                <button type="button" id="weight_unit_delete_btn" class="btn btn-outline-secondary d-none" title="Remove weight &amp; unit"><i data-feather="x"></i></button>
-                            </div>
-                            <input type="hidden" name="weight_unit" id="weight_unit" value="{{ old('weight_unit') }}" />
-                            <span id="weight_unit_actions" class="d-flex align-items-center gap-1 flex-wrap mt-1">
-                                <button type="button" id="weight_unit_add_btn" class="btn btn-sm btn-success d-none">Add</button>
-                                <button type="button" id="weight_unit_add_new_btn" class="btn btn-sm btn-outline-success d-none" title="Add new unit (e.g. Kilograms, Bag)"><i data-feather="plus" style="width:14px;height:14px;"></i> Add unit</button>
-                                <button type="button" id="weight_unit_update_btn" class="btn btn-sm btn-primary d-none">Update</button>
-                                <button type="button" id="weight_unit_cancel_btn" class="btn btn-sm btn-outline-secondary d-none">Cancel</button>
-                            </span>
-                            @error('weight_for_delivery') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                            @error('weight_unit') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                        </div>
-                        <script>
-                        (function() {
-                            function getBlock() {
-                                return document.querySelector('.weight-unit-block');
-                            }
-                            function el(id) {
-                                var b = getBlock();
-                                return b ? b.querySelector('#' + id) || document.getElementById(id) : document.getElementById(id);
-                            }
-                            var VALUE_TO_SHORT = { mg:'MG', g:'G', kg:'KG', ml:'ML', quintal:'Q', tonne:'T', oz:'OZ', lb:'LB', stone:'ST', ton_us:'T-US', ton_uk:'T-UK' };
-                            function shortForValue(v) { return (v && VALUE_TO_SHORT[v]) ? VALUE_TO_SHORT[v] : (v || ''); }
-
-                            function runWhenReady() {
-                                var weightInput = el('weight');
-                                var weightUnitHidden = el('weight_unit');
-                                if (!weightInput || !weightUnitHidden) return;
-                                var weightUnitDisplay = el('weight_unit_display');
-                                var weightUnitSelect = el('weight_unit_select');
-                                var weightUnitEditInput = el('weight_unit_edit_input');
-                                var separator = el('weight_unit_separator');
-                                var actionsWrap = el('weight_unit_actions');
-                                var addBtn = el('weight_unit_add_btn');
-                                var editBtn = el('weight_unit_edit_btn');
-                                var updateBtn = el('weight_unit_update_btn');
-                                var cancelBtn = el('weight_unit_cancel_btn');
-                                var deleteBtn = el('weight_unit_delete_btn');
-                                if (!actionsWrap) return;
-
-                                var selectedUnit = (weightUnitHidden.value || '').trim();
-                                var isEditingUnit = false;
-
-                                function setStoredUnit(val) {
-                                    selectedUnit = (val || '').trim();
-                                    weightUnitHidden.value = selectedUnit;
-                                }
-
-                                var addNewUnitBtn = el('weight_unit_add_new_btn');
-
-                                function showDisplay() {
-                                    weightUnitDisplay.classList.remove('d-none');
-                                    weightUnitSelect.classList.add('d-none');
-                                    weightUnitEditInput.classList.add('d-none');
-                                    if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
-                                    if (separator) separator.classList.remove('d-none');
-                                    weightUnitDisplay.textContent = shortForValue(selectedUnit.toLowerCase()) || shortForValue(selectedUnit) || selectedUnit;
-                                }
-                                function showSelect() {
-                                    weightUnitDisplay.classList.add('d-none');
-                                    weightUnitSelect.classList.remove('d-none');
-                                    weightUnitEditInput.classList.remove('d-none');
-                                    if (weightUnitEditInput) {
-                                        weightUnitEditInput.placeholder = 'Or type / rename unit';
-                                        weightUnitEditInput.value = shortForValue(selectedUnit) || selectedUnit || '';
-                                    }
-                                    if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                    if (separator) separator.classList.remove('d-none');
-                                }
-                                function hideUnitArea() {
-                                    weightUnitDisplay.classList.add('d-none');
-                                    weightUnitSelect.classList.add('d-none');
-                                    weightUnitEditInput.classList.add('d-none');
-                                    if (separator) separator.classList.add('d-none');
-                                }
-
-                                function updateButtons() {
-                                    if (isEditingUnit) {
-                                        addBtn.classList.add('d-none'); editBtn.classList.add('d-none');
-                                        deleteBtn.classList.add('d-none');
-                                        if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                        updateBtn.classList.remove('d-none'); cancelBtn.classList.remove('d-none');
-                                    } else {
-                                        updateBtn.classList.add('d-none'); cancelBtn.classList.add('d-none');
-                                        if (selectedUnit) {
-                                            addBtn.classList.add('d-none');
-                                            editBtn.classList.remove('d-none');
-                                            if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                            if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
-                                        } else {
-                                            editBtn.classList.add('d-none');
-                                            if (deleteBtn) deleteBtn.classList.add('d-none');
-                                            addBtn.classList.remove('d-none');
-                                            if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                        }
-                                    }
-                                }
-
-                                var lookupUrl = '{{ route("items.weight.unit.lookup") }}';
-                                var debounceTimer;
-                                weightInput.addEventListener('input', function() {
-                                clearTimeout(debounceTimer);
-                                var val = (weightInput.value || '').trim();
-                                if (val === '') {
-                                    setStoredUnit('');
-                                    hideUnitArea();
-                                    weightUnitSelect.value = '';
-                                    addBtn.classList.add('d-none');
-                                    editBtn.classList.add('d-none');
-                                    if (deleteBtn) deleteBtn.classList.add('d-none');
-                                    actionsWrap.classList.add('d-none');
-                                    return;
-                                }
-                                        actionsWrap.classList.remove('d-none');
-                                        if (selectedUnit) {
-                                            showDisplay();
-                                            updateButtons();
-                                            return;
-                                        }
-                                        showSelect();
-                                        addBtn.classList.remove('d-none');
-                                        editBtn.classList.add('d-none');
-                                        debounceTimer = setTimeout(function() {
-                                    fetch(lookupUrl + '?weight=' + encodeURIComponent(val))
-                                        .then(function(r) { return r.json(); })
-                                        .then(function(data) {
-                                            var matches = (data && data.matches) ? data.matches : [];
-                                                    if (matches.length > 0 && !selectedUnit) {
-                                                        var u = matches[0].unit;
-                                                        setStoredUnit(u);
-                                                        if (VALUE_TO_SHORT[u]) weightUnitSelect.value = u; else weightUnitSelect.value = '';
-                                                        showDisplay();
-                                                        editBtn.classList.remove('d-none');
-                                                        addBtn.classList.add('d-none');
-                                                    } else if (!selectedUnit) {
-                                                        showSelect();
-                                                        addBtn.classList.remove('d-none');
-                                                        editBtn.classList.add('d-none');
-                                                    }
-                                                })
-                                                .catch(function() {
-                                                    if (!selectedUnit) { showSelect(); addBtn.classList.remove('d-none'); editBtn.classList.add('d-none'); }
-                                                });
-                                        }, 300);
-                                    });
-
-                            addBtn.addEventListener('click', function() {
-                                showSelect();
-                                weightUnitSelect.focus();
-                            });
-                            function getSelectedOptionText() {
-                                var opt = weightUnitSelect.options[weightUnitSelect.selectedIndex];
-                                return opt ? (opt.textContent || opt.text || '').trim() : '';
-                            }
-                            weightUnitSelect.addEventListener('change', function() {
-                                var v = (weightUnitSelect.value || '').trim();
-                                if (v) {
-                                    var fullName = getSelectedOptionText();
-                                    if (weightUnitEditInput) weightUnitEditInput.value = fullName || shortForValue(v) || v;
-                                    setStoredUnit(fullName || v);
-                                    weightUnitHidden.value = fullName || v;
-                                    showDisplay();
-                                    if (isEditingUnit) {
-                                        isEditingUnit = false;
-                                        updateButtons();
-                                    }
-                                    editBtn.classList.remove('d-none');
-                                    addBtn.classList.add('d-none');
-                                    if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                }
-                            });
-
-                            var weightUnitModal = document.getElementById('weight-unit-edit-modal');
-                            var modalWeightInput = document.getElementById('weight_unit_modal_weight');
-                            var modalUnitSelect = document.getElementById('weight_unit_modal_unit');
-                            var modalUnitCustomInput = document.getElementById('weight_unit_modal_unit_custom');
-                            var modalUpdateBtn = document.getElementById('weight_unit_modal_update');
-                            var modalDeleteBtn = document.getElementById('weight_unit_modal_delete');
-
-                            function getModalUnitValue() {
-                                if (!modalUnitSelect) return '';
-                                var v = (modalUnitSelect.value || '').trim();
-                                if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
-                                return v;
-                            }
-                            function getModalUnitDisplayValue() {
-                                if (!modalUnitSelect) return '';
-                                var v = (modalUnitSelect.value || '').trim();
-                                if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
-                                var opt = modalUnitSelect.options[modalUnitSelect.selectedIndex];
-                                return opt ? (opt.textContent || opt.text || '').trim() || v : v;
-                            }
-                            function setModalUnitFromValue(unitStr) {
-                                if (!modalUnitSelect) return;
-                                var u = (unitStr || '').trim();
-                                if (!u) {
-                                    modalUnitSelect.value = '';
-                                    if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                    return;
-                                }
-                                var byVal = modalUnitSelect.querySelector('option[value="' + u.replace(/"/g, '&quot;') + '"]') || modalUnitSelect.querySelector('option[value="' + u.toLowerCase().replace(/"/g, '&quot;') + '"]');
-                                if (byVal) {
-                                    modalUnitSelect.value = byVal.value;
-                                    if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                    return;
-                                }
-                                var opts = modalUnitSelect.querySelectorAll('option[value]');
-                                for (var i = 0; i < opts.length; i++) {
-                                    if ((opts[i].textContent || opts[i].text || '').trim() === u) {
-                                        modalUnitSelect.value = opts[i].value;
-                                        if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                        return;
-                                    }
-                                }
-                                modalUnitSelect.value = '__custom__';
-                                if (modalUnitCustomInput) { modalUnitCustomInput.value = u; modalUnitCustomInput.style.display = 'block'; }
-                            }
-                            function openWeightUnitModal() {
-                                if (modalWeightInput) modalWeightInput.value = (weightInput.value || '').trim();
-                                setModalUnitFromValue(selectedUnit);
-                                if (weightUnitModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getOrCreateInstance(weightUnitModal);
-                                    m.show();
-                                    setTimeout(function() { if (modalWeightInput) modalWeightInput.focus(); }, 300);
-                                }
-                            }
-
-                            if (modalUnitSelect && modalUnitCustomInput) {
-                                modalUnitSelect.addEventListener('change', function() {
-                                    modalUnitCustomInput.style.display = modalUnitSelect.value === '__custom__' ? 'block' : 'none';
-                                    if (modalUnitSelect.value !== '__custom__') modalUnitCustomInput.value = '';
-                                });
-                            }
-
-                            function setDropdownByUnit(unitStr) {
-                                if (!unitStr) return;
-                                var u = (unitStr || '').trim();
-                                var byVal = weightUnitSelect.querySelector('option[value="' + u + '"]') || weightUnitSelect.querySelector('option[value="' + u.toLowerCase() + '"]');
-                                if (byVal) { weightUnitSelect.value = byVal.value; return; }
-                                var opts = weightUnitSelect.querySelectorAll('option[value]');
-                                for (var i = 0; i < opts.length; i++) {
-                                    if ((opts[i].textContent || opts[i].text || '').trim() === u) {
-                                        weightUnitSelect.value = opts[i].value;
-                                        return;
-                                    }
-                                }
-                            }
-                            editBtn.addEventListener('click', function() {
-                                openWeightUnitModal();
-                            });
-
-                            function closeWeightUnitModal() {
-                                if (weightUnitModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getInstance(weightUnitModal);
-                                    if (m) m.hide();
-                                }
-                            }
-
-                            if (modalUpdateBtn) modalUpdateBtn.addEventListener('click', function() {
-                                var w = (modalWeightInput && modalWeightInput.value !== undefined) ? (modalWeightInput.value || '').trim() : '';
-                                var u = getModalUnitDisplayValue();
-                                if (w !== '') weightInput.value = w;
-                                if (u) {
-                                    setStoredUnit(u);
-                                    weightUnitHidden.value = u;
-                                }
-                                showDisplay();
-                                updateButtons();
-                                closeWeightUnitModal();
-                            });
-
-                            if (modalDeleteBtn) modalDeleteBtn.addEventListener('click', function() {
-                                setStoredUnit('');
-                                weightUnitHidden.value = '';
-                                weightInput.value = '';
-                                weightUnitSelect.value = '';
-                                hideUnitArea();
-                                addBtn.classList.add('d-none');
-                                editBtn.classList.add('d-none');
-                                if (deleteBtn) deleteBtn.classList.add('d-none');
-                                updateBtn.classList.add('d-none');
-                                cancelBtn.classList.add('d-none');
-                                actionsWrap.classList.add('d-none');
-                                closeWeightUnitModal();
-                            });
-
-                            updateBtn.addEventListener('click', function() {
-                                var customVal = (weightUnitEditInput && weightUnitEditInput.value) ? (weightUnitEditInput.value || '').trim() : '';
-                                var v = customVal !== '' ? customVal : getSelectedOptionText() || (weightUnitSelect.value || '').trim();
-                                if (v) {
-                                    setStoredUnit(v);
-                                    weightUnitHidden.value = v;
-                                }
-                                isEditingUnit = false;
-                                showDisplay();
-                                updateButtons();
-                            });
-                            cancelBtn.addEventListener('click', function() {
-                                isEditingUnit = false;
-                                showDisplay();
-                                updateButtons();
-                            });
-                            if (deleteBtn) deleteBtn.addEventListener('click', function() {
-                                setStoredUnit('');
-                                weightUnitHidden.value = '';
-                                weightInput.value = '';
-                                weightUnitSelect.value = '';
-                                hideUnitArea();
-                                addBtn.classList.add('d-none');
-                                editBtn.classList.add('d-none');
-                                if (deleteBtn) deleteBtn.classList.add('d-none');
-                                updateBtn.classList.add('d-none');
-                                cancelBtn.classList.add('d-none');
-                                actionsWrap.classList.add('d-none');
-                            });
-
-                            var addNewModal = document.getElementById('weight-unit-add-new-modal');
-                            var newNameInput = document.getElementById('weight_unit_new_name');
-                            var newNameError = document.getElementById('weight_unit_new_name_error');
-                            var addNewModalBtn = document.getElementById('weight_unit_add_new_modal_btn');
-
-                            function ensureCustomOptgroup(selectEl) {
-                                if (!selectEl) return null;
-                                var existing = selectEl.querySelector('optgroup[label="Custom"]');
-                                if (existing) return existing;
-                                var og = document.createElement('optgroup');
-                                og.label = 'Custom';
-                                selectEl.appendChild(og);
-                                return og;
-                            }
-                            function addOptionToWeightUnitSelects(name) {
-                                var s1 = weightUnitSelect;
-                                var s2 = modalUnitSelect;
-                                [s1, s2].forEach(function(sel) {
-                                    if (!sel) return;
-                                    var opt = sel.querySelector('option[value="' + name.replace(/"/g, '&quot;') + '"]');
-                                    if (opt) return;
-                                    var og = ensureCustomOptgroup(sel);
-                                    if (!og) return;
-                                    var o = document.createElement('option');
-                                    o.value = name;
-                                    o.textContent = name;
-                                    og.appendChild(o);
-                                });
-                            }
-
-                            if (addNewUnitBtn) addNewUnitBtn.addEventListener('click', function() {
-                                if (newNameInput) { newNameInput.value = ''; newNameInput.classList.remove('is-invalid'); }
-                                if (newNameError) newNameError.textContent = '';
-                                if (addNewModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getOrCreateInstance(addNewModal);
-                                    m.show();
-                                    setTimeout(function() { if (newNameInput) newNameInput.focus(); }, 300);
-                                }
-                            });
-
-                            if (addNewModalBtn && newNameInput) addNewModalBtn.addEventListener('click', function() {
-                                var name = (newNameInput.value || '').trim();
-                                if (!name) {
-                                    newNameInput.classList.add('is-invalid');
-                                    if (newNameError) newNameError.textContent = 'Please enter a unit name.';
-                                    return;
-                                }
-                                newNameInput.classList.remove('is-invalid');
-                                if (newNameError) newNameError.textContent = '';
-                                addOptionToWeightUnitSelects(name);
-                                weightUnitSelect.value = name;
-                                setStoredUnit(name);
-                                weightUnitHidden.value = name;
-                                showDisplay();
-                                if (isEditingUnit) {
-                                    isEditingUnit = false;
-                                    updateButtons();
-                                } else {
-                                    editBtn.classList.remove('d-none');
-                                    addBtn.classList.add('d-none');
-                                    if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                    updateButtons();
-                                }
-                                if (addNewModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getInstance(addNewModal);
-                                    if (m) m.hide();
-                                }
-                                newNameInput.value = '';
-                            });
-
-                            if (weightUnitHidden.value) {
-                                selectedUnit = (weightUnitHidden.value || '').trim();
-                                var w = (weightInput.value || '').trim();
-                                if (w) {
-                                    actionsWrap.classList.remove('d-none');
-                                    showDisplay();
-                                    editBtn.classList.remove('d-none');
-                                    if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                }
-                            }
-                            if (weightInput.value && (weightInput.value + '').trim() !== '') {
-                                weightInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                            }
-
-                            function init() {
-                                if (document.querySelector('.weight-unit-block')) runWhenReady();
-                                else setTimeout(init, 50);
-                            }
-                            if (document.readyState === 'loading') {
-                                document.addEventListener('DOMContentLoaded', init);
-                            } else {
-                                init();
-                            }
-                        })();
-                        </script>
-                        </div>
-
                         <!-- FILTERS FIELDS -->
                         <div class="field-group" :class="{ 'active': selectedType === 'filters' }">
                             <div class="row  p-3 mt-4">
@@ -1634,15 +1221,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
-                                            name="quality_id" id="quality_filters">
+                                            name="quality_id" id="quality_filters"
+                                            data-placeholder="Select Quality">
                                             <option value="">Select Quality</option>
-                                            @foreach ($qualities as $item)
-                                            <option value="{{ $item->id }}" 
-                                                data-type="{{ $item->type ?? '' }}"
-                                                x-show="!selectedType || '{{ $item->type ?? '' }}' === selectedType || '{{ $item->type ?? '' }}' === ''"
-                                                {{ old('quality_id')==$item->id ? 'selected' : '' }}>
-                                                {{ $item->name }}
-                                            </option>
+                                            @foreach($qualities as $qaul)
+                                            <option value="{{ $qaul->id }}" {{ old('quality_id') == $qaul->id ? 'selected' : '' }}>{{ $qaul->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1668,13 +1251,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
-                                            name="quality_id" id="quality_breakpad">
+                                            name="quality_id" id="quality_breakpad"
+                                            data-placeholder="Select Quality">
                                             <option value="">Select Quality</option>
-                                            @foreach ($qualities as $item)
-                                            <option value="{{ $item->id }}" {{ old('quality_id')==$item->id ?
-                                                'selected' : '' }}>
-                                                {{ $item->name }}
-                                            </option>
+                                            @foreach($qualities as $qaul)
+                                            <option value="{{ $qaul->id }}" {{ old('quality_id') == $qaul->id ? 'selected' : '' }}>{{ $qaul->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1700,13 +1281,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control plates-select searchable-select @error('plat_id') is-invalid @enderror"
-                                            name="plat_id" id="plates_scrap">
+                                            name="plat_id" id="plates_scrap"
+                                            data-placeholder="Select Plate">
                                             <option value="">Select Plate</option>
-                                            @foreach ($platos as $plate)
-                                            <option value="{{ $plate->id }}" {{ old('plat_id')==$plate->id ?
-                                                'selected' : '' }}>
-                                                {{ $plate->name }}PL
-                                            </option>
+                                            @foreach($platos as $plate)
+                                            <option value="{{ $plate->id }}" {{ old('plat_id') == $plate->id ? 'selected' : '' }}>{{ $plate->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1727,13 +1306,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control amperes-select searchable-select @error('amphors') is-invalid @enderror"
-                                            name="amphors" id="amperes_select">
+                                            name="amphors" id="amperes_select"
+                                            data-placeholder="Select Amperes">
                                             <option value="">Select Amperes</option>
-                                            @foreach ($amphors as $ampere)
-                                            <option value="{{ $ampere->id }}" {{ old('amphors')==$ampere->id ?
-                                                'selected' : '' }}>
-                                                {{ $ampere->name }}AH
-                                            </option>
+                                            @foreach($amphors as $ampere)
+                                            <option value="{{ $ampere->id }}" {{ old('amphors') == $ampere->id ? 'selected' : '' }}>{{ $ampere->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1754,13 +1331,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control volt-select searchable-select @error('volt') is-invalid @enderror"
-                                            name="volt" id="volt_select">
+                                            name="volt" id="volt_select"
+                                            data-placeholder="Select Volt">
                                             <option value="">Select Volt</option>
-                                            @foreach ($volts as $volt)
-                                            <option value="{{ $volt->id }}" {{ old('volt', $volt->name == 12 ? $volt->id
-                                                : '') == $volt->id ? 'selected' : '' }}>
-                                                {{ $volt->name }} V
-                                            </option>
+                                            @foreach($volts as $volt)
+                                            <option value="{{ $volt->id }}" {{ old('volt') == $volt->id ? 'selected' : '' }}>{{ $volt->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1781,13 +1356,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control cca-select searchable-select @error('cca') is-invalid @enderror"
-                                            name="cca" id="cca_select">
+                                            name="cca" id="cca_select"
+                                            data-placeholder="Select CCA">
                                             <option value="">Select CCA</option>
-                                            @foreach ($ccas as $cca)
-                                            <option value="{{ $cca->id }}" {{ old('cca')==$cca->id ? 'selected' : ''
-                                                }}>
-                                                {{ $cca->name }}
-                                            </option>
+                                            @foreach($ccas as $cca)
+                                            <option value="{{ $cca->id }}" {{ old('cca') == $cca->id ? 'selected' : '' }}>{{ $cca->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -1811,13 +1384,11 @@
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control minus-pole-direction-select searchable-select @error('minus_pole_direction') is-invalid @enderror"
-                                            name="minus_pole_direction" id="minus_pole_direction_select">
-                                            <option value="">Select Minus Pole Direction</option>
-                                            @foreach ($minspols as $mpd)
-                                            <option value="{{ $mpd->id }}" {{ old('minus_pole_direction', $mpd->name
-                                                ==='L' ? $mpd->id : '') == $mpd->id ? 'selected' : '' }}>
-                                                {{ $mpd->name }}
-                                            </option>
+                                            name="minus_pole_direction" id="minus_pole_direction_select"
+                                            data-placeholder="Select">
+                                            <option value="">Select</option>
+                                            @foreach($minspols as $mp)
+                                            <option value="{{ $mp->id }}" {{ old('minus_pole_direction') == $mp->id ? 'selected' : '' }}>{{ $mp->name }}</option>
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
@@ -2129,7 +1700,7 @@
                     <div class="row mt-4">
                         <!-- Unit Management & Price Calculation Section -->
                         <div class="col-12 mt-4"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
                             <div class="card border-0 shadow-sm">
                                 <div class="card-header bg-light">
                                     <h5 class="mb-0 fw-bold">Unit Management & Price Calculation</h5>
@@ -2255,6 +1826,121 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Scrap: Weight (KG) / Quantity and Rate - required for scrap type -->
+                        <div class="col-12 mt-4" x-show="selectedType === 'scrap'" x-cloak style="display: none;">
+                            <input type="hidden" name="scrap_measurement" id="scrap_measurement_input" value="weight">
+
+                            <!-- Battery Size (only for battery scrap categories) -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-4" id="scrap-battery-size-wrapper" style="display:none;">
+                                    <label for="battery_size_id_scrap" class="form-label fw-bold">Battery Size:</label>
+                                    <select class="form-control searchable-select @error('battery_size_id') is-invalid @enderror"
+                                        name="battery_size_id" id="battery_size_id_scrap">
+                                        <option value="">-- PLEASE SELECT --</option>
+                                        @foreach ($batterySizes ?? [] as $bs)
+                                            <option value="{{ $bs->id }}" {{ old('battery_size_id') == $bs->id ? 'selected' : '' }}>
+                                                {{ $bs->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('battery_size_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- Dimensions (optional) -->
+                            <div class="card border-0 shadow-sm mb-3">
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0 fw-bold"><i class="ti ti-ruler-2 me-1"></i> Dimensions</h6>
+                                    <small class="text-muted">Optional. Enter physical size for scrap items.</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-2">
+                                            <label for="scrap_dim_width" class="form-label fw-bold">Width</label>
+                                            <input type="number" step="0.01" min="0"
+                                                class="form-control" name="scrap_dim_width" id="scrap_dim_width"
+                                                value="{{ old('scrap_dim_width') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label for="scrap_dim_height" class="form-label fw-bold">Height</label>
+                                            <input type="number" step="0.01" min="0"
+                                                class="form-control" name="scrap_dim_height" id="scrap_dim_height"
+                                                value="{{ old('scrap_dim_height') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label for="scrap_dim_length" class="form-label fw-bold">Length</label>
+                                            <input type="number" step="0.01" min="0"
+                                                class="form-control" name="scrap_dim_length" id="scrap_dim_length"
+                                                value="{{ old('scrap_dim_length') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label for="scrap_dim_depth" class="form-label fw-bold">Depth</label>
+                                            <input type="number" step="0.01" min="0"
+                                                class="form-control" name="scrap_dim_depth" id="scrap_dim_depth"
+                                                value="{{ old('scrap_dim_depth') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="scrap_dim_unit" class="form-label fw-bold">Unit</label>
+                                            <select class="form-control" name="scrap_dim_unit" id="scrap_dim_unit">
+                                                <option value="cm" {{ old('scrap_dim_unit', 'inch') === 'cm' ? 'selected' : '' }}>cm</option>
+                                                <option value="inch" {{ old('scrap_dim_unit', 'inch') === 'inch' ? 'selected' : '' }}>inch</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border-0 shadow-sm" x-show="scrapMeasurement === 'weight'" x-transition>
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0 fw-bold"><i class="ti ti-scale me-1"></i> Scrap by Weight</h6>
+                                    <small class="text-muted" id="scrap_weight_help">Weight in KG, rate per KG. Total updates automatically.</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="scrap_weight_kg" class="form-label fw-bold" id="scrap_weight_label">Weight (KG) <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="0" class="form-control" name="scrap_weight_kg" id="scrap_weight_kg" value="{{ old('scrap_weight_kg') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="scrap_rate_per_kg" class="form-label fw-bold" id="scrap_rate_per_unit_label">Rate per KG (Rs.)</label>
+                                            <input type="number" step="0.01" min="0" class="form-control" name="scrap_rate_per_kg" id="scrap_rate_per_kg" value="{{ old('scrap_rate_per_kg') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="scrap_total_price" class="form-label fw-bold">Total Price</label>
+                                            <input type="text" class="form-control bg-light" id="scrap_total_price" readonly placeholder="Auto (Weight × Rate)">
+                                            <input type="hidden" name="scrap_total_price_hidden" id="scrap_total_price_hidden" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card border-0 shadow-sm mt-3" x-show="scrapMeasurement === 'count'" x-transition style="display: none;">
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0 fw-bold"><i class="ti ti-number me-1"></i> Scrap by Quantity</h6>
+                                    <small class="text-muted">Quantity, rate per unit. Total updates automatically.</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="scrap_quantity" class="form-label fw-bold">Quantity <span class="text-danger">*</span></label>
+                                            <input type="number" step="1" min="0" class="form-control" name="scrap_quantity" id="scrap_quantity" value="{{ old('scrap_quantity') }}" placeholder="0">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="scrap_rate_count" class="form-label fw-bold">Rate per Unit (Rs.)</label>
+                                            <input type="number" step="0.01" min="0" class="form-control" name="scrap_rate_count" id="scrap_rate_count" value="{{ old('scrap_rate_count') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="scrap_total_count" class="form-label fw-bold">Total Price</label>
+                                            <input type="text" class="form-control bg-light" id="scrap_total_count" readonly placeholder="Auto (Quantity × Rate)">
+                                            <input type="hidden" name="scrap_total_count_hidden" id="scrap_total_count_hidden" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Thumbnail -->
                         <!-- Thumbnail (Single Image) -->
                         <div class="col-md-6 mt-3">
@@ -2288,7 +1974,7 @@
                         </div>
 
                         <!-- Multiple Images -->
-                        <div class="col-md-6 mt-3">
+                        <div class="col-md-6 mt-3" x-show="selectedType !== 'scrap'" x-cloak>
                             <label class="form-label fw-bold">Product Images (Multiple)</label>
                             <div class="d-flex gap-2">
                                 <!-- File input for multiple images - using label for better mobile support -->
@@ -2310,10 +1996,10 @@
                         </div>
 
                         <div class="col-md-4 mt-3"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
                             <label for="low_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">LOW STOCK: <span class="text-danger">*</span></label>
                             <select class="form-control searchable-select @error('l_stock') is-invalid @enderror"
-                                name="l_stock" id="low_stock_parts" required>
+                                name="l_stock" id="low_stock_parts">
                                 <option value="">Select Low Stock</option>
                                 @for($i = 1; $i <= 1000; $i++)
                                     <option value="{{ $i }}" {{ old('l_stock') == $i ? 'selected' : '' }}>{{ $i }}</option>
@@ -2322,10 +2008,10 @@
                             @error('l_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-4 mt-3"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
                             <label for="maintain_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">MAINTAIN STOCK: <span class="text-danger">*</span></label>
                             <select class="form-control searchable-select @error('m_stock') is-invalid @enderror"
-                                name="m_stock" id="maintain_stock_parts" required>
+                                name="m_stock" id="maintain_stock_parts">
                                 <option value="">Select Maintain Stock</option>
                                 @for($i = 1; $i <= 1000; $i++)
                                     <option value="{{ $i }}" {{ old('m_stock') == $i ? 'selected' : '' }}>{{ $i }}</option>
@@ -2335,466 +2021,142 @@
                             @enderror
                         </div>
 
-                        <div class="col-md-4 mt-3"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="on_hand" class="text-center fw-bold d-block" style="font-weight: 900 !important;">OPENING STOCK:</label>
-                            <select class="form-control searchable-select @error('on_hand') is-invalid @enderror"
-                                name="on_hand" id="on_hand">
-                                <option value="">Select Opening Stock</option>
-                                @for($i = 1; $i <= 1000; $i++)
-                                    <option value="{{ $i }}" {{ old('on_hand') == $i ? 'selected' : '' }}>{{ $i }}</option>
-                                @endfor
-                            </select>
-                            @error('on_hand') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
                         <!-- Brochure -->
-                        <div class="col-md-4 mt-3">
+                        <div class="col-md-4 mt-3" x-show="selectedType !== 'scrap'" x-cloak>
                             <label for="p_brochure" class="text-center fw-bold d-block" style="font-weight: 900 !important;">PRODUCT BROCHURE (URL):</label>
                             <input type="url" class="form-control @error('p_brochure') is-invalid @enderror"
                                 id="p_brochure" name="p_brochure" value="{{ old('p_brochure') }}" />
                             @error('p_brochure') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        <!-- Weight & Unit (combined): Product Name style – input-group with Edit & Clear icon buttons -->
+                        <!-- Weight and Measurement: same card layout as main block -->
                         <div class="col-md-6 mt-3 weight-unit-block"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="weight" class="d-block mb-1">Weight &amp; unit</label>
-                            <div class="input-group inputswidth">
-                                <div class="d-flex align-items-center border rounded flex-grow-1" style="min-width: 120px;">
-                                    <input type="number" step="0.01" class="form-control border-0 @error('weight_for_delivery') is-invalid @enderror" style="max-width: 90px;"
-                                        name="weight_for_delivery" id="weight" value="{{ old('weight_for_delivery') }}" placeholder="Weight" />
-                                    <span class="px-2 text-muted d-none" id="weight_unit_separator"> </span>
-                                    <span id="weight_unit_display" class="d-none align-middle px-2 text-nowrap fw-medium bg-light rounded" style="min-width: 2.5rem;"></span>
-                                    <select class="form-control form-select border-0 d-none" id="weight_unit_select" style="max-width: 200px; min-width: 120px; font-weight: 600;" title="Select unit">
-                                        <option value="">— Select unit —</option>
-                                        <optgroup label="Metric">
-                                            <option value="mg">Milligram (mg)</option>
-                                            <option value="g">Gram (g)</option>
-                                            <option value="kg">Kilogram (kg)</option>
-                                            <option value="ml">MilliLiter (ml)</option>
-                                            <option value="quintal">Quintal (100 kg)</option>
-                                            <option value="tonne">Metric Ton / Tonne (t)</option>
-                                        </optgroup>
-                                        <optgroup label="Imperial / Other">
-                                            <option value="oz">Ounce (oz)</option>
-                                            <option value="lb">Pound (lb)</option>
-                                            <option value="stone">Stone</option>
-                                            <option value="ton_us">Ton (US)</option>
-                                            <option value="ton_uk">Ton (UK)</option>
-                                        </optgroup>
-                                    </select>
-                                    <input type="text" class="form-control border-0 d-none" id="weight_unit_edit_input" placeholder="Or type / rename unit" style="max-width: 100px;" title="Type to rename unit" />
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
+                            <div class="card border-2 shadow-sm" style="border-radius: 10px; overflow: hidden;">
+                                <div class="card-header py-2 px-3 d-flex align-items-center" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-bottom: 1px solid #dee2e6;">
+                                    <i data-feather="package" class="me-2" style="width: 18px; height: 18px;"></i>
+                                    <span class="fw-semibold">Weight and Measurement</span>
                                 </div>
-                                <button type="button" id="weight_unit_edit_btn" class="btn btn-secondary d-none" title="Edit unit"><i data-feather="edit"></i></button>
-                                <button type="button" id="weight_unit_delete_btn" class="btn btn-outline-secondary d-none" title="Remove weight &amp; unit"><i data-feather="x"></i></button>
-                            </div>
-                            <input type="hidden" name="weight_unit" id="weight_unit" value="{{ old('weight_unit') }}" />
-                            <span id="weight_unit_actions" class="d-flex align-items-center gap-1 flex-wrap mt-1">
-                                <button type="button" id="weight_unit_add_btn" class="btn btn-sm btn-success d-none">Add</button>
-                                <button type="button" id="weight_unit_add_new_btn" class="btn btn-sm btn-outline-success d-none" title="Add new unit (e.g. Kilograms, Bag)"><i data-feather="plus" style="width:14px;height:14px;"></i> Add unit</button>
-                                <button type="button" id="weight_unit_update_btn" class="btn btn-sm btn-primary d-none">Update</button>
-                                <button type="button" id="weight_unit_cancel_btn" class="btn btn-sm btn-outline-secondary d-none">Cancel</button>
-                            </span>
+                                <div class="card-body p-3">
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <label for="weight_2" class="form-label small fw-semibold text-uppercase text-muted mb-1">Weight</label>
+                                            <input type="number" step="0.01" min="0"
+                                                class="form-control form-control-lg @error('weight_for_delivery') is-invalid @enderror"
+                                                name="weight_for_delivery" id="weight_2"
+                                                value="{{ old('weight_for_delivery') }}"
+                                                placeholder="0.00"
+                                                style="border-radius: 8px;" />
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control form-control-lg" name="weight_unit" id="weight_unit_2"
+                                                    list="weight_unit_datalist_2"
+                                                    value="{{ old('weight_unit') }}"
+                                                    placeholder="e.g. KG, Milligram, Pounds, box"
+                                                    title="Pick from list or type any measurement — you can edit and add new"
+                                                    style="border-radius: 8px 0 0 8px;" />
+                                                <span id="weight_unit_edit_btn_wrapper_2" class="input-group-text bg-white border-start-0" style="border-radius: 0 8px 8px 0; display: none;">
+                                                    <button type="button" id="weight_unit_edit_btn_2" class="btn btn-outline-primary btn-sm py-0" title="Edit unit"><i data-feather="edit" style="width:14px;height:14px;"></i> Edit</button>
+                                                </span>
+                                            </div>
+                                            <div id="weight_unit_not_found_wrapper_2" class="mt-1" style="display: none;">
+                                                <span class="text-muted small">Search Not Found.</span>
+                                                <button type="button" id="weight_unit_add_new_btn_2" class="btn btn-link btn-sm p-0 ms-1">Add New</button>
+                                            </div>
+                                            <datalist id="weight_unit_datalist_2">
+                                                <option value="Milligram (mg)">
+                                                <option value="Gram (g)">
+                                                <option value="Kilogram (kg)">
+                                                <option value="Millilitre (ml)">
+                                                <option value="Quintal (100 kg)">
+                                                <option value="Metric Ton / Tonne (t)">
+                                                <option value="Ounce (oz)">
+                                                <option value="Pound (lb)">
+                                                <option value="Stone">
+                                                <option value="Ton (US)">
+                                                <option value="Ton (UK)">
+                                            </datalist>
+                                        </div>
+                                    </div>
                             @error('weight_for_delivery') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             @error('weight_unit') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
                         </div>
                         <script>
                         (function() {
-                            function getBlock() {
-                                return document.querySelector('.weight-unit-block');
-                            }
-                            function el(id) {
-                                var b = getBlock();
-                                return b ? b.querySelector('#' + id) || document.getElementById(id) : document.getElementById(id);
-                            }
-                            var VALUE_TO_SHORT = { mg:'MG', g:'G', kg:'KG', ml:'ML', quintal:'Q', tonne:'T', oz:'OZ', lb:'LB', stone:'ST', ton_us:'T-US', ton_uk:'T-UK' };
-                            function shortForValue(v) { return (v && VALUE_TO_SHORT[v]) ? VALUE_TO_SHORT[v] : (v || ''); }
-
-                            function runWhenReady() {
-                                var weightInput = el('weight');
-                                var weightUnitHidden = el('weight_unit');
-                                if (!weightInput || !weightUnitHidden) return;
-                                var weightUnitDisplay = el('weight_unit_display');
-                                var weightUnitSelect = el('weight_unit_select');
-                                var weightUnitEditInput = el('weight_unit_edit_input');
-                                var separator = el('weight_unit_separator');
-                                var actionsWrap = el('weight_unit_actions');
-                                var addBtn = el('weight_unit_add_btn');
-                                var editBtn = el('weight_unit_edit_btn');
-                                var updateBtn = el('weight_unit_update_btn');
-                                var cancelBtn = el('weight_unit_cancel_btn');
-                                var deleteBtn = el('weight_unit_delete_btn');
-                                if (!actionsWrap) return;
-
-                                var selectedUnit = (weightUnitHidden.value || '').trim();
-                                var isEditingUnit = false;
-
-                                function setStoredUnit(val) {
-                                    selectedUnit = (val || '').trim();
-                                    weightUnitHidden.value = selectedUnit;
-                                }
-
-                                function showDisplay() {
-                                    weightUnitDisplay.classList.remove('d-none');
-                                    weightUnitSelect.classList.add('d-none');
-                                    weightUnitEditInput.classList.add('d-none');
-                                    if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
-                                    if (separator) separator.classList.remove('d-none');
-                                    weightUnitDisplay.textContent = shortForValue(selectedUnit.toLowerCase()) || shortForValue(selectedUnit) || selectedUnit;
-                                }
-                                function showSelect() {
-                                    weightUnitDisplay.classList.add('d-none');
-                                    weightUnitSelect.classList.remove('d-none');
-                                    weightUnitEditInput.classList.remove('d-none');
-                                    if (weightUnitEditInput) {
-                                        weightUnitEditInput.placeholder = 'Or type / rename unit';
-                                        weightUnitEditInput.value = shortForValue(selectedUnit) || selectedUnit || '';
-                                    }
-                                    if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                    if (separator) separator.classList.remove('d-none');
-                                }
-                                function hideUnitArea() {
-                                    weightUnitDisplay.classList.add('d-none');
-                                    weightUnitSelect.classList.add('d-none');
-                                    weightUnitEditInput.classList.add('d-none');
-                                    if (separator) separator.classList.add('d-none');
-                                }
-
-                                var addNewUnitBtn = el('weight_unit_add_new_btn');
-
-                                function updateButtons() {
-                                    if (isEditingUnit) {
-                                        addBtn.classList.add('d-none'); editBtn.classList.add('d-none');
-                                        deleteBtn.classList.add('d-none');
-                                        if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                        updateBtn.classList.remove('d-none'); cancelBtn.classList.remove('d-none');
-                                    } else {
-                                        updateBtn.classList.add('d-none'); cancelBtn.classList.add('d-none');
-                                        if (selectedUnit) {
-                                            addBtn.classList.add('d-none');
-                                            editBtn.classList.remove('d-none');
-                                            if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                            if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
-                                        } else {
-                                            editBtn.classList.add('d-none');
-                                            if (deleteBtn) deleteBtn.classList.add('d-none');
-                                            addBtn.classList.remove('d-none');
-                                            if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                        }
-                                    }
-                                }
-
-                                var lookupUrl = '{{ route("items.weight.unit.lookup") }}';
-                                var debounceTimer;
-                                weightInput.addEventListener('input', function() {
-                                clearTimeout(debounceTimer);
-                                var val = (weightInput.value || '').trim();
-                                if (val === '') {
-                                    setStoredUnit('');
-                                    hideUnitArea();
-                                    weightUnitSelect.value = '';
-                                    addBtn.classList.add('d-none');
-                                    editBtn.classList.add('d-none');
-                                    if (deleteBtn) deleteBtn.classList.add('d-none');
-                                    actionsWrap.classList.add('d-none');
+                            function refreshUnitUI2() {
+                                var weightUnitInput = document.getElementById('weight_unit_2');
+                                var editWrap = document.getElementById('weight_unit_edit_btn_wrapper_2');
+                                var notFoundWrap = document.getElementById('weight_unit_not_found_wrapper_2');
+                                if (!weightUnitInput || !editWrap || !notFoundWrap) return;
+                                var v = (weightUnitInput.value || '').trim();
+                                if (!v) {
+                                    editWrap.style.display = 'none';
+                                    notFoundWrap.style.display = 'none';
                                     return;
                                 }
-                                        actionsWrap.classList.remove('d-none');
-                                        if (selectedUnit) {
-                                            showDisplay();
-                                            updateButtons();
-                                            return;
-                                        }
-                                        showSelect();
-                                        addBtn.classList.remove('d-none');
-                                        editBtn.classList.add('d-none');
-                                        debounceTimer = setTimeout(function() {
-                                    fetch(lookupUrl + '?weight=' + encodeURIComponent(val))
-                                        .then(function(r) { return r.json(); })
-                                        .then(function(data) {
-                                            var matches = (data && data.matches) ? data.matches : [];
-                                                    if (matches.length > 0 && !selectedUnit) {
-                                                        var u = matches[0].unit;
-                                                        setStoredUnit(u);
-                                                        if (VALUE_TO_SHORT[u]) weightUnitSelect.value = u; else weightUnitSelect.value = '';
-                                                        showDisplay();
-                                                        editBtn.classList.remove('d-none');
-                                                        addBtn.classList.add('d-none');
-                                                    } else if (!selectedUnit) {
-                                                        showSelect();
-                                                        addBtn.classList.remove('d-none');
-                                                        editBtn.classList.add('d-none');
-                                                    }
-                                                })
-                                                .catch(function() {
-                                                    if (!selectedUnit) { showSelect(); addBtn.classList.remove('d-none'); editBtn.classList.add('d-none'); }
-                                                });
-                                        }, 300);
-                                    });
-
-                            addBtn.addEventListener('click', function() {
-                                showSelect();
-                                weightUnitSelect.focus();
-                            });
-                            function getSelectedOptionText() {
-                                var opt = weightUnitSelect.options[weightUnitSelect.selectedIndex];
-                                return opt ? (opt.textContent || opt.text || '').trim() : '';
-                            }
-                            weightUnitSelect.addEventListener('change', function() {
-                                var v = (weightUnitSelect.value || '').trim();
-                                if (v) {
-                                    var fullName = getSelectedOptionText();
-                                    if (weightUnitEditInput) weightUnitEditInput.value = fullName || shortForValue(v) || v;
-                                    setStoredUnit(fullName || v);
-                                    weightUnitHidden.value = fullName || v;
-                                    showDisplay();
-                                    if (isEditingUnit) {
-                                        isEditingUnit = false;
-                                        updateButtons();
-                                    }
-                                    editBtn.classList.remove('d-none');
-                                    addBtn.classList.add('d-none');
-                                    if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                }
-                            });
-
-                            var weightUnitModal = document.getElementById('weight-unit-edit-modal');
-                            var modalWeightInput = document.getElementById('weight_unit_modal_weight');
-                            var modalUnitSelect = document.getElementById('weight_unit_modal_unit');
-                            var modalUnitCustomInput = document.getElementById('weight_unit_modal_unit_custom');
-                            var modalUpdateBtn = document.getElementById('weight_unit_modal_update');
-                            var modalDeleteBtn = document.getElementById('weight_unit_modal_delete');
-
-                            function getModalUnitValue() {
-                                if (!modalUnitSelect) return '';
-                                var v = (modalUnitSelect.value || '').trim();
-                                if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
-                                return v;
-                            }
-                            function getModalUnitDisplayValue() {
-                                if (!modalUnitSelect) return '';
-                                var v = (modalUnitSelect.value || '').trim();
-                                if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
-                                var opt = modalUnitSelect.options[modalUnitSelect.selectedIndex];
-                                return opt ? (opt.textContent || opt.text || '').trim() || v : v;
-                            }
-                            function setModalUnitFromValue(unitStr) {
-                                if (!modalUnitSelect) return;
-                                var u = (unitStr || '').trim();
-                                if (!u) {
-                                    modalUnitSelect.value = '';
-                                    if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                    return;
-                                }
-                                var byVal = modalUnitSelect.querySelector('option[value="' + u.replace(/"/g, '&quot;') + '"]') || modalUnitSelect.querySelector('option[value="' + u.toLowerCase().replace(/"/g, '&quot;') + '"]');
-                                if (byVal) {
-                                    modalUnitSelect.value = byVal.value;
-                                    if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                    return;
-                                }
-                                var opts = modalUnitSelect.querySelectorAll('option[value]');
-                                for (var i = 0; i < opts.length; i++) {
-                                    if ((opts[i].textContent || opts[i].text || '').trim() === u) {
-                                        modalUnitSelect.value = opts[i].value;
-                                        if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                        return;
-                                    }
-                                }
-                                modalUnitSelect.value = '__custom__';
-                                if (modalUnitCustomInput) { modalUnitCustomInput.value = u; modalUnitCustomInput.style.display = 'block'; }
-                            }
-                            function openWeightUnitModal() {
-                                if (modalWeightInput) modalWeightInput.value = (weightInput.value || '').trim();
-                                setModalUnitFromValue(selectedUnit);
-                                if (weightUnitModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getOrCreateInstance(weightUnitModal);
-                                    m.show();
-                                    setTimeout(function() { if (modalWeightInput) modalWeightInput.focus(); }, 300);
-                                }
-                            }
-
-                            if (modalUnitSelect && modalUnitCustomInput) {
-                                modalUnitSelect.addEventListener('change', function() {
-                                    modalUnitCustomInput.style.display = modalUnitSelect.value === '__custom__' ? 'block' : 'none';
-                                    if (modalUnitSelect.value !== '__custom__') modalUnitCustomInput.value = '';
-                                });
-                            }
-
-                            function setDropdownByUnit(unitStr) {
-                                if (!unitStr) return;
-                                var u = (unitStr || '').trim();
-                                var byVal = weightUnitSelect.querySelector('option[value="' + u + '"]') || weightUnitSelect.querySelector('option[value="' + u.toLowerCase() + '"]');
-                                if (byVal) { weightUnitSelect.value = byVal.value; return; }
-                                var opts = weightUnitSelect.querySelectorAll('option[value]');
-                                for (var i = 0; i < opts.length; i++) {
-                                    if ((opts[i].textContent || opts[i].text || '').trim() === u) {
-                                        weightUnitSelect.value = opts[i].value;
-                                        return;
-                                    }
-                                }
-                            }
-                            editBtn.addEventListener('click', function() {
-                                openWeightUnitModal();
-                            });
-
-                            function closeWeightUnitModal() {
-                                if (weightUnitModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getInstance(weightUnitModal);
-                                    if (m) m.hide();
-                                }
-                            }
-
-                            if (modalUpdateBtn) modalUpdateBtn.addEventListener('click', function() {
-                                var w = (modalWeightInput && modalWeightInput.value !== undefined) ? (modalWeightInput.value || '').trim() : '';
-                                var u = getModalUnitDisplayValue();
-                                if (w !== '') weightInput.value = w;
-                                if (u) {
-                                    setStoredUnit(u);
-                                    weightUnitHidden.value = u;
-                                }
-                                showDisplay();
-                                updateButtons();
-                                closeWeightUnitModal();
-                            });
-
-                            if (modalDeleteBtn) modalDeleteBtn.addEventListener('click', function() {
-                                setStoredUnit('');
-                                weightUnitHidden.value = '';
-                                weightInput.value = '';
-                                weightUnitSelect.value = '';
-                                hideUnitArea();
-                                addBtn.classList.add('d-none');
-                                editBtn.classList.add('d-none');
-                                if (deleteBtn) deleteBtn.classList.add('d-none');
-                                updateBtn.classList.add('d-none');
-                                cancelBtn.classList.add('d-none');
-                                actionsWrap.classList.add('d-none');
-                                closeWeightUnitModal();
-                            });
-
-                            updateBtn.addEventListener('click', function() {
-                                var customVal = (weightUnitEditInput && weightUnitEditInput.value) ? (weightUnitEditInput.value || '').trim() : '';
-                                var v = customVal !== '' ? customVal : getSelectedOptionText() || (weightUnitSelect.value || '').trim();
-                                if (v) {
-                                    setStoredUnit(v);
-                                    weightUnitHidden.value = v;
-                                }
-                                isEditingUnit = false;
-                                showDisplay();
-                                updateButtons();
-                            });
-                            cancelBtn.addEventListener('click', function() {
-                                isEditingUnit = false;
-                                showDisplay();
-                                updateButtons();
-                            });
-                            if (deleteBtn) deleteBtn.addEventListener('click', function() {
-                                setStoredUnit('');
-                                weightUnitHidden.value = '';
-                                weightInput.value = '';
-                                weightUnitSelect.value = '';
-                                hideUnitArea();
-                                addBtn.classList.add('d-none');
-                                editBtn.classList.add('d-none');
-                                deleteBtn.classList.add('d-none');
-                                updateBtn.classList.add('d-none');
-                                cancelBtn.classList.add('d-none');
-                                actionsWrap.classList.add('d-none');
-                            });
-
-                            var addNewModal = document.getElementById('weight-unit-add-new-modal');
-                            var newNameInput = document.getElementById('weight_unit_new_name');
-                            var newNameError = document.getElementById('weight_unit_new_name_error');
-                            var addNewModalBtn = document.getElementById('weight_unit_add_new_modal_btn');
-
-                            function ensureCustomOptgroup(selectEl) {
-                                if (!selectEl) return null;
-                                var existing = selectEl.querySelector('optgroup[label="Custom"]');
-                                if (existing) return existing;
-                                var og = document.createElement('optgroup');
-                                og.label = 'Custom';
-                                selectEl.appendChild(og);
-                                return og;
-                            }
-                            function addOptionToWeightUnitSelects(name) {
-                                var s1 = weightUnitSelect;
-                                var s2 = modalUnitSelect;
-                                [s1, s2].forEach(function(sel) {
-                                    if (!sel) return;
-                                    var opt = sel.querySelector('option[value="' + name.replace(/"/g, '&quot;') + '"]');
-                                    if (opt) return;
-                                    var og = ensureCustomOptgroup(sel);
-                                    if (!og) return;
-                                    var o = document.createElement('option');
-                                    o.value = name;
-                                    o.textContent = name;
-                                    og.appendChild(o);
-                                });
-                            }
-
-                            if (addNewUnitBtn) addNewUnitBtn.addEventListener('click', function() {
-                                if (newNameInput) { newNameInput.value = ''; newNameInput.classList.remove('is-invalid'); }
-                                if (newNameError) newNameError.textContent = '';
-                                if (addNewModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getOrCreateInstance(addNewModal);
-                                    m.show();
-                                    setTimeout(function() { if (newNameInput) newNameInput.focus(); }, 300);
-                                }
-                            });
-
-                            if (addNewModalBtn && newNameInput) addNewModalBtn.addEventListener('click', function() {
-                                var name = (newNameInput.value || '').trim();
-                                if (!name) {
-                                    newNameInput.classList.add('is-invalid');
-                                    if (newNameError) newNameError.textContent = 'Please enter a unit name.';
-                                    return;
-                                }
-                                newNameInput.classList.remove('is-invalid');
-                                if (newNameError) newNameError.textContent = '';
-                                addOptionToWeightUnitSelects(name);
-                                weightUnitSelect.value = name;
-                                setStoredUnit(name);
-                                weightUnitHidden.value = name;
-                                showDisplay();
-                                if (isEditingUnit) {
-                                    isEditingUnit = false;
-                                    updateButtons();
+                                if (window.valueMatchesList && window.valueMatchesList(v, 'weight_unit_datalist_2')) {
+                                    editWrap.style.display = 'flex';
+                                    notFoundWrap.style.display = 'none';
                                 } else {
-                                    editBtn.classList.remove('d-none');
-                                    addBtn.classList.add('d-none');
-                                    if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                    updateButtons();
+                                    editWrap.style.display = 'none';
+                                    notFoundWrap.style.display = 'block';
                                 }
-                                if (addNewModal && typeof bootstrap !== 'undefined') {
-                                    var m = bootstrap.Modal.getInstance(addNewModal);
-                                    if (m) m.hide();
-                                }
-                                newNameInput.value = '';
-                            });
+                            }
+                            function run2() {
+                                var weightInput = document.getElementById('weight_2');
+                                var weightUnitInput = document.getElementById('weight_unit_2');
+                                var deleteBtn = document.getElementById('weight_unit_delete_btn_2');
+                                var editBtn = document.getElementById('weight_unit_edit_btn_2');
+                                var addNewBtn = document.getElementById('weight_unit_add_new_btn_2');
+                                var addNewModal = document.getElementById('weight-unit-add-new-modal');
+                                var addNewModalInput = document.getElementById('weight_unit_new_name');
+                                var editUnitModal = document.getElementById('weight-unit-edit-unit-modal');
+                                var editUnitModalInput = document.getElementById('weight_unit_edit_modal_input');
+                                if (!weightUnitInput) return;
 
-                            if (weightUnitHidden.value) {
-                                selectedUnit = (weightUnitHidden.value || '').trim();
-                                var w = (weightInput.value || '').trim();
-                                if (w) {
-                                    actionsWrap.classList.remove('d-none');
-                                    showDisplay();
-                                    editBtn.classList.remove('d-none');
-                                    if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                }
-                            }
-                            if (weightInput.value && (weightInput.value + '').trim() !== '') {
-                                weightInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                            }
+                                weightUnitInput.addEventListener('input', refreshUnitUI2);
+                                weightUnitInput.addEventListener('change', refreshUnitUI2);
+                                weightUnitInput.addEventListener('blur', refreshUnitUI2);
 
-                            function init() {
-                                if (document.querySelector('.weight-unit-block')) runWhenReady();
-                                else setTimeout(init, 50);
+                                if (deleteBtn) {
+                                    deleteBtn.addEventListener('click', function() {
+                                        weightInput.value = '';
+                                        weightUnitInput.value = '';
+                                        refreshUnitUI2();
+                                    });
+                                }
+                                if (addNewBtn) {
+                                    addNewBtn.addEventListener('click', function() {
+                                        window.__weightUnitTarget = { inputId: 'weight_unit_2', datalistId: 'weight_unit_datalist_2' };
+                                        window.__weightUnitRefresh = refreshUnitUI2;
+                                        if (addNewModalInput) addNewModalInput.value = (weightUnitInput.value || '').trim();
+                                        if (addNewModal && typeof bootstrap !== 'undefined') {
+                                            var m = bootstrap.Modal.getOrCreateInstance(addNewModal);
+                                            m.show();
+                                        }
+                                    });
+                                }
+                                if (editBtn && editUnitModal) {
+                                    editBtn.addEventListener('click', function() {
+                                        window.__weightUnitEditTarget = 'weight_unit_2';
+                                        window.__weightUnitEditRefresh = refreshUnitUI2;
+                                        if (editUnitModalInput) editUnitModalInput.value = (weightUnitInput.value || '').trim();
+                                        if (typeof bootstrap !== 'undefined') {
+                                            var m = bootstrap.Modal.getOrCreateInstance(editUnitModal);
+                                            m.show();
+                                        }
+                                    });
+                                }
+                                refreshUnitUI2();
                             }
-                            if (document.readyState === 'loading') {
-                                document.addEventListener('DOMContentLoaded', init);
-                            } else {
-                                init();
+                            function init2() {
+                                if (document.getElementById('weight_2')) run2();
+                                else setTimeout(init2, 50);
                             }
+                            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init2);
+                            else init2();
                         })();
                         </script>
                         <div class="col-md-4 mt-3 d-none">
@@ -3090,11 +2452,8 @@
                         <div class="mb-3">
                             <label class="form-label">Model <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <select id="itemVehicleModel" class="form-control form-select item-vehicle-model" name="car_model_name" required>
-                                    <option value="">— Select —</option>
-                                    @foreach ($carModels as $m)
-                                    <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                    @endforeach
+                                <select id="itemVehicleModel" class="form-control form-select item-vehicle-model" name="car_model_name" required disabled>
+                                    <option value="">— Select make first —</option>
                                 </select>
                                 <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Model" data-fetch-route="{{ route('show.car.model', ':id') }}" data-update-route="{{ route('update.car.model', ':id') }}" data-delete-route="{{ route('destory.car.model', ':id') }}" data-target-select=".item-vehicle-model" title="Edit Model"><i data-feather="edit" class="feather-16"></i></button>
                             </div>
@@ -3181,7 +2540,7 @@
             </thead>
             <tbody id="latestItemsTableBody">
                 @forelse ($latestItems as $item)
-                <tr>
+                <tr data-item-id="{{ $item->id }}">
 
                     <td>
                         @php
@@ -3206,28 +2565,35 @@
                                     $ampDisplay = $a !== '' ? (preg_match('/\d*\s*AH$/i', $a) ? $a : $a . 'AH') : '-';
                                     $c = $item->cca_item ? trim((string)($item->cca_item->name ?? '')) : '';
                                     $ccaDisplay = $c !== '' ? (preg_match('/\d*\s*CCA$/i', $c) ? $c : $c . 'CCA') : '-';
+                                    $specsLine = trim(implode(' ', array_filter([$voltDisplay, $plateDisplay, $ampDisplay, $ccaDisplay], fn($x) => $x !== '-')));
+                                    if ($specsLine === '') { $specsLine = '-'; }
                                 @endphp
-                                <div>{{ $item->company_item->name ?? '-' }}</div>
-                                <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
-                                <div>{{ $voltDisplay }}</div>
-                                <div>{{ $plateDisplay }}</div>
-                                <div>{{ $ampDisplay }}</div>
-                                <div>{{ $ccaDisplay }}</div>
+                                <div>{{ $item->company_item?->name ?? '-' }}</div>
+                                <div class="fw-semibold">{{ $item->product_item?->name ?? $item->partnumber_item?->name ?? '-' }}</div>
+                                <div>{{ $specsLine }}</div>
                             @else
-                                <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
-                                @if($item->product_item)
-                                <div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>
-                                @endif
-                                <div> {{ $item->category->name ?? '-' }}</div>
-                                <div> {{ $item->company_item->name ?? '-' }}</div>
-                                <div> {{ $item->quality_item->name ?? '-' }}</div>
+                                {{-- Parts (and other types): same order as form — Product Name, Part Number, Category, Company, Quality (null-safe) --}}
+                                <div class="fw-semibold">{{ $item->product_item?->name ?? '-' }}</div>
+                                <div class="text-muted">{{ $item->partnumber_item?->name ?? '-' }}</div>
+                                <div>{{ $item->category?->name ?? '-' }}</div>
+                                <div>{{ $item->company_item?->name ?? '-' }}</div>
+                                <div>{{ $item->quality_item?->name ?? '-' }}</div>
                             @endif
+                            <div class="mt-1">
+                                <span class="badge js-item-status-badge {{ $item->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $item->is_active ? 'Active' : 'Inactive' }}</span>
+                            </div>
                         </div>
                     </td>
                    
                     <td>
                         @php
-                                $branchName = $item->item_user ? ($item->item_user->branch?->branch_name ?? $item->item_user->assignedBranches->first()?->branch_name ?? '-') : '-';
+                                $branchName = '-';
+                                if ($item->item_user) {
+                                    $u = $item->item_user;
+                                    $branchName = $u->branch?->branch_name
+                                        ?? $u->assignedBranches()->first()?->branch_name
+                                        ?? '-';
+                                }
                             @endphp
                             <div class="small text-muted">{{ $branchName }}</div>
                             <div>{{ $item->item_user->name ?? '-' }}</div>
@@ -3246,6 +2612,15 @@
                                 <li>
                                     <a class="dropdown-item" href="{{ route('item.edit',$item->id) }}">
                                         <i data-feather="edit" class="me-1"></i> Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0)" class="dropdown-item js-item-toggle-active" data-item-id="{{ $item->id }}" data-is-active="{{ $item->is_active ? 1 : 0 }}">
+                                        @if($item->is_active)
+                                            <i data-feather="toggle-right" class="me-1"></i> Deactivate
+                                        @else
+                                            <i data-feather="toggle-left" class="me-1"></i> Activate
+                                        @endif
                                     </a>
                                 </li>
                                 <li>
@@ -3282,6 +2657,50 @@
 </div>
 </div>
 </div>
+
+{{-- Items for selected Product Name + Quality (clickable quality badges) --}}
+<div class="modal fade" id="productQualityItemsModal" tabindex="-1" aria-labelledby="productQualityItemsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <div>
+                    <h5 class="modal-title mb-0" id="productQualityItemsModalLabel">Items</h5>
+                    <div class="small text-muted mt-1" id="productQualityItemsModalSubtitle"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="productQualityItemsAlert" class="alert alert-warning d-none mb-3" role="alert"></div>
+                <div id="productQualityItemsLoading" class="text-center py-5 text-muted d-none">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mb-0 mt-2 small">Loading items…</p>
+                </div>
+                <div id="productQualityItemsEmpty" class="alert alert-light border text-center d-none mb-0">
+                    No items found for this product or part number and the selected quality.
+                </div>
+                <div id="productQualityItemsTableWrap" class="table-responsive d-none">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:72px;">Image</th>
+                                <th>Details</th>
+                                <th style="width:140px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productQualityItemsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="productQualityItemsRefreshBtn">
+                    <i data-feather="refresh-cw" class="me-1" style="width:14px;height:14px;"></i> Refresh list
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="Unit-add-modal">
     <div class="modal-dialog modal-dialog-centered ">
         <div class="modal-content">
@@ -3755,7 +3174,26 @@
         </div>
     </div>
 </div>
-<!-- Weight & Unit Edit Modal (Edit Product style) -->
+<!-- Edit unit only modal (update/delete unit from card) -->
+<div class="modal fade" id="weight-unit-edit-unit-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header py-2">
+                <h5 class="modal-title">Edit unit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Unit name</label>
+                <input type="text" class="form-control" id="weight_unit_edit_modal_input" placeholder="e.g. KG, box" maxlength="100">
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-danger btn-sm" id="weight_unit_edit_modal_delete">Delete</button>
+                <button type="button" class="btn btn-primary btn-sm" id="weight_unit_edit_modal_update">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Weight and Measurement Edit Modal -->
 <div class="modal fade" id="weight-unit-edit-modal" tabindex="-1" aria-labelledby="weight-unit-modal-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
@@ -3765,7 +3203,7 @@
                         <i class="ti ti-edit" style="font-size: 20px;"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <h4 class="mb-0 fw-bold" id="weight-unit-modal-title" style="color: white; font-size: 20px;">Edit Weight &amp; Unit</h4>
+                        <h4 class="mb-0 fw-bold" id="weight-unit-modal-title" style="color: white; font-size: 20px;">Edit Weight and Measurement</h4>
                         <small class="text-white-50" style="font-size: 12px;">Update the details below</small>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8;"></button>
@@ -3787,7 +3225,7 @@
                             <option value="mg">Milligram (mg)</option>
                             <option value="g">Gram (g)</option>
                             <option value="kg">Kilogram (kg)</option>
-                            <option value="ml">MilliLiter (ml)</option>
+                            <option value="ml">Millilitre (ml)</option>
                             <option value="quintal">Quintal (100 kg)</option>
                             <option value="tonne">Metric Ton / Tonne (t)</option>
                         </optgroup>
@@ -3851,7 +3289,7 @@
                     </div>
                     <div class="form-group mt-4" id="image-field" style="display: none;">
                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
-                            <i class="ti ti-photo me-2 text-primary"></i>Image
+                            <i class="ti ti-photo me-2 text-primary"></i>Image <span class="text-danger">*</span>
                         </label>
                         <div class="d-flex align-items-start gap-3">
                             <div class="flex-grow-1">
@@ -3862,7 +3300,7 @@
                                        accept="image/*"
                                        style="border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px; font-size: 14px;">
                                 <small class="text-muted d-block mt-2">
-                                    <i class="ti ti-info-circle me-1"></i>Supported formats: JPG, PNG, GIF (Max 2MB)
+                                    <i class="ti ti-info-circle me-1"></i>Supported formats: JPG, PNG, GIF (Max 2MB). Image is required.
                                 </small>
                             </div>
                             <div class="text-center">
@@ -3877,14 +3315,38 @@
                         </div>
                     </div>
                     <div class="form-group mt-4" id="scrap-measurement-field" style="display: none;">
-                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
+                        <label class="form-label fw-semibold mb-3" style="color: #495057; font-size: 14px;">
                             <i class="ti ti-scale me-2 text-primary"></i>Scrap measurement
                         </label>
-                        <select class="form-select form-select-lg" name="scrap_measurement" id="universal-scrap-measurement" style="border-radius: 8px; border: 2px solid #e9ecef;">
-                            <option value="weight">By weight (KG)</option>
-                            <option value="count">By quantity (count)</option>
-                        </select>
-                        <small class="text-muted d-block mt-2">Items in this category will use weight (KG) or quantity when added as scrap.</small>
+                        <p class="text-muted small mb-3">Choose how items in this category are measured when added as scrap. <strong>You can change the unit names</strong> below (e.g. change &quot;KG&quot; to &quot;Pounds&quot; or &quot;Kilograms&quot;, &quot;count&quot; to &quot;pieces&quot; or &quot;units&quot;) — these names will appear wherever this category is used.</p>
+                        <input type="hidden" name="scrap_measurement" id="universal-scrap-measurement" value="weight">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card border-2 scrap-option-card h-100 border-primary" id="scrap-option-weight" data-value="weight" style="cursor: pointer; border-radius: 10px; transition: all 0.2s;">
+                                    <div class="card-body p-3">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input scrap-measurement-radio" type="radio" name="scrap_measurement_radio" id="scrap-radio-weight" value="weight" checked>
+                                            <label class="form-check-label fw-semibold" for="scrap-radio-weight">By weight</label>
+                                        </div>
+                                        <label for="universal-scrap-weight-label" class="form-label small text-muted mb-1">Unit name — you can change this</label>
+                                        <input type="text" class="form-control form-control-sm" name="scrap_weight_label" id="universal-scrap-weight-label" value="KG" placeholder="e.g. KG, Kilograms, Pounds, Ton" maxlength="100" style="border-radius: 6px;" title="Edit to use a different name (e.g. Pounds instead of KG)">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-2 scrap-option-card h-100 border-secondary" id="scrap-option-count" data-value="count" style="cursor: pointer; border-radius: 10px; transition: all 0.2s;">
+                                    <div class="card-body p-3">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input scrap-measurement-radio" type="radio" name="scrap_measurement_radio" id="scrap-radio-count" value="count">
+                                            <label class="form-check-label fw-semibold" for="scrap-radio-count">By quantity</label>
+                                        </div>
+                                        <label for="universal-scrap-count-label" class="form-label small text-muted mb-1">Unit name — you can change this</label>
+                                        <input type="text" class="form-control form-control-sm" name="scrap_count_label" id="universal-scrap-count-label" value="count" placeholder="e.g. count, pieces, units" maxlength="100" style="border-radius: 6px;" title="Edit to use a different name (e.g. pieces instead of count)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2"><i class="ti ti-info-circle me-1"></i>Items in this category will use the selected measurement and the unit names you entered above (you can change &quot;KG&quot;, &quot;count&quot;, etc. anytime when editing this category).</small>
                     </div>
                 </div>
                 <div class="modal-footer" style="background-color: #ffffff !important; padding: 20px 30px; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
@@ -3904,6 +3366,38 @@
 @push('scripts')
 <script>
     $(document).ready(function() {
+        // Initialize AJAX-powered Select2 dropdowns (load options from /api/dropdown)
+        $('.select2-ajax').each(function () {
+            var $el = $(this);
+            var type = $el.data('dropdown-type');
+            var parentField = $el.data('parent-field') || null;
+            var useCache = !$el.data('no-cache');
+            $el.select2({
+                ajax: {
+                    url: '{{ url("/api/dropdown") }}',
+                    dataType: 'json',
+                    delay: 300,
+                    data: function (params) {
+                        var query = { type: type, search: params.term || '', limit: 50 };
+                        if (parentField) query.parent_id = $('#' + parentField).val();
+                        return query;
+                    },
+                    processResults: function (response) {
+                        if (!response.success) return { results: [] };
+                        return {
+                            results: (response.data || []).map(function (item) {
+                                return { id: item.id, text: item.name || item.id };
+                            })
+                        };
+                    },
+                    cache: useCache
+                },
+                minimumInputLength: 0,
+                placeholder: $el.data('placeholder') || 'Select...',
+                allowClear: true
+            });
+        });
+
         let currentUnitId = null;
         /* =========================
            ADD / UPDATE UNIT
@@ -6701,11 +6195,18 @@
 <script>
 
     document.addEventListener('alpine:init', () => {
-        Alpine.data('productForm', () => ({
+        Alpine.data('productForm', (categoriesEmpty = false) => ({
             // Create form: har item type ki setting alag — sirf Create page ke liye key (Edit is key ko touch nahi karta)
             selectedType: localStorage.getItem('itemCreateSelectedType') || '{{ old("type") }}' || '',
+            categoriesEmpty: !!categoriesEmpty,
             scrapMeasurement: 'weight', // 'weight' = by KG, 'count' = by quantity (for scrap)
             init() {
+                // Detect if category dropdown effectively empty (no real categories) and set flag
+                var catSelect = document.getElementById('category');
+                if (catSelect) {
+                    // More than 1 option (including "All"/"Select") means we have categories
+                    this.categoriesEmpty = (catSelect.options.length <= 1);
+                }
                 // Sync hidden type input so form submission always has type
                 var typeInput = document.querySelector('input[name="type"]');
                 if (typeInput) typeInput.value = this.selectedType || '';
@@ -6848,6 +6349,7 @@
         const dropdowns = [
             '.company-select',
             '.technology-select',
+            '.series-select',
             '.quality-select',
             '.name-select',
             '.category-select',
@@ -6992,9 +6494,9 @@
         const defaultImageUrl = baseUrl + '/assets/img/media/default.png';
 
         items.forEach(function(item) {
-            const activeBadge = item.is_active 
-                ? '<span class="badge bg-success">Active</span>' 
-                : '<span class="badge bg-danger">Inactive</span>';
+            const activeBadge = item.is_active
+                ? '<span class="badge js-item-status-badge bg-success">Active</span>'
+                : '<span class="badge js-item-status-badge bg-secondary">Inactive</span>';
 
             const csrfToken = $('input[name="_token"]').val();
             const rawImg = (item.image && String(item.image).trim()) ? item.image : '';
@@ -7002,35 +6504,35 @@
                 ? (rawImg.startsWith('http://') || rawImg.startsWith('https://') ? rawImg : baseUrl + (rawImg.startsWith('/') ? rawImg : '/' + rawImg))
                 : defaultImageUrl;
 
-            // Build item details HTML - for battery: Company, Product, Volt, Plate, Ampere, CCA line wise
+            // Build item details HTML - for battery: Line1=Company, Line2=Product, Line3=Specs (12V 31PL 38AH 380CCA)
             let itemDetails;
             if ((item.type || '') === 'battery') {
+                const specs = [item.volt_name, item.plate_name, item.amphors_name, item.cca_name].filter(function(x) { return x && String(x).trim() && x !== '-'; });
+                const specsLine = specs.length ? specs.join(' ') : '-';
                 itemDetails = `
                 <div class="small">
                     <div>${item.company_name || '-'}</div>
                     <div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>
-                    <div>${item.volt_name || '-'}</div>
-                    <div>${item.plate_name || '-'}</div>
-                    <div>${item.amphors_name || '-'}</div>
-                    <div>${item.cca_name || '-'}</div>
+                    <div>${specsLine}</div>
+                    <div class="mt-1">${activeBadge}</div>
                 </div>
             `;
             } else {
-                const productName = item.product_name && item.product_name !== '-' ? item.product_name : (item.part_number || '-');
-                const partNumberLine = (item.product_name && item.product_name !== '-') ? `<div class="text-muted">${item.part_number || '-'}</div>` : '';
+                // Same order as form: Product Name, Part Number, Category, Company, Quality
                 itemDetails = `
                 <div class="small">
-                    <div class="fw-semibold">${productName}</div>
-                    ${partNumberLine}
+                    <div class="fw-semibold">${item.product_name || '-'}</div>
+                    <div class="text-muted">${item.part_number || '-'}</div>
                     <div>${item.category_name || '-'}</div>
                     <div>${item.company_name || '-'}</div>
                     <div>${item.quality_name || '-'}</div>
+                    <div class="mt-1">${activeBadge}</div>
                 </div>
             `;
             }
 
             const row = `
-                <tr>
+                <tr data-item-id="${item.id}">
                     <td>
                         <img src="${imageSrc}" width="70" height="70"
                             class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
@@ -7060,6 +6562,11 @@
                                 <li>
                                     <a class="dropdown-item" href="${item.edit_url}">
                                         <i data-feather="edit" class="me-1"></i> Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0)" class="dropdown-item js-item-toggle-active" data-item-id="${item.id}" data-is-active="${item.is_active ? 1 : 0}">
+                                        ${item.is_active ? '<i data-feather="toggle-right" class="me-1"></i> Deactivate' : '<i data-feather="toggle-left" class="me-1"></i> Activate'}
                                     </a>
                                 </li>
                                 <li>
@@ -7495,6 +7002,9 @@
         
         // Generic function to check and show "Add New" button for any dropdown
         function checkAndShowAddNewButtonForDropdown(selectId, buttonConfig) {
+            if (selectId === 'itemVehicleModel' && !$('#itemVehicleMake').val()) {
+                return;
+            }
             const $openSelect2 = $('.select2-container--open');
             if ($openSelect2.length) {
                 // Verify this is the correct dropdown
@@ -7526,6 +7036,7 @@
                         let $addNewBtnInDropdown = $resultsContainer.find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]');
                         
                         if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
+                            const addLabel = buttonConfig.addNewLabel ? buttonConfig.addNewLabel : 'Add';
                             // Create and add the button
                             const buttonHtml = `
                                 <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
@@ -7538,7 +7049,7 @@
                                             ${buttonConfig.hasImage ? 'data-has-image="1"' : ''}
                                             style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
                                         <i data-feather="plus" class="feather-plus me-1"></i>
-                                        Add "<span class="dropdown-search-term fw-bold">${searchVal}</span>"
+                                        ${addLabel}: "<span class="dropdown-search-term fw-bold">${searchVal}</span>"
                                     </button>
                                 </div>
                             `;
@@ -7577,7 +7088,7 @@
         }
         
         // Auto focus search input for Category, Company, Quality, ... Unit, and Add Vehicle modal dropdowns
-        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #pool_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts, #battery_size_select, #itemVehicleMake, #itemVehicleModel, #itemVehicleEngine, #itemVehicleCountry', function(e) {
+        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #series_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #pool_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts, #battery_size_select, #itemVehicleMake, #itemVehicleModel, #itemVehicleEngine, #itemVehicleCountry', function(e) {
             const selectId = $(this).attr('id');
             // Focus search input as soon as dropdown starts opening
             requestAnimationFrame(function() {
@@ -7599,7 +7110,7 @@
             if (!selectId) return;
             
             // Auto focus search input for Category, Company, Quality, ... Unit, and Add Vehicle modal dropdowns
-            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'pool_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts' || selectId === 'battery_size_select' || selectId === 'itemVehicleMake' || selectId === 'itemVehicleModel' || selectId === 'itemVehicleEngine' || selectId === 'itemVehicleCountry') {
+            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'series_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'pool_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts' || selectId === 'battery_size_select' || selectId === 'itemVehicleMake' || selectId === 'itemVehicleModel' || selectId === 'itemVehicleEngine' || selectId === 'itemVehicleCountry') {
                 function focusSearchInput() {
                     const $container = $select.next('.select2-container');
                     if ($container.length) {
@@ -7696,6 +7207,11 @@
                         route: '{{ route("post.technology") }}',
                         targetSelect: '.technology-select'
                     },
+                    'series_select': {
+                        title: 'Add Series',
+                        route: '{{ route("post.series") }}',
+                        targetSelect: '.series-select'
+                    },
                     'grade_select': {
                         title: 'Add Grade',
                         route: '{{ route("post.grade") }}',
@@ -7774,12 +7290,14 @@
                     'itemVehicleMake': {
                         title: 'Add Make',
                         route: '{{ route("post.car.manufacturer") }}',
-                        targetSelect: '.item-vehicle-manufacturer'
+                        targetSelect: '.item-vehicle-manufacturer',
+                        addNewLabel: 'Add New Make'
                     },
                     'itemVehicleModel': {
                         title: 'Add Model',
                         route: '{{ route("post.car.model") }}',
-                        targetSelect: '.item-vehicle-model'
+                        targetSelect: '.item-vehicle-model',
+                        addNewLabel: 'Add New Model'
                     },
                     'itemVehicleEngine': {
                         title: 'Add Engine CC',
@@ -7881,6 +7399,18 @@
                 }
             }
         });
+
+        function pqEscapeHtml(s) {
+            if (s == null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+        function pqEscapeAttr(s) {
+            return pqEscapeHtml(s).replace(/'/g, '&#39;');
+        }
         
         // Load stats when part number is selected: check if exists in DB, show qualities and counts
         $(document).on('change', '#part_number_id', function() {
@@ -7903,11 +7433,16 @@
                         if (response.qualities && response.qualities.length > 0) {
                             let statsHtml = '<span class="small fw-semibold text-dark me-2">Qualities:</span>';
                             response.qualities.forEach(function(q) {
-                                statsHtml += `<span class="badge bg-primary text-white px-2 py-1 me-1 small fw-semibold" style="font-size: 0.8rem;">${q.name} (${q.count})</span>`;
+                                var qid = q.quality_id;
+                                var isNull = (qid === null || qid === undefined || qid === '');
+                                var nameEsc = pqEscapeHtml(q.name);
+                                var cnt = parseInt(q.count, 10);
+                                if (isNaN(cnt)) cnt = 0;
+                                statsHtml += '<button type="button" class="badge bg-primary text-white px-2 py-1 me-1 mb-1 small fw-semibold quality-stat-badge border-0" style="font-size: 0.8rem;" data-stat-scope="part" data-part-number-id="' + pqEscapeAttr(String(partNumberId)) + '" data-quality-id="' + (isNull ? '' : pqEscapeAttr(String(qid))) + '" data-quality-is-null="' + (isNull ? '1' : '0') + '" data-quality-name="' + pqEscapeAttr(q.name) + '">' + nameEsc + ' (' + cnt + ')</button>';
                             });
                             $statsContainer.html(statsHtml).css('display', 'flex !important').show();
                         } else {
-                            $statsContainer.html('<span class="small text-muted">اس پارٹ نمبر کے ساتھ ابھی کوئی آئٹم نہیں۔</span>').css('display', 'flex !important').show();
+                            $statsContainer.html('<span class="small text-muted">No item with this part number yet.</span>').css('display', 'flex !important').show();
                         }
                     },
                     error: function() {
@@ -7916,6 +7451,324 @@
                 });
             } else {
                 $statsContainer.html('').hide();
+            }
+        });
+
+        window.reloadProductNameQualityStats = function() {
+            var v = $('#product_name_item').val();
+            if (v) {
+                $('#product_name_item').trigger('change');
+            } else {
+                $('#productNameStats').html('').hide();
+            }
+        };
+        window.reloadPartNumberQualityStats = function() {
+            var p = $('#part_number_id').val();
+            if (p) {
+                $('#part_number_id').trigger('change');
+            } else {
+                $('#partNumberStats').html('').hide();
+            }
+        };
+        window._pqModalCtx = null;
+
+        function pqModalRefreshStatsForCurrentScope() {
+            var ctx = window._pqModalCtx;
+            if (!ctx) return;
+            if (ctx.scope === 'part') {
+                if (typeof window.reloadPartNumberQualityStats === 'function') {
+                    window.reloadPartNumberQualityStats();
+                }
+            } else {
+                if (typeof window.reloadProductNameQualityStats === 'function') {
+                    window.reloadProductNameQualityStats();
+                }
+            }
+        }
+
+        document.addEventListener('item-is-active-toggled', function() {
+            if (typeof pqModalRefreshStatsForCurrentScope === 'function') {
+                pqModalRefreshStatsForCurrentScope();
+            }
+        });
+
+        function loadProductQualityItemsModalList() {
+            var ctx = window._pqModalCtx;
+            if (!ctx) return;
+            var url;
+            var params = { quality_label: ctx.qualityName || '' };
+            if (ctx.scope === 'part') {
+                if (!ctx.partNumberId) return;
+                url = '{{ route("items.by.part.number.quality") }}';
+                params.part_number_id = ctx.partNumberId;
+            } else {
+                if (!ctx.productId) return;
+                url = '{{ route("items.by.product.quality") }}';
+                params.product_id = ctx.productId;
+            }
+            if (ctx.isNullQuality) {
+                params.quality_id = 'null';
+            } else {
+                params.quality_id = ctx.qualityId;
+            }
+            $('#productQualityItemsLoading').removeClass('d-none');
+            $('#productQualityItemsEmpty').addClass('d-none');
+            $('#productQualityItemsTableWrap').addClass('d-none');
+            $('#productQualityItemsAlert').addClass('d-none').text('');
+            $.ajax({
+                url: url,
+                type: 'GET',
+                data: params,
+                success: function(res) {
+                    $('#productQualityItemsLoading').addClass('d-none');
+                    if (!res.success) {
+                        $('#productQualityItemsAlert').removeClass('d-none').text(res.message || 'Could not load items.');
+                        return;
+                    }
+                    var scope = ctx.scope || 'product';
+                    if (scope === 'part') {
+                        $('#productQualityItemsModalLabel').text('Items by part number & quality');
+                        var sub = '<strong>Part Number:</strong> ' + pqEscapeHtml(res.part_number_name || '') +
+                            ' <span class="text-muted">|</span> <strong>Quality:</strong> ' + pqEscapeHtml(res.quality_name || ctx.qualityName || '');
+                        $('#productQualityItemsModalSubtitle').html(sub);
+                    } else {
+                        $('#productQualityItemsModalLabel').text('Items by product & quality');
+                        var subP = '<strong>Product Name:</strong> ' + pqEscapeHtml(res.product_name || '') +
+                            ' <span class="text-muted">|</span> <strong>Quality:</strong> ' + pqEscapeHtml(res.quality_name || ctx.qualityName || '');
+                        $('#productQualityItemsModalSubtitle').html(subP);
+                    }
+                    var items = res.items || [];
+                    if (items.length === 0) {
+                        $('#productQualityItemsEmpty').removeClass('d-none');
+                        return;
+                    }
+                    var rows = '';
+                    items.forEach(function(item) {
+                        var details;
+                        if (scope === 'part') {
+                            details = '<div class="fw-semibold">Part: ' + pqEscapeHtml(item.part_number_name) + '</div>';
+                            details += '<div class="small">Product: ' + pqEscapeHtml(item.product_name) + '</div>';
+                        } else {
+                            details = '<div class="fw-semibold">' + pqEscapeHtml(item.product_name) + '</div>';
+                        }
+                        details += '<div class="small text-muted">Type: ' + pqEscapeHtml(item.type || '—');
+                        var pqIsAct = !(item.is_active === false || item.is_active === 0 || item.is_active === '0');
+                        var pqBadgeCls = pqIsAct ? 'bg-success' : 'bg-secondary';
+                        details += ' <span role="button" tabindex="0" class="badge ' + pqBadgeCls + ' ms-1 js-item-status-badge js-item-status-badge-toggle user-select-none" style="font-size:0.65rem;cursor:pointer;" data-item-id="' + parseInt(item.id, 10) + '" data-is-active="' + (pqIsAct ? 1 : 0) + '" title="Click to activate or deactivate">' + (pqIsAct ? 'Active' : 'Inactive') + '</span>';
+                        details += '</div>';
+                        details += '<div class="small">Quality: ' + pqEscapeHtml(item.quality_name) + ' · Part: ' + pqEscapeHtml(item.part_number_name) + '</div>';
+                        details += '<div class="small">Company: ' + pqEscapeHtml(item.company_name) + ' · Category: ' + pqEscapeHtml(item.category_name);
+                        if (item.subcategory_name) {
+                            details += ' · Subcategory: ' + pqEscapeHtml(item.subcategory_name);
+                        }
+                        details += '</div>';
+                        details += '<div class="small text-primary fw-semibold mt-1"><i class="ti ti-barcode me-1"></i>' + pqEscapeHtml(item.bar_code || '—') + '</div>';
+                        var img = String(item.image || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        var editU = String(item.edit_url || '').replace(/"/g, '&quot;');
+                        var delU = String(item.delete_url || '').replace(/"/g, '&quot;');
+                        rows += '<tr data-item-id="' + parseInt(item.id, 10) + '"><td class="align-top"><img src="' + img + '" width="56" height="56" class="rounded border bg-light" alt=""></td>';
+                        rows += '<td class="align-top">' + details + '</td><td class="align-top text-nowrap">';
+                        rows += '<a class="btn btn-sm btn-outline-primary mb-2 d-block" target="_blank" rel="noopener" href="' + editU + '"><i data-feather="edit" class="me-1" style="width:14px;height:14px"></i>Edit</a>';
+                        rows += '<button type="button" class="btn btn-sm btn-outline-danger pq-modal-delete-item" data-item-id="' + parseInt(item.id, 10) + '" data-delete-url="' + delU + '"><i data-feather="trash-2" class="me-1" style="width:14px;height:14px"></i>Delete</button>';
+                        rows += '</td></tr>';
+                    });
+                    $('#productQualityItemsTableBody').html(rows);
+                    $('#productQualityItemsTableWrap').removeClass('d-none');
+                    if (typeof feather !== 'undefined') {
+                        feather.replace();
+                    }
+                },
+                error: function(xhr) {
+                    $('#productQualityItemsLoading').addClass('d-none');
+                    var msg = 'Could not load items.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    $('#productQualityItemsAlert').removeClass('d-none').text(msg);
+                }
+            });
+        }
+
+        $(document).on('click', '.quality-stat-badge', function(e) {
+            e.preventDefault();
+            var $b = $(this);
+            var scope = $b.data('stat-scope') || 'product';
+            var el = document.getElementById('productQualityItemsModal');
+            if (scope === 'part') {
+                var partNumberId = $('#part_number_id').val();
+                if (!partNumberId) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Select part number',
+                            text: 'Please select a part number first.'
+                        });
+                    } else {
+                        alert('Please select a part number first.');
+                    }
+                    return;
+                }
+                if (String($b.data('part-number-id')) !== String(partNumberId)) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Selection out of date',
+                            text: 'Please select the part number again and use the updated quality badges.'
+                        });
+                    } else {
+                        alert('Please re-select the part number.');
+                    }
+                    return;
+                }
+                window._pqModalCtx = {
+                    scope: 'part',
+                    partNumberId: String(partNumberId),
+                    qualityId: $b.data('quality-id'),
+                    isNullQuality: String($b.data('quality-is-null')) === '1',
+                    qualityName: $b.data('quality-name') || ''
+                };
+            } else {
+                var productId = $('#product_name_item').val();
+                if (!productId) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Select product name',
+                            text: 'Please select a product name first.'
+                        });
+                    } else {
+                        alert('Please select a product name first.');
+                    }
+                    return;
+                }
+                if (String($b.data('product-id')) !== String(productId)) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Selection out of date',
+                            text: 'Please select the product name again and use the updated quality badges.'
+                        });
+                    } else {
+                        alert('Please re-select the product name.');
+                    }
+                    return;
+                }
+                window._pqModalCtx = {
+                    scope: 'product',
+                    productId: String(productId),
+                    qualityId: $b.data('quality-id'),
+                    isNullQuality: String($b.data('quality-is-null')) === '1',
+                    qualityName: $b.data('quality-name') || ''
+                };
+            }
+            if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(el).show();
+            } else {
+                $('#productQualityItemsModal').modal('show');
+            }
+            loadProductQualityItemsModalList();
+        });
+
+        $(document).on('click', '#productQualityItemsRefreshBtn', function() {
+            loadProductQualityItemsModalList();
+            pqModalRefreshStatsForCurrentScope();
+        });
+
+        $(document).on('click', '.pq-modal-delete-item', function() {
+            var $btn = $(this);
+            var itemId = $btn.data('item-id');
+            var deleteUrl = $btn.data('delete-url');
+            if (!itemId || !deleteUrl) return;
+            var doDelete = function() {
+                var csrf = $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val();
+                var canUrl = '{{ route("items.can_delete", ":id") }}'.replace(':id', itemId);
+                fetch(canUrl, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(function(res) {
+                    if (!res.ok) {
+                        throw new Error('Usage check failed');
+                    }
+                    return res.json();
+                }).then(function(canData) {
+                    if (!canData || typeof canData.can_delete === 'undefined') {
+                        throw new Error('Invalid usage response');
+                    }
+                    if (canData.can_delete === false) {
+                        var usedIn = canData.used_in && typeof canData.used_in === 'object' ? canData.used_in : {};
+                        var bits = Object.keys(usedIn).filter(function(k) { return (parseInt(usedIn[k], 10) || 0) > 0; })
+                            .map(function(k) { return k.replace(/_/g, ' ') + ': ' + usedIn[k]; }).slice(0, 6);
+                        var extra = bits.length ? '<div class="small text-muted mt-2">' + bits.join(' | ') + '</div>' : '';
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Cannot delete',
+                                html: '<div>' + (canData.message || 'This item is already used in transactions.') + '</div>' + extra
+                            });
+                        }
+                        return null;
+                    }
+                    return fetch(deleteUrl, {
+                        method: 'DELETE',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrf || ''
+                        }
+                    }).then(function(delRes) {
+                        return delRes.json().then(function(delData) {
+                            return { delRes: delRes, delData: delData };
+                        }).catch(function() {
+                            return { delRes: delRes, delData: {} };
+                        });
+                    });
+                }).then(function(pack) {
+                    if (!pack || !pack.delRes) return;
+                    if (!pack.delRes.ok || !pack.delData.success) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: (pack.delData && pack.delData.message) ? pack.delData.message : 'Could not deactivate this item.'
+                            });
+                        }
+                        return;
+                    }
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Done',
+                            text: pack.delData.message || 'Item deactivated successfully.',
+                            timer: 1800,
+                            showConfirmButton: false
+                        });
+                    }
+                    if (typeof pqModalRefreshStatsForCurrentScope === 'function') {
+                        pqModalRefreshStatsForCurrentScope();
+                    }
+                    loadProductQualityItemsModalList();
+                }).catch(function() {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'Unable to complete delete. Try again.' });
+                    }
+                });
+            };
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Deactivate item?',
+                    text: 'This will deactivate the item (it stays in history). Continue?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, deactivate',
+                    cancelButtonText: 'Cancel',
+                    reverseButtons: true
+                }).then(function(r) {
+                    if (r.isConfirmed) doDelete();
+                });
+            } else if (confirm('Deactivate this item?')) {
+                doDelete();
             }
         });
 
@@ -7952,7 +7805,12 @@
                         if (response.qualities && response.qualities.length > 0) {
                             let statsHtml = '<span class="small fw-semibold text-dark me-2">Qualities:</span>';
                             response.qualities.forEach(function(q) {
-                                statsHtml += `<span class="badge bg-primary text-white px-2 py-1 me-1 small fw-semibold" style="font-size: 0.8rem;">${q.name} (${q.count})</span>`;
+                                var qid = q.quality_id;
+                                var isNull = (qid === null || qid === undefined || qid === '');
+                                var nameEsc = pqEscapeHtml(q.name);
+                                var cnt = parseInt(q.count, 10);
+                                if (isNaN(cnt)) cnt = 0;
+                                statsHtml += '<button type="button" class="badge bg-primary text-white px-2 py-1 me-1 mb-1 small fw-semibold quality-stat-badge border-0" style="font-size: 0.8rem;" data-stat-scope="product" data-product-id="' + pqEscapeAttr(String(productId)) + '" data-quality-id="' + (isNull ? '' : pqEscapeAttr(String(qid))) + '" data-quality-is-null="' + (isNull ? '1' : '0') + '" data-quality-name="' + pqEscapeAttr(q.name) + '">' + nameEsc + ' (' + cnt + ')</button>';
                             });
                             $statsContainer.html(statsHtml).css('display', 'flex !important').show();
                         } else {
@@ -8277,6 +8135,7 @@
             }
             
             // Set type in universal form and show type selection
+            const isCategoryModal = (($button.data('route') || '').toString().toLowerCase().indexOf('category') !== -1) || (title || '').toLowerCase().indexOf('category') !== -1;
             if (mode === 'add') {
                 $('#universal-type-selection').show();
                 // Uncheck all checkboxes first
@@ -8284,9 +8143,11 @@
                     'background': 'white',
                     'border-color': '#e9ecef'
                 });
-                
-                // Check the selected type checkbox
-                if (selectedType) {
+                // For category add: do NOT pre-fill type from page (so scrap measurement stays hidden until user picks "Services")
+                if (isCategoryModal) {
+                    $('#universal-type').val('');
+                    $('#scrap-measurement-field').hide();
+                } else if (selectedType) {
                     $(`.universal-type-checkbox[value="${selectedType}"]`).prop('checked', true);
                     $(`.universal-type-checkbox[value="${selectedType}"]`).closest('label').css({
                         'background': '#fff4f0',
@@ -8406,11 +8267,13 @@
             $('#universal-image-preview').hide().attr('src', '');
             $('#universal-image-placeholder').show();
             currentEditId = null;
-            // Image field toggle
+            // Image field toggle; when shown, image is mandatory (required set on submit for edit with existing image)
             if (hasImage) {
                 $('#image-field').removeClass('d-none').show();
+                $('#universal-image').prop('required', true);
             } else {
                 $('#image-field').addClass('d-none').hide();
+                $('#universal-image').prop('required', false);
             }
             
             // Handle type checkboxes change
@@ -8442,6 +8305,14 @@
                     } else {
                         $('#universal-type').val(checkedTypes[0]);
                     }
+                }
+                // Scrap measurement only for Services category
+                var action = ($('#universal-form').attr('action') || '').toLowerCase();
+                var categoryType = ($('#universal-type').val() || '').toLowerCase();
+                if (action.indexOf('category') !== -1 && categoryType === 'services') {
+                    $('#scrap-measurement-field').show();
+                } else {
+                    $('#scrap-measurement-field').hide();
                 }
             });
             
@@ -8492,6 +8363,12 @@
                 // Set the search term in the name field
                 if (finalSearchTerm) {
                     $('#universal-name').val(finalSearchTerm);
+                }
+                
+                // For Add Part Number: set type from current item form so new part number is saved with correct type (parts/filters/breakpad)
+                if ($button.hasClass('add-new-part-number-btn')) {
+                    var formType = $('input[name="type"]').val() || '';
+                    if (formType) $('#universal-type').val(formType);
                 }
                 
                 // Close Select2 dropdowns before opening modal
@@ -8545,19 +8422,30 @@
                         $('#universal-type').val('');
                     }
                     
-                    // Scrap measurement for category edit
-                    if (updateRoute && updateRoute.indexOf('category') !== -1 && res.scrap_measurement != null) {
-                        $('#universal-scrap-measurement').val(res.scrap_measurement || 'weight');
+                    // Scrap measurement and editable labels for category edit
+                    if (updateRoute && updateRoute.indexOf('category') !== -1) {
+                        var sm = (res.scrap_measurement || 'weight').toLowerCase();
+                        $('#universal-scrap-measurement').val(sm);
+                        $('.scrap-measurement-radio').prop('checked', false);
+                        $('#scrap-radio-weight, #scrap-radio-count').filter('[value="' + sm + '"]').prop('checked', true);
+                        $('#universal-scrap-weight-label').val((res.scrap_weight_label || 'KG').trim() || 'KG');
+                        $('#universal-scrap-count-label').val((res.scrap_count_label || 'count').trim() || 'count');
+                        $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+                        $('#scrap-option-' + sm).removeClass('border-secondary').addClass('border-primary');
                     }
                     
-                    // Image preview (edit mode)
+                    // Image preview (edit mode); image required only when no existing image
                     if (hasImage && res.image) {
                         $('#image-field').removeClass('d-none').show();
+                        $('#universal-image').prop('required', false);
                         $('#universal-image-preview')
                             .attr('src', '/' + res.image)
                             .show();
                         $('#universal-image-placeholder').hide();
                     } else {
+                        if (hasImage) {
+                            $('#universal-image').prop('required', true);
+                        }
                         $('#universal-image-preview').hide();
                         $('#universal-image-placeholder').show();
                     }
@@ -8572,12 +8460,19 @@
         // =========================
         // Focus input field automatically when universal modal opens
         $('#universal-add-modal').on('shown.bs.modal', function() {
-            // Show/hide Scrap measurement field for category add/edit
+            // Show Scrap measurement only for Services category (no other category type)
             var action = ($('#universal-form').attr('action') || '').toLowerCase();
-            if (action.indexOf('category') !== -1) {
+            var categoryType = ($('#universal-type').val() || '').toLowerCase();
+            if (action.indexOf('category') !== -1 && categoryType === 'services') {
                 $('#scrap-measurement-field').show();
                 if (!currentEditId) {
                     $('#universal-scrap-measurement').val('weight');
+                    $('#scrap-radio-weight').prop('checked', true);
+                    $('#scrap-radio-count').prop('checked', false);
+                    $('#universal-scrap-weight-label').val('KG');
+                    $('#universal-scrap-count-label').val('count');
+                    $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+                    $('#scrap-option-weight').removeClass('border-secondary').addClass('border-primary');
                 }
             } else {
                 $('#scrap-measurement-field').hide();
@@ -8628,6 +8523,30 @@
             });
         });
         
+        // Scrap measurement: sync radio + card selection and hidden input
+        $(document).on('change', '.scrap-measurement-radio', function() {
+            var v = $(this).val();
+            $('#universal-scrap-measurement').val(v);
+            $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+            $('#scrap-option-' + v).removeClass('border-secondary').addClass('border-primary');
+        });
+        $(document).on('click', '.scrap-option-card', function() {
+            var v = $(this).data('value');
+            $('#universal-scrap-measurement').val(v);
+            $('.scrap-measurement-radio').prop('checked', false);
+            $('#scrap-radio-' + v).prop('checked', true);
+            $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+            $(this).removeClass('border-secondary').addClass('border-primary');
+        });
+        // Ensure default card has border when scrap field is shown
+        $(document).on('shown.bs.modal', '#universal-add-modal', function() {
+            if ($('#scrap-measurement-field').is(':visible') && $('#scrap-option-weight').length) {
+                var v = $('#universal-scrap-measurement').val() || 'weight';
+                $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+                $('#scrap-option-' + v).removeClass('border-secondary').addClass('border-primary');
+            }
+        });
+
         // =========================
         // KEYBOARD HANDLERS FOR UNIVERSAL MODAL
         // =========================
@@ -8724,6 +8643,17 @@
                 return false;
             }
             
+            // Validate image when image field is visible and required
+            if ($('#image-field').is(':visible') && $('#universal-image').prop('required')) {
+                const fileInput = $('#universal-image')[0];
+                if (!fileInput || !fileInput.files || !fileInput.files.length) {
+                    $('#universal-image').addClass('is-invalid').focus();
+                    toastr.warning('Please attach an image.');
+                    return false;
+                }
+                $('#universal-image').removeClass('is-invalid');
+            }
+            
             const formData = new FormData(this);
             if (currentEditId) {
                 formData.append('_method', 'PUT');
@@ -8758,24 +8688,33 @@
                     $select.find(`option[value="${res.id}"]`).remove();
                     $select.append(option).val(res.id).trigger('change');
                     if (res.scrap_measurement != null) {
-                        $select.find(`option[value="${res.id}"]`).attr('data-scrap-measurement', res.scrap_measurement || 'weight');
+                        var $opt = $select.find(`option[value="${res.id}"]`);
+                        $opt.attr('data-scrap-measurement', res.scrap_measurement || 'weight');
+                        if (res.scrap_weight_label != null) $opt.attr('data-scrap-weight-label', res.scrap_weight_label);
+                        if (res.scrap_count_label != null) $opt.attr('data-scrap-count-label', res.scrap_count_label);
                     }
                     currentTargetSelectElement = null;
                     $('#universal-add-modal').modal('hide');
                     $('#universal-form')[0].reset();
-                    // Show message when server indicates it already existed (e.g. quality "A+")
-                    if (res.already_exists && res.message) {
+                    // Show message when server indicates it already existed (e.g. quality "A+") — skip for part number
+                    var isPartNumber = (formAction || '').toLowerCase().indexOf('part') !== -1 && ((formAction || '').toLowerCase().indexOf('number') !== -1 || (formAction || '').toLowerCase().indexOf('partnumber') !== -1);
+                    if (res.already_exists && res.message && !isPartNumber) {
                         toastr.info(res.message);
-                    } else {
-                        // 🔊 Play save sound when dropdown option is saved
-                        if (typeof playSaveSound === 'function') {
-                            playSaveSound();
-                        }
+                    }
+                    // Play save sound when dropdown option is saved (including when part number already existed and was selected)
+                    if (typeof playSaveSound === 'function') {
+                        playSaveSound();
                     }
                 },
                 error: function(xhr) {
                     console.error('AJAX error', xhr);
-                    const response = xhr.responseJSON;
+                    let response = xhr.responseJSON;
+                    if (!response && xhr.responseText) {
+                        try {
+                            var parsed = JSON.parse(xhr.responseText);
+                            if (parsed && typeof parsed === 'object') response = parsed;
+                        } catch (e) {}
+                    }
                     if (response && response.errors) {
                         if (response.errors.name) {
                             $('#universal-name').addClass('is-invalid');
@@ -8787,7 +8726,7 @@
                     } else if (response && response.message) {
                         toastr.error(response.message);
                     } else {
-                        toastr.error('An error occurred. Please try again.');
+                        toastr.error(xhr.status === 500 ? 'Something went wrong. Please try again.' : 'An error occurred. Please try again.');
                     }
                 }
             });
@@ -8927,9 +8866,9 @@
                     $list.html('<span class="text-muted">No details added yet. Click Add Detail to add.</span>');
                 } else {
                     const html = raw.map(function(d, i) {
-                        const t = (d.text || d.label || d || '');
+                        const t = (d.text || d.label || d || '').trim();
                         const p = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
-                        const item = p ? t + ' <span class="badge bg-success ms-1">' + p + '</span>' : t;
+                        const item = p ? t + ' <span class="badge bg-success rounded-pill ms-1">' + p + '</span>' : t;
                         return '<div class="py-1">' + (i + 1) + '. ' + item + '</div>';
                     }).join('');
                     $list.html(html);
@@ -9004,20 +8943,45 @@
         $('#serviceDetailsModalSave').on('click', function() {
             const id = $('#service_details_modal_id').val();
             if (!id) return;
+            // Include any pending "Add new detail" row (user may not have clicked Add)
+            const newText = $('#service_detail_new_input').val().trim();
+            if (newText) {
+                const newPrice = $('#service_detail_new_price').val().trim();
+                serviceDetailsTemp.push({ text: newText, price: newPrice ? newPrice : '' });
+                $('#service_detail_new_input').val('');
+                $('#service_detail_new_price').val('');
+                renderServiceDetailsList();
+            }
             $.ajax({
                 url: '{{ url("update/service") }}/' + id,
                 method: 'POST',
-                data: {
+                contentType: 'application/json',
+                data: JSON.stringify({
                     _token: $('input[name="_token"]').val(),
                     _method: 'PUT',
                     name: $('#Services_scrap option:selected').text(),
                     details: serviceDetailsTemp
-                },
+                }),
                 success: function(res) {
                     $('#serviceDetailsModal').modal('hide');
-                    loadServiceDetailsDisplay(id);
+                    // Update main form display from response so list shows immediately
+                    const $box = $('#serviceDetailsDisplay');
+                    const $list = $('#serviceDetailsDisplayList');
+                    const raw = (res && Array.isArray(res.details)) ? res.details : [];
+                    if (raw.length === 0) {
+                        $list.html('<span class="text-muted">No details added yet. Click Add Detail to add.</span>');
+                    } else {
+                        const html = raw.map(function(d, i) {
+                            const t = (d.text || d.label || d || '').trim();
+                            const p = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
+                            const item = p ? t + ' <span class="badge bg-success rounded-pill ms-1">' + p + '</span>' : t;
+                            return '<div class="py-1">' + (i + 1) + '. ' + item + '</div>';
+                        }).join('');
+                        $list.html(html);
+                    }
+                    $box.show();
                     if (typeof playSaveSound === 'function') playSaveSound();
-                    toastr.success('Service details saved successfully');
+                    toastr.success(res && res.message ? res.message : 'Service details saved successfully');
                 },
                 error: function(xhr) {
                     const res = xhr.responseJSON;
@@ -9025,35 +8989,6 @@
                 }
             });
         });
-
-        // Category image display
-        function updateCategoryImageDisplay() {
-            const catId = $('#category').val();
-            const $opt = $('#category option:selected');
-            const imgSrc = $opt.length ? ($opt.data('image') || $opt.attr('data-image') || '') : '';
-            const $box = $('#categoryImageDisplay');
-            const $img = $('#categoryImageImg');
-            if (imgSrc) {
-                $img.attr('src', imgSrc).attr('alt', $opt.text());
-                $box.show();
-            } else if (catId) {
-                $.get('{{ url("show/category") }}/' + catId, function(res) {
-                    const raw = res.image ? String(res.image) : '';
-                    const src = raw ? (raw.startsWith('http') ? raw : '{{ url("/") }}/' + raw.replace(/^\/+/, '')) : '';
-                    if (src) {
-                        $opt.attr('data-image', src);
-                        $img.attr('src', src).attr('alt', res.name);
-                        $box.show();
-                    } else {
-                        $box.hide();
-                    }
-                }).fail(function() { $box.hide(); });
-            } else {
-                $box.hide();
-            }
-        }
-        $(document).on('change', '#category', updateCategoryImageDisplay);
-        updateCategoryImageDisplay();
 
         // Edit button color: blue when select has value, gray when empty
         function updateEditButtonColors() {
@@ -9139,6 +9074,42 @@
                 }
             }, 500);
         }, 100);
+
+        function normalizeCategoryName(value) {
+            return String(value == null ? '' : value)
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toUpperCase();
+        }
+
+        function isPetrolEngineOilCategory($categorySelect) {
+            if (!$categorySelect || !$categorySelect.length) return false;
+            var selectedText = '';
+            try { selectedText = $categorySelect.find('option:selected').text() || ''; } catch (e) { selectedText = ''; }
+            return normalizeCategoryName(selectedText) === 'PETROL ENGINE OIL';
+        }
+
+        function toggleSeriesByCategory() {
+            var $categorySelect = $('#category');
+            if (!$categorySelect.length) return;
+            var hideForPetrolOil = isPetrolEngineOilCategory($categorySelect);
+            var itemType = (($('input[name="type"]').val() || '') + '').toLowerCase();
+            var $seriesWrap = $('#series_field_wrapper');
+            var $seriesSelect = $('#series_select');
+
+            $seriesWrap.toggle(!hideForPetrolOil);
+
+            if (hideForPetrolOil) {
+                $seriesSelect.val('').trigger('change.select2').prop('required', false).prop('disabled', true).removeClass('is-invalid');
+                $('#hidden_series_id').val('');
+            } else {
+                var shouldRequireSeries = (itemType === 'battery');
+                $seriesSelect.prop('disabled', false).prop('required', shouldRequireSeries);
+            }
+        }
+
+        $(document).on('change', '#category, select.category-select', toggleSeriesByCategory);
+        setTimeout(toggleSeriesByCategory, 0);
 
         // =========================
         // Function to show items in SweetAlert modal
@@ -9252,10 +9223,23 @@
             e.preventDefault();
             var $form = $(this);
 
-            // ========== Compulsory: Low Stock & Maintain Stock when type is parts/battery/oil/scrap/filters/breakpad ==========
+            // ========== Compulsory: Bar Code (when type selected) ==========
             var itemType = ($form.find('input[name="type"]').val() || '').toLowerCase();
+            if (itemType && !($('#itemBarCode').val() || '').trim()) {
+                if (typeof toastr !== 'undefined') toastr.error('Please enter Product Bar Code.');
+                $('#itemBarCode').addClass('is-invalid').one('input change', function() { $(this).removeClass('is-invalid'); });
+                return;
+            }
+            $('#itemBarCode').removeClass('is-invalid');
+
+            // ========== Compulsory: Low Stock & Maintain Stock when type is parts/battery/oil/scrap/filters/breakpad ==========
             var stockTypes = ['parts', 'battery', 'oil', 'scrap', 'filters', 'breakpad'];
             if (stockTypes.indexOf(itemType) !== -1) {
+                // Scrap: these fields are hidden, set defaults so validation passes
+                if (itemType === 'scrap') {
+                    if (!($('#low_stock_parts').val() || '').trim()) $('#low_stock_parts').val(1);
+                    if (!($('#maintain_stock_parts').val() || '').trim()) $('#maintain_stock_parts').val(1);
+                }
                 var lowStock = ($('#low_stock_parts').val() || '').trim();
                 var maintainStock = ($('#maintain_stock_parts').val() || '').trim();
                 if (!lowStock || !maintainStock) {
@@ -9288,13 +9272,6 @@
                         return;
                     }
                 }
-                var scrapProduct = ($('#product_name_item').val() || '').trim();
-                if (!scrapProduct) {
-                    if (typeof toastr !== 'undefined') toastr.error('Please select Product Name for scrap item.');
-                    $('#product_name_item').addClass('is-invalid');
-                    $('#product_name_item').one('change', function() { $(this).removeClass('is-invalid'); });
-                    return;
-                }
                 $('#scrap_weight_kg, #scrap_quantity, #product_name_item').removeClass('is-invalid');
             }
 
@@ -9318,6 +9295,18 @@
             }
             $('#part_number_id, #product_name_item').removeClass('is-invalid');
 
+            // ========== Compulsory: Services type – must select a Service ==========
+            if (itemType === 'services') {
+                var servicesVal = ($('#Services_scrap').val() || '').trim();
+                if (!servicesVal) {
+                    if (typeof toastr !== 'undefined') toastr.error('Please select a Service.');
+                    $('#Services_scrap').addClass('is-invalid');
+                    $('#Services_scrap').one('change', function() { $(this).removeClass('is-invalid'); });
+                    return;
+                }
+                $('#Services_scrap').removeClass('is-invalid');
+            }
+
             // ========== Compulsory: Category, Company, Quality, Unit (when visible for current type) ==========
             var categoryTypes = ['parts', 'oil', 'scrap', 'services', 'filters', 'breakpad'];
             var companyTypes = ['parts', 'battery', 'oil', 'filters', 'breakpad'];
@@ -9338,24 +9327,40 @@
                     $('#quality, #quality_filters, #quality_breakpad').removeClass('is-invalid');
                 }
             }
-            if (itemType && itemType !== '' && itemType !== 'scrap') {
+            // Series is required only for battery when visible.
+            var $seriesSelect = $('#series_select');
+            var seriesVisible = $seriesSelect.length && $seriesSelect.closest('.col-md-4').is(':visible');
+            if (seriesVisible && itemType === 'battery') {
+                if (!($seriesSelect.val() || '').trim()) {
+                    errMsg.push('Series');
+                    $seriesSelect.addClass('is-invalid');
+                } else {
+                    $seriesSelect.removeClass('is-invalid');
+                }
+            }
+            if (itemType && itemType !== '' && itemType !== 'scrap' && itemType !== 'services') {
                 if (!($('#unit_parts').val() || '').trim()) { errMsg.push('Unit'); $('#unit_parts').addClass('is-invalid'); } else { $('#unit_parts').removeClass('is-invalid'); }
             }
             if (errMsg.length > 0) {
                 if (typeof toastr !== 'undefined') toastr.error('Please select: ' + errMsg.join(', ') + '.');
-                $('#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #unit_parts').one('change', function() { $(this).removeClass('is-invalid'); });
+                $('#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #unit_parts, #series_select').one('change', function() { $(this).removeClass('is-invalid'); });
                 return;
             }
 
-            // ========== Compulsory: Product Image (Thumbnail) ==========
+            // ========== Product Image (Thumbnail) ==========
+            // Backend allows image to be nullable, but some UI flows forced it.
+            // For Scrap items we keep it OPTIONAL to avoid blocking creation.
             var imageInputEl = document.getElementById('imageInput');
-            if (imageInputEl && (!imageInputEl.files || imageInputEl.files.length === 0)) {
-                if (typeof toastr !== 'undefined') toastr.error('Please add Product Image (Thumbnail).');
-                $('#imageInput').addClass('is-invalid');
-                $('#imageInput').one('change', function() { $(this).removeClass('is-invalid'); });
-                return;
+            if (imageInputEl) {
+                var hasImage = (imageInputEl.files && imageInputEl.files.length > 0);
+                if (!hasImage && itemType !== 'scrap') {
+                    if (typeof toastr !== 'undefined') toastr.error('Please add Product Image (Thumbnail).');
+                    $('#imageInput').addClass('is-invalid');
+                    $('#imageInput').one('change', function() { $(this).removeClass('is-invalid'); });
+                    return;
+                }
+                $('#imageInput').removeClass('is-invalid');
             }
-            $('#imageInput').removeClass('is-invalid');
 
             // ========== SYNC hidden fields before submit ==========
             var shortDiscVal = ($('#short_disc_visible').val() || '').trim();
@@ -9386,8 +9391,18 @@
             $form.find('input[type="hidden"][name="technology"]').remove();
             if (techVal) $form.append('<input type="hidden" name="technology" value="' + techVal + '">');
 
+            var seriesVal = $('#series_select').val() || '';
+            $form.find('input[type="hidden"][name="series_id"]').remove();
+            if (seriesVal) $form.append('<input type="hidden" name="series_id" value="' + seriesVal + '">');
+
+            // Ensure part_number_id and p_id are sent (Select2/AJAX selects can be omitted from FormData)
+            var partNumberIdVal = ($('#part_number_id').val() || '').toString().trim();
+            var pIdVal = ($('#product_name_item').val() || '').toString().trim();
+
             var formData = new FormData($form[0]);
             formData.set('action', $('#mainFormAction').val() || 'save_new');
+            if (partNumberIdVal) formData.set('part_number_id', partNumberIdVal);
+            if (pIdVal) formData.set('p_id', pIdVal);
 
             var $focused = $form.find('button[type=submit][name=action]:focus');
             if ($focused.length) formData.set('action', $focused.val());
@@ -9655,9 +9670,14 @@
         function updateScrapTotal() {
             var w = ($('#scrap_weight_kg').val() || '').toString().trim();
             var r = ($('#scrap_rate_per_kg').val() || '').toString().trim();
+            // Normalize numeric input to support both 12.5 and 12,5 formats.
+            // If user uses comma as decimal separator (and dot isn't present), convert it to dot.
+            if (w.includes(',') && !w.includes('.')) w = w.replace(',', '.');
+            if (r.includes(',') && !r.includes('.')) r = r.replace(',', '.');
             if (w === '' || r === '') {
                 $('#scrap_total_price').val('');
                 $('#scrap_total_price_hidden').val('');
+                $('#costPrice').val('');
                 return;
             }
             var weight = parseFloat(w);
@@ -9665,18 +9685,24 @@
             if (isNaN(weight) || isNaN(rate)) {
                 $('#scrap_total_price').val('');
                 $('#scrap_total_price_hidden').val('');
+                $('#costPrice').val('');
                 return;
             }
             var total = weight * rate;
-            $('#scrap_total_price').val(total.toFixed(2));
+            // Display total without decimals (user requested "remove decimel" from UI field)
+            $('#scrap_total_price').val(total.toFixed(0));
             $('#scrap_total_price_hidden').val(total.toFixed(2));
+            $('#costPrice').val(total.toFixed(2));
         }
         function updateScrapCountTotal() {
             var q = ($('#scrap_quantity').val() || '').toString().trim();
             var r = ($('#scrap_rate_count').val() || '').toString().trim();
+            if (q.includes(',') && !q.includes('.')) q = q.replace(',', '.');
+            if (r.includes(',') && !r.includes('.')) r = r.replace(',', '.');
             if (q === '' || r === '') {
                 $('#scrap_total_count').val('');
                 $('#scrap_total_count_hidden').val('');
+                $('#costPrice').val('');
                 return;
             }
             var qty = parseFloat(q);
@@ -9684,11 +9710,13 @@
             if (isNaN(qty) || isNaN(rate)) {
                 $('#scrap_total_count').val('');
                 $('#scrap_total_count_hidden').val('');
+                $('#costPrice').val('');
                 return;
             }
             var total = qty * rate;
             $('#scrap_total_count').val(total.toFixed(2));
             $('#scrap_total_count_hidden').val(total.toFixed(2));
+            $('#costPrice').val(total.toFixed(2));
         }
         $(document).on('input change', '#scrap_weight_kg, #scrap_rate_per_kg', updateScrapTotal);
         $(document).on('input change', '#scrap_quantity, #scrap_rate_count', updateScrapCountTotal);
@@ -9701,17 +9729,109 @@
             if ((typeInput || '').toLowerCase() !== 'scrap') return;
             var sel = this.options[this.selectedIndex];
             var m = (sel && sel.getAttribute('data-scrap-measurement')) ? sel.getAttribute('data-scrap-measurement').toLowerCase() : 'weight';
+
+            // Battery size dropdown: show only for battery scrap categories
+            var catType = (sel && sel.getAttribute('data-type')) ? String(sel.getAttribute('data-type')) : '';
+            var isBatteryCat = /batter/i.test((catType || '').toLowerCase());
+            if (isBatteryCat) {
+                $('#scrap-battery-size-wrapper').show();
+                $('#battery_size_id_scrap').prop('required', true);
+            } else {
+                $('#scrap-battery-size-wrapper').hide();
+                $('#battery_size_id_scrap').prop('required', false);
+                $('#battery_size_id_scrap').val('').trigger('change');
+            }
             try {
                 var alpine = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
                 if (alpine) { alpine.scrapMeasurement = m; }
             } catch (e) {}
             $('#scrap_measurement_input').val(m);
         });
+
+        // Initial sync (important for edit/back navigation)
+        try {
+            var currentType = ($('input[name="type"]').val() || '').toLowerCase();
+            if (currentType === 'scrap') {
+                var catEl = document.getElementById('category');
+                if (catEl && catEl.options && catEl.selectedIndex >= 0) {
+                    var opt = catEl.options[catEl.selectedIndex];
+                    var catType2 = (opt && opt.getAttribute) ? String(opt.getAttribute('data-type') || '') : '';
+                    var isBatteryCat2 = /batter/i.test(catType2.toLowerCase());
+                    if (isBatteryCat2) {
+                        $('#scrap-battery-size-wrapper').show();
+                        $('#battery_size_id_scrap').prop('required', true);
+                    }
+                }
+            }
+        } catch (e) {}
     });
 
     // Item Vehicle Modal (create/new page only) - Same flow as edit: AJAX save, NO redirect, NO page refresh
     $(document).ready(function() {
         if ($('#openItemVehicleModal').length === 0 || $('#itemVehicleAddModal').length === 0) return;
+
+        var ITEM_VEHICLE_MODELS_URL = '{{ route("vehicle.master.models") }}';
+        function itemVehicleEscOpt(val) {
+            return String(val == null ? '' : val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+        function itemVehicleLoadModelsForMake($modal, makeId, selectModelId, done) {
+            var $model = $modal.find('#itemVehicleModel');
+            if ($model.hasClass('select2-hidden-accessible')) {
+                try { $model.select2('destroy'); } catch (e) {}
+            }
+            var mk = makeId ? String(makeId) : '';
+            if (!mk) {
+                $model.html('<option value="">— Select make first —</option>').prop('disabled', true);
+                if ($.fn.select2) {
+                    $model.select2({ placeholder: '— Select make first —', allowClear: true, width: '100%', minimumResultsForSearch: 0, dropdownParent: $modal });
+                }
+                if (done) done();
+                return;
+            }
+            var params = { manufacturer_id: mk };
+            if (selectModelId) {
+                params.include_model_ids = String(selectModelId);
+            }
+            $.get(ITEM_VEHICLE_MODELS_URL, params, function(res) {
+                var h = '<option value="">— Select model —</option>';
+                if (res && res.success && res.models) {
+                    res.models.forEach(function(m) {
+                        h += '<option value="' + m.id + '">' + itemVehicleEscOpt(m.name) + '</option>';
+                    });
+                }
+                $model.html(h).prop('disabled', false);
+                if (selectModelId) {
+                    $model.val(String(selectModelId));
+                }
+                if ($.fn.select2) {
+                    $model.select2({ placeholder: '— Select model —', allowClear: true, width: '100%', minimumResultsForSearch: 0, dropdownParent: $modal });
+                }
+                if (done) done();
+            }).fail(function() {
+                $model.html('<option value="">— Could not load models —</option>').prop('disabled', false);
+                if ($.fn.select2) {
+                    $model.select2({ placeholder: '— Could not load models —', allowClear: true, width: '100%', minimumResultsForSearch: 0, dropdownParent: $modal });
+                }
+                if (done) done();
+            });
+        }
+        function itemVehicleInitVehicleSelect2($modal) {
+            var vehicleSelectorsStr = '.item-vehicle-manufacturer, .item-vehicle-model, .item-vehicle-engine, .item-vehicle-country';
+            $modal.find(vehicleSelectorsStr).each(function() {
+                var $sel = $(this);
+                if (!$.fn.select2) return;
+                if ($sel.hasClass('select2-hidden-accessible')) {
+                    try { $sel.select2('destroy'); } catch (err) {}
+                }
+                $sel.select2({
+                    placeholder: $sel.find('option:first').text(),
+                    allowClear: true,
+                    width: '100%',
+                    minimumResultsForSearch: 0,
+                    dropdownParent: $modal
+                });
+            });
+        }
         
         let itemVehicleIds = [];
         let itemVehicleDetails = {};
@@ -9782,24 +9902,9 @@
                 // Reset year ranges to single row
                 $('#itemVehicleYearRangesContainer .item-vehicle-year-range-row').not(':first').remove();
                 $('#itemVehicleYearRangeWarning').text('').hide();
+                $modal.find('#itemVehicleModel').html('<option value="">— Select make first —</option>').prop('disabled', true);
             }
-            // Init Select2 on vehicle dropdowns (exclude year from/to in container - they may be multiple)
-            const vehicleSelectorsStr = '.item-vehicle-manufacturer, .item-vehicle-model, .item-vehicle-engine, .item-vehicle-country';
-            $modal.find(vehicleSelectorsStr).each(function() {
-                const $sel = $(this);
-                if ($.fn.select2) {
-                    if ($sel.hasClass('select2-hidden-accessible')) {
-                        try { $sel.select2('destroy'); } catch (err) {}
-                    }
-                    $sel.select2({
-                        placeholder: $sel.find('option:first').text(),
-                        allowClear: true,
-                        width: '100%',
-                        minimumResultsForSearch: 0,
-                        dropdownParent: $modal
-                    });
-                }
-            });
+            itemVehicleInitVehicleSelect2($modal);
         });
         var itemVehicleExistingRangesParsed = [];
         function updateItemVehicleExistingRangesHint() {
@@ -9807,7 +9912,7 @@
             const makeText = ($('#itemVehicleMake option:selected').text() || '').trim();
             const modelText = ($('#itemVehicleModel option:selected').text() || '').trim();
             itemVehicleExistingRangesParsed = [];
-            if (!makeText || !modelText || makeText === '— Select —' || modelText === '— Select —') {
+            if (!makeText || !modelText || makeText === '— Select —' || makeText === '— Select make —' || modelText === '— Select —' || modelText === '— Select make first —' || modelText === '— Select model —') {
                 $hint.hide().empty();
                 return;
             }
@@ -9842,19 +9947,30 @@
                 $hint.hide().empty();
             }
         }
-        $('#itemVehicleAddModal').on('change', '#itemVehicleMake, #itemVehicleModel', function() {
+        $('#itemVehicleAddModal').on('change', '#itemVehicleMake', function() {
+            if ($(this).data('itemVehicleSkipReload')) return;
+            var mk = $(this).val();
+            itemVehicleLoadModelsForMake($('#itemVehicleAddModal'), mk, null, function() {
+                updateItemVehicleExistingRangesHint();
+            });
+        });
+        $('#itemVehicleAddModal').on('change', '#itemVehicleModel', function() {
             updateItemVehicleExistingRangesHint();
         });
         $('#itemVehicleAddModal').on('shown.bs.modal', function() {
             const $modal = $('#itemVehicleAddModal');
             if (editingVehicleId && itemVehicleFullDetails[editingVehicleId]) {
                 const data = itemVehicleFullDetails[editingVehicleId];
-                $modal.find('#itemVehicleMake').val(data.car_manufacturer || '').trigger('change');
-                $modal.find('#itemVehicleModel').val(data.car_model_name || '').trigger('change');
-                $modal.find('.item-vehicle-year-from').first().val(data.year_from || '').trigger('change');
-                $modal.find('.item-vehicle-year-to').first().val(data.year_to || '').trigger('change');
-                $modal.find('#itemVehicleEngine').val(data.engine_cc || '').trigger('change');
-                $modal.find('#itemVehicleCountry').val(data.car_manufactured_country || '').trigger('change');
+                const $make = $modal.find('#itemVehicleMake');
+                $make.data('itemVehicleSkipReload', true);
+                $make.val(data.car_manufacturer || '').trigger('change');
+                itemVehicleLoadModelsForMake($modal, data.car_manufacturer || '', data.car_model_name || '', function() {
+                    $make.removeData('itemVehicleSkipReload');
+                    $modal.find('.item-vehicle-year-from').first().val(data.year_from || '').trigger('change');
+                    $modal.find('.item-vehicle-year-to').first().val(data.year_to || '').trigger('change');
+                    $modal.find('#itemVehicleEngine').val(data.engine_cc || '').trigger('change');
+                    $modal.find('#itemVehicleCountry').val(data.car_manufactured_country || '').trigger('change');
+                });
             }
             setTimeout(function() { updateItemVehicleExistingRangesHint(); }, 100);
             // Focus search input when any vehicle dropdown opens
@@ -10240,6 +10356,7 @@
         updateItemVehiclesDisplay();
     });
 </script>
+@include('admin.item.partials.item-active-toggle-script')
 <style>
     .swal-wide {
         max-width: 1400px !important;

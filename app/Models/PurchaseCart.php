@@ -16,6 +16,7 @@ class PurchaseCart extends Model
         'item_id',
         'entry_type',
         'item_name',
+        'demand_user_name',
         'warehouse_id',
         'quantity',
         'unit',

@@ -50,14 +50,14 @@
                         </select>
                     </form>
 
-                    <!-- Filter by Reconciled Status -->
+                    <!-- Filter by Tally Status -->
                     <form method="GET" action="{{ route('admin.bank-transactions.index') }}" class="d-inline">
                         <input type="hidden" name="bank_account_id" value="{{ request('bank_account_id') }}">
                         <input type="hidden" name="type" value="{{ request('type') }}">
                         <select name="reconciled" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Status</option>
-                            <option value="1" {{ request('reconciled') == '1' ? 'selected' : '' }}>Reconciled</option>
-                            <option value="0" {{ request('reconciled') == '0' ? 'selected' : '' }}>Unreconciled</option>
+                            <option value="1" {{ request('reconciled') == '1' ? 'selected' : '' }}>Tallied</option>
+                            <option value="0" {{ request('reconciled') == '0' ? 'selected' : '' }}>Untallied</option>
                         </select>
                     </form>
 
@@ -82,7 +82,7 @@
                                 <th>Amount</th>
                                 <th>Statement Reference</th>
                                 <th>Matched Payment</th>
-                                <th>Reconciled</th>
+                                <th>Tallied</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -146,14 +146,14 @@
                                             @if(!$transaction->reconciled)
                                                 <form action="{{ route('admin.bank-transactions.reconcile', $transaction->id) }}" method="POST" class="d-inline">
                                                     @csrf
-                                                    <button type="submit" class="btn btn-sm btn-success" title="Mark as Reconciled" onclick="return confirm('Mark this transaction as reconciled?');">
+                                                    <button type="submit" class="btn btn-sm btn-success" title="Mark as Tallied" onclick="return confirm('Mark this transaction as tallied?');">
                                                         <i class="ti ti-check"></i>
                                                     </button>
                                                 </form>
                                             @else
                                                 <form action="{{ route('admin.bank-transactions.unreconcile', $transaction->id) }}" method="POST" class="d-inline">
                                                     @csrf
-                                                    <button type="submit" class="btn btn-sm btn-warning" title="Mark as Unreconciled" onclick="return confirm('Mark this transaction as unreconciled?');">
+                                                    <button type="submit" class="btn btn-sm btn-warning" title="Mark as Untallied" onclick="return confirm('Mark this transaction as untallied?');">
                                                         <i class="ti ti-x"></i>
                                                     </button>
                                                 </form>

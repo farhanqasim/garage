@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Supplier extends Model
 {
@@ -37,13 +37,13 @@ class Supplier extends Model
     ];
 
     protected $casts = [
-        'names'           => 'array',
-        'phones'          => 'array',
-        'emails'          => 'array',
+        'names' => 'array',
+        'phones' => 'array',
+        'emails' => 'array',
         'business_detail' => 'array',
         'multiple_images' => 'array',
         'opening_balance' => 'decimal:2',
-        'credit_limit'    => 'decimal:2',
+        'credit_limit' => 'decimal:2',
     ];
 
     protected $hidden = [
@@ -56,6 +56,7 @@ class Supplier extends Model
         if (is_null($value)) {
             return [];
         }
+
         return is_array($value) ? $value : (json_decode($value, true) ?? []);
     }
 
@@ -64,6 +65,7 @@ class Supplier extends Model
         if (is_null($value) || $value === '') {
             return [];
         }
+
         return is_array($value) ? $value : (json_decode($value, true) ?? []);
     }
 
@@ -73,6 +75,7 @@ class Supplier extends Model
         if (is_null($value)) {
             return [];
         }
+
         return is_array($value) ? $value : (json_decode($value, true) ?? []);
     }
 
@@ -92,6 +95,7 @@ class Supplier extends Model
         if (is_string($decoded) && json_decode($decoded, true) !== null) {
             return json_decode($decoded, true);
         }
+
         return [];
     }
 
@@ -105,25 +109,30 @@ class Supplier extends Model
                 return $this->as_of_date;
             }
         }
+
         return null;
     }
-    
+
     // Relationship with User who created the supplier
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-    
+
     // Relationship with Branch where supplier was created
     public function createdByBranch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');
     }
-    
+
     // Relationship with Edit History
     public function editHistory()
     {
         return $this->hasMany(SupplierEditHistory::class)->orderBy('created_at', 'desc');
     }
-    
+
+    public function group()
+    {
+        return $this->belongsTo(Group::class, 'group_id');
+    }
 }

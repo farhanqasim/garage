@@ -497,6 +497,20 @@
                             </li>
                             @endif
 
+                            @if($item->type === 'scrap' && ($item->scrap_dim_width || $item->scrap_dim_height || $item->scrap_dim_length || $item->scrap_dim_depth))
+                            <li data-view="internal">
+                                <h4>Dimensions</h4>
+                                @php
+                                    $unit = $item->scrap_dim_unit ?: 'inch';
+                                    $w = $item->scrap_dim_width !== null ? number_format((float)$item->scrap_dim_width, 2) : '-';
+                                    $ht = $item->scrap_dim_height !== null ? number_format((float)$item->scrap_dim_height, 2) : '-';
+                                    $l = $item->scrap_dim_length !== null ? number_format((float)$item->scrap_dim_length, 2) : '-';
+                                    $d = $item->scrap_dim_depth !== null ? number_format((float)$item->scrap_dim_depth, 2) : '-';
+                                @endphp
+                                <h6>{{ $w }} x {{ $ht }} x {{ $l }} x {{ $d }} {{ $unit }}</h6>
+                            </li>
+                            @endif
+
                             @if($item->made_in_item)
                             <li>
                                 <h4>Made In</h4>

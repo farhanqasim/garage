@@ -12,6 +12,9 @@
   ];
   $themeSettings = auth()->check() ? array_merge($themeDefaults, auth()->user()->theme_settings ?? []) : $themeDefaults;
   $isRtl = !empty($themeSettings['rtl']);
+  $isLocal = is_first_party_lan_host();
+  $scriptType = $isLocal ? 'text/javascript' : 'f89f8e290dd47aa8bc06c7c9-text/javascript';
+  $scriptTypeAlt = $isLocal ? 'text/javascript' : 'a29272631196a62b967d88a8-text/javascript';
 @endphp
 <!DOCTYPE html>
 <html lang="{{ $isRtl ? 'ar' : 'en' }}" dir="{{ $isRtl ? 'rtl' : 'ltr' }}" data-layout-mode="light_mode" data-theme="{{ $themeSettings['theme'] ?? 'light' }}" data-sidebar="{{ $themeSettings['sidebar'] ?? 'light' }}" data-color="{{ $themeSettings['color'] ?? 'primary' }}" data-layout="{{ $themeSettings['layout'] ?? 'default' }}" data-topbar="{{ $themeSettings['topbar'] ?? 'white' }}" data-width="{{ $themeSettings['width'] ?? 'fluid' }}" data-rtl="{{ $isRtl ? '1' : '0' }}">
@@ -107,9 +110,57 @@
     @endcan
   </script>
   @endauth
-  <script src="{{asset('assets/js/theme-script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/theme-script.js')}}" type="{{ $scriptType }}"></script>
   <!-- Apple Touch Icon -->
   <link rel="apple-touch-icon" sizes="180x180" href="{{asset('assets/img/apple-touch-icon.png')}}">
+  <style type="text/css">
+  /* Toggle btn: hide main dashboard sidebar when pressed */
+  body.sidebar-closed .sidebar { width: 0 !important; min-width: 0 !important; overflow: hidden !important; padding: 0 !important; margin: 0 !important; border: none !important; transition: width 0.2s ease, min-width 0.2s ease; }
+  body.sidebar-closed .sidebar * { visibility: hidden !important; }
+  /* Header: sticky/fixed at top; full width when sidebar closed, theme controls left when sidebar open */
+  .header { box-sizing: border-box; width: 100% !important; margin-left: 0 !important; padding-left: 0 !important; position: fixed !important; top: 0 !important; z-index: 1030 !important; background: #fff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  body.sidebar-closed .header { left: 0 !important; right: 0 !important; }
+  .header .main-header.header-flex { display: flex !important; align-items: center; justify-content: space-between; width: 100% !important; max-width: 100% !important; gap: 0.75rem; padding-left: 0.5rem !important; padding-right: 0.75rem !important; margin-left: 0 !important; margin-right: 0 !important; flex-wrap: nowrap; min-height: 65px; }
+  /* Prevent content from scrolling under the fixed header */
+  .main-wrapper .page-wrapper { padding-top: 65px !important; }
+  .header .header-left-group { display: flex !important; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+  .header .header-center-group { flex: 1 1 0%; min-width: 0; display: flex; align-items: center; justify-content: center; padding-left: 0.5rem; padding-right: 0.5rem; }
+  .header .header-center-group .header-center-branch-user { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .header .header-center-group .header-store-name { font-size: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: inline-block; }
+  .header .header-right-group { display: flex !important; align-items: center; flex-shrink: 0; overflow: visible; min-width: 0; }
+  .header .header-right-group .nav.user-menu { display: flex !important; align-items: center; flex-wrap: nowrap; margin: 0 !important; padding: 0 !important; border: none; gap: 0.25rem; list-style: none; }
+  .header .header-right-group .nav.user-menu .nav-item { margin: 0 !important; display: flex !important; align-items: center; flex-shrink: 0; }
+  .header .header-right-group .nav.user-menu .nav-item-box { display: flex !important; visibility: visible !important; }
+  .header .header-right-group .profile-nav { display: flex !important; visibility: visible !important; }
+  .header .header-right-group .branch-switcher-dropdown { flex-shrink: 0; }
+  /* When sidebar closed: remove left gap and collapse logo only */
+  body.sidebar-closed .header { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding-left: 0 !important; }
+  body.sidebar-closed .header .main-header.header-flex { padding-left: 0.5rem !important; margin-left: 0 !important; }
+  body.sidebar-closed .header .header-left-group .header-left { width: 0 !important; min-width: 0 !important; overflow: hidden !important; padding: 0 !important; margin: 0 !important; border: none !important; }
+  body.sidebar-closed .header .header-left-group .header-left * { visibility: hidden !important; }
+  body.sidebar-closed .header .mobile_btn { display: flex !important; }
+  .header .header-pos-btn { flex-shrink: 0; }
+  /* Responsive */
+  @media (max-width: 991.98px) {
+    .header { margin-left: 0 !important; padding-left: 0 !important; width: 100% !important; }
+    .header .main-header.header-flex { padding-left: 0.5rem !important; padding-right: 0.5rem; flex-wrap: wrap; }
+    .header .header-left-group .header-left { width: 0 !important; min-width: 0 !important; overflow: hidden !important; padding: 0 !important; margin: 0 !important; }
+    .header .header-left-group .header-left * { visibility: hidden !important; }
+    .header .header-center-group { min-width: 0; }
+  }
+  @media (max-width: 576px) {
+    .header .header-center-group .header-store-name { font-size: 1rem; }
+  }
+  /* Ensure content area uses full width */
+  .page-wrapper .content { max-width: 100%; box-sizing: border-box; }
+  body.sidebar-closed .page-wrapper { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding-left: 0 !important; }
+  body.sidebar-closed .page-wrapper .content { margin-left: 0 !important; padding-left: 0 !important; }
+  body.sidebar-closed .page-wrapper .content > * { padding-left: 0.75rem; }
+  @media (max-width: 991.98px) {
+    .page-wrapper { margin-left: 0 !important; }
+    .page-wrapper .content { padding-left: 1rem; }
+  }
+  </style>
   {{-- <!-- Bootstrap CSS --> --}}
   <link rel="stylesheet" href="{{asset('assets/css/bootstrap.min.css')}}">
 
@@ -135,6 +186,19 @@
   <link rel="stylesheet" href="{{asset('assets/plugins/%40simonwep/pickr/themes/nano.min.css')}}">
   <!-- Main CSS -->
   <link rel="stylesheet" href="{{asset('assets/css/style.css')}}">
+  <!-- Header layout overrides (must override theme) -->
+  <style type="text/css">
+  /* Header patti left end tak – 252px offset remove */
+  body.sidebar-closed .main-wrapper .header { margin-left: 0 !important; padding-left: 0 !important; width: 100% !important; max-width: 100% !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 1030 !important; background: #fff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  body.sidebar-closed .main-wrapper .header .main-header.header-flex { margin-left: 0 !important; padding-left: 0.5rem !important; }
+  /* Sidebar 0 width so header starts from 0 */
+  body.sidebar-closed .main-wrapper .sidebar { flex: 0 0 0 !important; width: 0 !important; min-width: 0 !important; max-width: 0 !important; }
+  .main-wrapper .header .header-right-group { display: flex !important; visibility: visible !important; }
+  .main-wrapper .header .header-right-group .nav.user-menu { display: flex !important; }
+  .main-wrapper .header .header-right-group .nav.user-menu .nav-item { display: flex !important; visibility: visible !important; }
+  .main-wrapper .header .header-right-group .nav.user-menu .nav-item-box { display: flex !important; visibility: visible !important; }
+  .main-wrapper .header .header-right-group .profile-nav { display: flex !important; visibility: visible !important; }
+  </style>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
 
@@ -146,6 +210,17 @@
 <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> -->
 
   <style>
+/* Remove up/down arrows from number inputs (spinbox) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* All common input types + select */
 
 label{
@@ -195,9 +270,36 @@ label{
         color: #0a1628 !important;
         font-weight: 700 !important;
     }
+    /* Parts / filters / breakpad: one-line headline (part - type • quality • brand) */
+    .item-search-parts-headline {
+        color: #0a1628;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
     .scrollbar-w-14::-webkit-scrollbar {
         width: 8px !important;
         }
+
+    /* Drag-to-scroll: show native scrollbar thumb only when content is scrollable */
+    .has-drag-scroll-handle::-webkit-scrollbar {
+        display: block !important;
+        width: 8px !important;
+    }
+    .has-drag-scroll-handle::-webkit-scrollbar-track {
+        background: #f1f5f9 !important;
+        border-radius: 4px !important;
+    }
+    .has-drag-scroll-handle::-webkit-scrollbar-thumb {
+        background: #cbd5e1 !important;
+        border-radius: 4px !important;
+    }
+    .has-drag-scroll-handle::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8 !important;
+    }
+    .has-drag-scroll-handle {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
 
         .inputswidth{
             width: 75% !important;
@@ -469,7 +571,7 @@ label{
 
   @stack('styles')
 </head>
-<body @if(!empty($themeSettings['sidebar_bg'])) data-sidebarbg="{{ $themeSettings['sidebar_bg'] }}" @endif @if(!empty($themeSettings['topbar_bg'])) data-topbarbg="{{ $themeSettings['topbar_bg'] }}" @endif>
+<body class="sidebar-closed" @if(!empty($themeSettings['sidebar_bg'])) data-sidebarbg="{{ $themeSettings['sidebar_bg'] }}" @endif @if(!empty($themeSettings['topbar_bg'])) data-topbarbg="{{ $themeSettings['topbar_bg'] }}" @endif>
   {{-- <div id="global-loader">
     <div class="whirly-loader"> </div>
   </div> --}}
@@ -556,12 +658,33 @@ label{
   </div>
   <!-- /Add Stock -->
 
+  <!-- Universal Edit Group Modal (for Edit Group button next to group dropdown in Add/Edit Supplier) -->
+  <div class="modal fade" id="universalEditGroupModal" tabindex="-1" aria-labelledby="universalEditGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="universalEditGroupModalLabel">Edit Group</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="universalEditGroupHint" class="text-muted small mb-2">Select a group from the dropdown first, then click the edit button.</p>
+          <div id="universalEditGroupForm" style="display: none;">
+            <input type="hidden" id="universalEditGroupId" value="">
+            <div class="mb-3">
+              <label for="universalEditGroupName" class="form-label">Group Name</label>
+              <input type="text" class="form-control" id="universalEditGroupName" placeholder="Group name">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" id="universalEditGroupFooter">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-danger me-auto" id="universalEditGroupDeleteBtn" style="display: none;">Delete</button>
+          <button type="button" class="btn btn-primary" id="universalEditGroupSaveBtn" style="display: none;">Update</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  @php
-  $isLocal = request()->getHost() && in_array(request()->getHost(), ['localhost', '127.0.0.1']);
-  $scriptType = $isLocal ? 'text/javascript' : 'f89f8e290dd47aa8bc06c7c9-text/javascript';
-  $scriptTypeAlt = $isLocal ? 'text/javascript' : 'a29272631196a62b967d88a8-text/javascript';
-  @endphp
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/feather-icons"></script>
   <!-- jQuery -->
@@ -600,6 +723,28 @@ label{
   <!-- Custom JS -->
   <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="{{ $scriptType }}"></script>
   <script src="{{asset('assets/js/script.js')}}" type="{{ $scriptType }}"></script>
+  <script type="{{ $scriptType }}">
+  // Toggle btn: hide main dashboard sidebar when pressed; hamburger opens it again
+  (function() {
+    function initSidebarToggleHide() {
+      if (typeof $ === 'undefined') return;
+      $(document).off('click.sidebarToggleHide', '#toggle_btn');
+      $(document).on('click.sidebarToggleHide', '#toggle_btn', function(e) {
+        $('body').toggleClass('sidebar-closed');
+        $('.sidebar-overlay').removeClass('opened');
+      });
+      $(document).off('click.sidebarToggleShow', '#mobile_btn');
+      $(document).on('click.sidebarToggleShow', '#mobile_btn', function() {
+        $('body').removeClass('sidebar-closed');
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initSidebarToggleHide);
+    } else {
+      initSidebarToggleHide();
+    }
+  })();
+  </script>
 
   @if (!$isLocal)
   <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer onerror="this.onerror=null;"></script>
@@ -855,6 +1000,132 @@ function confirmDelete(formId, customMessage = null) {
 }
 </script>
 
+<script>
+(function() {
+  $(document).on('click', '.open-universal-modal[data-target-select][data-fetch-route]', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var btn = $(this);
+    var fetchRoute = (btn.data('fetch-route') || '').toString();
+    var updateRoute = (btn.data('update-route') || '').toString();
+    var deleteRoute = (btn.data('delete-route') || '').toString();
+    var targetSelect = btn.data('target-select') || '.supplier-group-select';
+    var $select = btn.closest('.modal').length ? btn.closest('.modal').find(targetSelect) : $(targetSelect).first();
+    if (!$select.length) $select = $(targetSelect).first();
+    var groupId = $select.length ? ($select.val() || '').trim() : '';
+    var $uModal = $('#universalEditGroupModal');
+    if (!$uModal.length) return;
+    var $hint = $('#universalEditGroupHint');
+    var $form = $('#universalEditGroupForm');
+    var $idInput = $('#universalEditGroupId');
+    var $nameInput = $('#universalEditGroupName');
+    var $saveBtn = $('#universalEditGroupSaveBtn');
+    var $deleteBtn = $('#universalEditGroupDeleteBtn');
+    $uModal.data('target-select', targetSelect);
+    $uModal.data('update-route', updateRoute);
+    $uModal.data('delete-route', deleteRoute);
+    if (!groupId) {
+      $hint.show().text('Select a group from the dropdown first, then click the edit button.');
+      $form.hide();
+      $saveBtn.hide();
+      $deleteBtn.hide();
+      $uModal.modal('show');
+      return;
+    }
+    $hint.hide();
+    $form.show();
+    $idInput.val(groupId);
+    $nameInput.val('');
+    $saveBtn.show();
+    $deleteBtn.show();
+    var url = fetchRoute.replace(':id', groupId);
+    $.ajax({
+      url: url,
+      method: 'GET',
+      success: function(data) {
+        $nameInput.val(data.name || '');
+        $uModal.modal('show');
+      },
+      error: function() {
+        if (typeof toastr !== 'undefined') toastr.error('Could not load group.');
+        else alert('Could not load group.');
+      }
+    });
+  });
+  $(document).on('click', '#universalEditGroupSaveBtn', function() {
+    var id = $('#universalEditGroupId').val();
+    var name = ($('#universalEditGroupName').val() || '').trim();
+    if (!name) {
+      if (typeof toastr !== 'undefined') toastr.warning('Enter a group name.');
+      else alert('Enter a group name.');
+      return;
+    }
+    var $uModal = $('#universalEditGroupModal');
+    var updateRoute = ($uModal.data('update-route') || '').toString();
+    var targetSelect = $uModal.data('target-select') || '.supplier-group-select';
+    var url = updateRoute.replace(':id', id);
+    var $select = $(targetSelect);
+    if (!$select.length) $select = $('select.supplier-group-select').first();
+    $.ajax({
+      url: url,
+      method: 'PUT',
+      headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'), 'Accept': 'application/json' },
+      data: { _token: $('meta[name="csrf-token"]').attr('content'), name: name },
+      success: function(res) {
+        var newText = (res.name || name) + ' (0)';
+        $select.find('option[value="' + id + '"]').text(newText);
+        $('#universalEditGroupModal').modal('hide');
+        if (typeof toastr !== 'undefined') toastr.success(res.message || 'Group updated.');
+        var createSelect = document.getElementById('create_supplier_group_id');
+        if (createSelect && createSelect.value === String(id)) {
+          var addTrigger = document.getElementById('group_select_trigger');
+          var span = addTrigger && addTrigger.querySelector('.group-select-text');
+          if (span) span.textContent = newText;
+        }
+      },
+      error: function(xhr) {
+        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Update failed.';
+        if (typeof toastr !== 'undefined') toastr.error(msg);
+        else alert(msg);
+      }
+    });
+  });
+  $(document).on('click', '#universalEditGroupDeleteBtn', function() {
+    if (!confirm('Delete this group? This may affect suppliers using it.')) return;
+    var id = $('#universalEditGroupId').val();
+    var $uModal = $('#universalEditGroupModal');
+    var deleteRoute = ($uModal.data('delete-route') || '').toString();
+    var targetSelect = $uModal.data('target-select') || '.supplier-group-select';
+    var url = deleteRoute.replace(':id', id);
+    var $select = $(targetSelect);
+    if (!$select.length) $select = $('select.supplier-group-select').first();
+    $.ajax({
+      url: url,
+      method: 'DELETE',
+      headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'), 'Accept': 'application/json' },
+      success: function() {
+        $select.find('option[value="' + id + '"]').remove();
+        $select.val('').trigger('change');
+        $('#universalEditGroupModal').modal('hide');
+        if (typeof toastr !== 'undefined') toastr.success('Group deleted.');
+        var createSelect = document.getElementById('create_supplier_group_id');
+        if (createSelect && createSelect.value === String(id)) {
+          createSelect.value = '';
+          var addTrigger = document.getElementById('group_select_trigger');
+          var span = addTrigger && addTrigger.querySelector('.group-select-text');
+          if (span) span.textContent = 'Select Group';
+        }
+      },
+      error: function(xhr) {
+        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Delete failed.';
+        if (typeof toastr !== 'undefined') toastr.error(msg);
+        else alert(msg);
+      }
+    });
+  });
+})();
+</script>
+
 @stack('scripts')
 <script>
   // Global authentication check - redirect to login if session expired
@@ -883,6 +1154,70 @@ function confirmDelete(formId, customMessage = null) {
       }
     });
   });
+
+  // Global: enable native drag-to-scroll thumb for any scrollable modal-body/content
+  // (keeps UX consistent across modals; recalculates after dynamic content changes).
+  (function initGlobalDragToScroll() {
+    const SCROLLABLE_CLASS = 'has-drag-scroll-handle';
+
+    function isScrollable(el) {
+      if (!el) return false;
+      return el.scrollHeight > (el.clientHeight + 1);
+    }
+
+    function updateScrollableThumb(containerEl) {
+      if (!containerEl) return;
+      // Most modals use .modal-body; include .modal-content too for cases where modal content scrolls.
+      containerEl.querySelectorAll('.modal-body, .modal-content').forEach(function(el) {
+        el.classList.toggle(SCROLLABLE_CLASS, !!isScrollable(el));
+      });
+    }
+
+    function setupForModal(modalEl) {
+      if (!modalEl) return;
+
+      // Initial pass
+      updateScrollableThumb(modalEl);
+
+      // Scroll listener keeps class accurate if user changes scroll or content changes via lazy load
+      $(modalEl).find('.modal-body, .modal-content').off('scroll.dragToScroll').on('scroll.dragToScroll', function() {
+        updateScrollableThumb(modalEl);
+      });
+
+      // Observe dynamic DOM changes (search results, selections, etc.)
+      if (modalEl.__dragToScrollObserver) {
+        try { modalEl.__dragToScrollObserver.disconnect(); } catch (e) {}
+      }
+
+      let rafId = null;
+      modalEl.__dragToScrollObserver = new MutationObserver(function() {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(function() {
+          updateScrollableThumb(modalEl);
+        });
+      });
+      modalEl.__dragToScrollObserver.observe(modalEl, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+    }
+
+    function teardownForModal(modalEl) {
+      if (!modalEl) return;
+      if (modalEl.__dragToScrollObserver) {
+        try { modalEl.__dragToScrollObserver.disconnect(); } catch (e) {}
+      }
+      modalEl.__dragToScrollObserver = null;
+    }
+
+    $(document).off('shown.bs.modal.dragToScroll').on('shown.bs.modal.dragToScroll', '.modal', function() {
+      setupForModal(this);
+    });
+    $(document).off('hidden.bs.modal.dragToScroll').on('hidden.bs.modal.dragToScroll', '.modal', function() {
+      teardownForModal(this);
+    });
+  })();
 
   $(document).ready(function() {
     $('#summernote').summernote({
@@ -1002,6 +1337,10 @@ function confirmDelete(formId, customMessage = null) {
             if (url.indexOf('/all/items/store') !== -1 || url.indexOf('/item/update/') !== -1) {
                 return;
             }
+            // Skip supplier add - purchase form (Add Supplier modal) shows its own toast; avoid duplicate
+            if (url.indexOf('/suppliers') !== -1 && method.toUpperCase() === 'POST') {
+                return;
+            }
             
             let response = xhr.responseJSON;
             if (!response) return;
@@ -1033,6 +1372,21 @@ function confirmDelete(formId, customMessage = null) {
             } catch (e) {}
         }
 
+        // Prefer server message for 500 when available (so we show real error, not generic toast)
+        var serverMsg = response && (response.message || response.error);
+        if (xhr.status === 500 && serverMsg) {
+            toastr.error(serverMsg);
+            console.error('AJAX Error:', { url: (settings && settings.url), status: xhr.status, message: serverMsg });
+            return;
+        }
+
+        // Skip generic toast for dropdown/data-load failures (avoid "Something went wrong" on create page load)
+        var url = (settings && settings.url) || '';
+        if (xhr.status === 500 && (url.indexOf('/api/dropdown') !== -1 || url.indexOf('/load') !== -1 || url.indexOf('/items/by-type/') !== -1)) {
+            console.error('AJAX Error:', { url: url, status: xhr.status, message: response && response.message });
+            return;
+        }
+
         // Log for debugging (check browser Console / F12)
         console.error('AJAX Error:', {
             url: settings && settings.url,
@@ -1055,6 +1409,11 @@ function confirmDelete(formId, customMessage = null) {
             return;
         }
 
+        // Do not show generic toast for 404 – pages handle "not found" in their own way (e.g. Edit Customer shows Swal)
+        if (xhr.status === 404) {
+            return;
+        }
+
         // Show server message when available (check both message and error keys)
         var msg = response && (response.message || response.error);
         if (!msg && xhr.status === 422 && response && response.errors) {
@@ -1066,9 +1425,8 @@ function confirmDelete(formId, customMessage = null) {
             toastr.error(msg);
         } else {
             var msg = "Server Error! Please try again.";
-            if (xhr.status === 404) msg = "Not found. Please refresh and try again.";
-            else if (xhr.status === 422) msg = "Validation failed. Please check your input.";
-            else if (xhr.status === 500) msg = "Server error. Check the console or Laravel logs for details.";
+            if (xhr.status === 422) msg = "Validation failed. Please check your input.";
+            else if (xhr.status === 500) msg = "Something went wrong. Please try again.";
             toastr.error(msg);
         }
     });
@@ -1213,6 +1571,8 @@ document.addEventListener('DOMContentLoaded', function() {
     .catch(function() {});
 });
 </script>
+
+@stack('scripts')
 
 </body>
 

@@ -106,6 +106,20 @@
             </div>
             <!-- Other Fields -->
             <div class="col-md-6">
+                <label class="form-label fw-bold">Customer Type</label>
+                @php
+                    $customerType = old('customer_type', isset($customer) ? ($customer->customer_type ?? 'retail') : 'retail');
+                    $idSuffix = isset($customer) && $customer->id ? $customer->id : 'new';
+                @endphp
+                <div class="btn-group w-100" role="group" aria-label="Customer Type">
+                    <input type="radio" class="btn-check" name="customer_type" id="customer_type_retail_{{ $idSuffix }}" value="retail" {{ $customerType === 'retail' ? 'checked' : '' }}>
+                    <label class="btn btn-outline-primary" for="customer_type_retail_{{ $idSuffix }}">Retail</label>
+
+                    <input type="radio" class="btn-check" name="customer_type" id="customer_type_wholesaler_{{ $idSuffix }}" value="wholesaler" {{ $customerType === 'wholesaler' ? 'checked' : '' }}>
+                    <label class="btn btn-outline-primary" for="customer_type_wholesaler_{{ $idSuffix }}">Wholesaler</label>
+                </div>
+            </div>
+            <div class="col-md-6">
                 <label for="company" class="form-label">Company</label>
                 <input type="text" name="company" value="{{ isset($customer) ? $customer->company : old('company') }}" class="form-control" placeholder="Enter company">
             </div>

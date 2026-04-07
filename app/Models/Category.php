@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class Category extends Model
 {
     use HasFactory;
-    protected $fillable = ['name', 'image', 'parent_id', 'type', 'status', 'scrap_measurement'];
 
+    protected $fillable = ['name', 'image', 'parent_id', 'type', 'status', 'scrap_measurement', 'scrap_weight_label', 'scrap_count_label'];
 
     public function parent()
     {

@@ -4,14 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Customer extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'customer_type',
         'branch_id',
+        'branch_name',
         'profile_img',
         'visiting_doc',
         'multiple_images',
@@ -31,11 +32,11 @@ class Customer extends Model
     ];
 
     protected $casts = [
-        'names'           => 'array',
-        'phones'          => 'array',
+        'names' => 'array',
+        'phones' => 'array',
         'multiple_images' => 'array',
         'opening_balance' => 'decimal:2',
-        'credit_limit'    => 'decimal:2',
+        'credit_limit' => 'decimal:2',
     ];
 
     protected $hidden = [
@@ -58,6 +59,7 @@ class Customer extends Model
         if (is_null($value)) {
             return [];
         }
+
         return is_array($value) ? $value : (json_decode($value, true) ?? []);
     }
 
@@ -67,6 +69,7 @@ class Customer extends Model
         if (is_null($value)) {
             return [];
         }
+
         return is_array($value) ? $value : (json_decode($value, true) ?? []);
     }
 
@@ -86,7 +89,7 @@ class Customer extends Model
         if (is_string($decoded) && json_decode($decoded, true) !== null) {
             return json_decode($decoded, true);
         }
+
         return [];
     }
-    
 }

@@ -100,13 +100,15 @@
 							</span>
 						</a>
 						<div class="dropdown-menu menu-drop-user">
+							@php $posHeaderUser = \App\Models\User::find(auth()->id()); @endphp
 							<div class="profilename">
 								<div class="profileset">
-									<span class="user-img"><img src="assets/img/profiles/avator1.jpg" alt="Img">
+									<span class="user-img"><img src="{{ asset($posHeaderUser->profile_img ?? 'assets/img/profiles/avator1.jpg') }}" alt="Img">
 										<span class="status online"></span></span>
 									<div class="profilesets">
-										<h6>John Smilga</h6>
-										<h5>Super Admin</h5>
+										<h6>{{ $posHeaderUser->name ?? 'Guest' }}</h6>
+										<h5>{{ $posHeaderUser->getRoleNames()->first() ?? $posHeaderUser->role ?? 'User' }}</h5>
+										<small class="text-muted d-block" style="display: block !important;">{{ $posHeaderUser->email ?? '-' }}</small>
 									</div>
 								</div>
 								<hr class="m-0">

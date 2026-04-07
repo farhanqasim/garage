@@ -12,6 +12,8 @@ class SaleItem extends Model
     protected $fillable = [
         'sale_id',
         'item_id',
+        'warehouse_id',
+        'entry_type',
         'quantity',
         'unit',
         'rate',
@@ -20,6 +22,12 @@ class SaleItem extends Model
         'tax_amount',
         'total',
         'warranty',
+        'line_note',
+        'line_image',
+        'temporary_item_name',
+        'temporary_quality',
+        'voice_transcript',
+        'voice_data',
     ];
 
     protected $casts = [
@@ -40,5 +48,19 @@ class SaleItem extends Model
     {
         return $this->belongsTo(Item::class);
     }
-}
 
+    public function warehouse()
+    {
+        return $this->belongsTo(\App\Models\Warehouse::class);
+    }
+
+    public function warrantyProofs()
+    {
+        return $this->hasMany(SaleItemWarrantyProof::class);
+    }
+
+    public function warrantyCodes()
+    {
+        return $this->hasMany(SaleItemWarrantyCode::class);
+    }
+}

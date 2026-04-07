@@ -2,29 +2,29 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Traits\HasBranchAccess;
 use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\CarWashJob;
 use App\Models\CarWashWorker;
-use App\Models\CustomerCar;
+use App\Models\CashTransfer;
 use App\Models\Customer;
+use App\Models\CustomerCar;
 use App\Models\WorkerCashAccount;
 use App\Models\WorkerCashTransaction;
-use App\Models\CashTransfer;
 use App\Services\CashAccountService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
-use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashJobController extends Controller
 {
     use HasBranchAccess;
-    
+
     /**
      * Get all jobs for the current user's branch
      */
@@ -49,46 +49,51 @@ class CarWashJobController extends Controller
             $query->whereDate('created_at', today());
         }
 
-        $jobs = $query->with(['worker', 'customer', 'customerCar'])->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function($job) {
-                // Get worker commission percentage
-                $workerCommission = 0;
-                $commissionAmount = 0;
-                if ($job->worker && $job->worker->commission) {
-                    $workerCommission = (float) $job->worker->commission;
-                    // Calculate commission amount: (price * commission_percentage) / 100
-                    $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
-                }
-                
-                return [
-                    'id' => $job->id,
-                    'serviceId' => $job->service_id,
-                    'workerId' => $job->worker_user_id ?? $job->worker_id,
-                    'customerId' => $job->customer_id,
-                    'customerCarId' => $job->customer_car_id,
-                    'customerName' => $job->customer_name,
-                    'vehicleNo' => $job->vehicle_no,
-                    'mobile' => $job->mobile,
-                    'serviceName' => $job->service_name,
-                    'price' => (float) $job->price,
-                    'additionalPrices' => $job->additional_prices ?? [],
-                    'workerName' => $job->worker_name,
-                    'workerCommission' => $workerCommission,
-                    'commissionAmount' => round($commissionAmount, 2),
-                    'status' => $job->status,
-                    'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
-                    'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
-                    'durationSeconds' => $job->duration_seconds,
-                    'notes' => $job->notes,
-                    'voiceNote' => $job->voice_note ? url($job->voice_note) : null,
-                    'createdAt' => $job->created_at->toISOString(),
-                ];
-            });
-        
+        $paginator = $query->with(['worker', 'customer', 'customerCar'])->orderBy('created_at', 'desc')
+            ->paginate(50);
+
+        $jobs = $paginator->getCollection()->map(function ($job) {
+            $workerCommission = 0;
+            $commissionAmount = 0;
+            if ($job->worker && $job->worker->commission) {
+                $workerCommission = (float) $job->worker->commission;
+                $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
+            }
+
+            return [
+                'id' => $job->id,
+                'serviceId' => $job->service_id,
+                'workerId' => $job->worker_user_id ?? $job->worker_id,
+                'customerId' => $job->customer_id,
+                'customerCarId' => $job->customer_car_id,
+                'customerName' => $job->customer_name,
+                'vehicleNo' => $job->vehicle_no,
+                'mobile' => $job->mobile,
+                'serviceName' => $job->service_name,
+                'price' => (float) $job->price,
+                'additionalPrices' => $job->additional_prices ?? [],
+                'workerName' => $job->worker_name,
+                'workerCommission' => $workerCommission,
+                'commissionAmount' => round($commissionAmount, 2),
+                'status' => $job->status,
+                'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+                'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
+                'durationSeconds' => $job->duration_seconds,
+                'notes' => $job->notes,
+                'voiceNote' => $job->voice_note ? url($job->voice_note) : null,
+                'createdAt' => $job->created_at->toISOString(),
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'jobs' => $jobs
+            'jobs' => $jobs,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
         ]);
     }
 
@@ -101,46 +106,47 @@ class CarWashJobController extends Controller
         $query = CarWashJob::query();
         $this->applyBranchFilter($query, 'branch_id', $user);
         $jobs = $query->active()
-        ->with(['expense', 'customer', 'customerCar'])
-        ->orderBy('start_time', 'asc')
-        ->get()
-        ->map(function($job) {
-            $expenseTotal = $job->expense ? (float) ($job->expense->total_amount ?? 0) : 0;
-            // Resolve customer name, vehicle, mobile from relations (customers + customer_cars)
-            $customerName = null;
-            $vehicleNo = null;
-            $mobile = null;
-            if ($job->relationLoaded('customer') && $job->customer) {
-                $names = $job->customer->names ?? [];
-                $customerName = is_array($names) && count($names) > 0 ? (string) ($names[0] ?? '') : null;
-                $phones = $job->customer->phones ?? [];
-                $mobile = is_array($phones) && count($phones) > 0 ? (string) ($phones[0] ?? '') : null;
-            }
-            if ($job->relationLoaded('customerCar') && $job->customerCar) {
-                $vehicleNo = $job->customerCar->plate_number ? (string) $job->customerCar->plate_number : null;
-            }
-            return [
-                'id' => $job->id,
-                'serviceId' => $job->service_id,
-                'workerId' => $job->worker_user_id ?? $job->worker_id,
-                'customerId' => $job->customer_id,
-                'customerCarId' => $job->customer_car_id,
-                'customerName' => $customerName,
-                'vehicleNo' => $vehicleNo,
-                'mobile' => $mobile,
-                'serviceName' => $job->service_name,
-                'price' => (float) $job->price,
-                'additionalPrices' => $job->additional_prices ?? [],
-                'workerName' => $job->worker_name,
-                'status' => $job->status,
-                'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
-                'expenseTotalAmount' => $expenseTotal,
-            ];
-        });
-        
+            ->with(['expense', 'customer', 'customerCar'])
+            ->orderBy('start_time', 'asc')
+            ->get()
+            ->map(function ($job) {
+                $expenseTotal = $job->expense ? (float) ($job->expense->total_amount ?? 0) : 0;
+                // Resolve customer name, vehicle, mobile from relations (customers + customer_cars)
+                $customerName = null;
+                $vehicleNo = null;
+                $mobile = null;
+                if ($job->relationLoaded('customer') && $job->customer) {
+                    $names = $job->customer->names ?? [];
+                    $customerName = is_array($names) && count($names) > 0 ? (string) ($names[0] ?? '') : null;
+                    $phones = $job->customer->phones ?? [];
+                    $mobile = is_array($phones) && count($phones) > 0 ? (string) ($phones[0] ?? '') : null;
+                }
+                if ($job->relationLoaded('customerCar') && $job->customerCar) {
+                    $vehicleNo = $job->customerCar->plate_number ? (string) $job->customerCar->plate_number : null;
+                }
+
+                return [
+                    'id' => $job->id,
+                    'serviceId' => $job->service_id,
+                    'workerId' => $job->worker_user_id ?? $job->worker_id,
+                    'customerId' => $job->customer_id,
+                    'customerCarId' => $job->customer_car_id,
+                    'customerName' => $customerName,
+                    'vehicleNo' => $vehicleNo,
+                    'mobile' => $mobile,
+                    'serviceName' => $job->service_name,
+                    'price' => (float) $job->price,
+                    'additionalPrices' => $job->additional_prices ?? [],
+                    'workerName' => $job->worker_name,
+                    'status' => $job->status,
+                    'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+                    'expenseTotalAmount' => $expenseTotal,
+                ];
+            });
+
         return response()->json([
             'success' => true,
-            'jobs' => $jobs
+            'jobs' => $jobs,
         ]);
     }
 
@@ -159,7 +165,7 @@ class CarWashJobController extends Controller
         $jobs = CarWashJob::query()
             ->with(['customer', 'customerCar'])
             ->whereHas('customerCar', function ($qb) use ($q) {
-                $qb->where('plate_number', 'like', $q . '%');
+                $qb->where('plate_number', 'like', $q.'%');
             })
             ->orderBy('end_time', 'desc')
             ->orderBy('created_at', 'desc')
@@ -205,7 +211,7 @@ class CarWashJobController extends Controller
                 $q->whereHas('customerCar', function ($qb) use ($vehicleNo) {
                     $qb->where(DB::raw('UPPER(TRIM(plate_number))'), $vehicleNo);
                 })
-                ->orWhere(DB::raw('UPPER(TRIM(vehicle_no))'), $vehicleNo);
+                    ->orWhere(DB::raw('UPPER(TRIM(vehicle_no))'), $vehicleNo);
             })
             ->where(DB::raw('COALESCE(end_time, created_at)'), '>=', $twoMonthsAgo)
             ->with(['worker', 'customer', 'customerCar'])
@@ -220,6 +226,7 @@ class CarWashJobController extends Controller
                 $workerCommission = (float) $job->worker->commission;
                 $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
             }
+
             return [
                 'id' => $job->id,
                 'vehicleNo' => $job->vehicle_no,
@@ -256,7 +263,7 @@ class CarWashJobController extends Controller
         }
 
         // Match plate anywhere: start, middle or end (e.g. "123" finds "ABC-123", "LEC-22-1234")
-        $likePattern = '%' . str_replace(['%', '_'], ['\%', '\_'], $plate) . '%';
+        $likePattern = '%'.str_replace(['%', '_'], ['\%', '\_'], $plate).'%';
         $cars = CustomerCar::with('customer.branch')
             ->where('plate_number', 'like', $likePattern)
             ->orderBy('plate_number')
@@ -268,6 +275,7 @@ class CarWashJobController extends Controller
             $names = $customer && isset($customer->names) && is_array($customer->names) ? $customer->names : [];
             $phones = $customer && isset($customer->phones) && is_array($customer->phones) ? $customer->phones : [];
             $branchName = $customer && $customer->branch ? $customer->branch->branch_name : '';
+
             return [
                 'customerId' => $car->customer_id,
                 'customerCarId' => $car->id,
@@ -298,7 +306,7 @@ class CarWashJobController extends Controller
             $workerCommission = (float) $job->worker->commission;
             $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
         }
-        
+
         // Format inspection data
         $inspectionData = null;
         if ($job->inspection) {
@@ -309,7 +317,7 @@ class CarWashJobController extends Controller
                 'completedAt' => $job->inspection->completed_at ? $job->inspection->completed_at->toISOString() : null,
             ];
         }
-        
+
         // Format expense data
         $expenseData = null;
         if ($job->expense) {
@@ -319,7 +327,7 @@ class CarWashJobController extends Controller
                 'totalAmount' => (float) ($job->expense->total_amount ?? 0),
             ];
         }
-        
+
         $jobData = [
             'id' => $job->id,
             'serviceId' => $job->service_id,
@@ -343,11 +351,11 @@ class CarWashJobController extends Controller
             'inspection' => $inspectionData,
             'expense' => $expenseData,
         ];
-        
+
         $userName = $user->name ?? 'Guest';
         $branchId = $this->getUserBranchId($user);
         $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
-        $branchName = ($user->role === 'admin' && !$branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'Guest');
+        $branchName = ($user->role === 'admin' && ! $branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'Guest');
 
         return view('car-wash-job-detail', compact('jobData', 'userName', 'branchName'));
     }
@@ -366,79 +374,86 @@ class CarWashJobController extends Controller
             $query->today();
         }
 
-        $jobs = $query->with(['worker', 'worker.workerCashAccount', 'workerUser', 'workerUser.workerCashAccount', 'customer', 'customerCar'])->orderBy('end_time', 'desc')
-            ->get()
-            ->map(function($job) {
-                $workerCommission = 0;
-                if ($job->worker_user_id && $job->workerUser) {
-                    $workerCommission = (float) ($job->workerUser->commission ?? 0);
-                } elseif ($job->worker && $job->worker->commission) {
-                    $workerCommission = (float) $job->worker->commission;
-                }
-                $jobPrice = (float) ($job->price ?? 0);
-                $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
-                $totalJobPrice = $jobPrice + (float) $additionalPrices;
-                $commissionAmount = $workerCommission > 0 ? ($totalJobPrice * $workerCommission) / 100 : 0;
+        $paginator = $query->with(['worker', 'worker.workerCashAccount', 'workerUser', 'workerUser.workerCashAccount', 'customer', 'customerCar'])->orderBy('end_time', 'desc')
+            ->paginate(50);
 
-                $workerBalance = null;
-                $workerTotalPaid = null;
-                $workerTotalEarned = null;
-                if ($job->worker_user_id) {
-                    $acc = $job->workerUser && $job->workerUser->relationLoaded('workerCashAccount') && $job->workerUser->workerCashAccount
-                        ? $job->workerUser->workerCashAccount
-                        : WorkerCashAccount::where('user_id', $job->worker_user_id)->first();
-                    if ($acc) {
-                        $workerBalance = (float) $acc->balance;
-                        $workerTotalPaid = (float) ($acc->total_paid ?? 0);
-                        $workerTotalEarned = (float) ($acc->total_earned ?? 0);
-                    }
-                } elseif ($job->worker && $job->worker->relationLoaded('workerCashAccount') && $job->worker->workerCashAccount) {
-                    $acc = $job->worker->workerCashAccount;
+        $jobs = $paginator->getCollection()->map(function ($job) {
+            $workerCommission = 0;
+            if ($job->worker_user_id && $job->workerUser) {
+                $workerCommission = (float) ($job->workerUser->commission ?? 0);
+            } elseif ($job->worker && $job->worker->commission) {
+                $workerCommission = (float) $job->worker->commission;
+            }
+            $jobPrice = (float) ($job->price ?? 0);
+            $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
+            $totalJobPrice = $jobPrice + (float) $additionalPrices;
+            $commissionAmount = $workerCommission > 0 ? ($totalJobPrice * $workerCommission) / 100 : 0;
+
+            $workerBalance = null;
+            $workerTotalPaid = null;
+            $workerTotalEarned = null;
+            if ($job->worker_user_id) {
+                $acc = $job->workerUser && $job->workerUser->relationLoaded('workerCashAccount') && $job->workerUser->workerCashAccount
+                    ? $job->workerUser->workerCashAccount
+                    : WorkerCashAccount::where('user_id', $job->worker_user_id)->first();
+                if ($acc) {
                     $workerBalance = (float) $acc->balance;
                     $workerTotalPaid = (float) ($acc->total_paid ?? 0);
                     $workerTotalEarned = (float) ($acc->total_earned ?? 0);
-                } elseif ($job->worker_id) {
-                    $cashAccount = WorkerCashAccount::where('worker_id', $job->worker_id)->first();
-                    if ($cashAccount) {
-                        $workerBalance = (float) $cashAccount->balance;
-                        $workerTotalPaid = (float) ($cashAccount->total_paid ?? 0);
-                        $workerTotalEarned = (float) ($cashAccount->total_earned ?? 0);
-                    }
                 }
+            } elseif ($job->worker && $job->worker->relationLoaded('workerCashAccount') && $job->worker->workerCashAccount) {
+                $acc = $job->worker->workerCashAccount;
+                $workerBalance = (float) $acc->balance;
+                $workerTotalPaid = (float) ($acc->total_paid ?? 0);
+                $workerTotalEarned = (float) ($acc->total_earned ?? 0);
+            } elseif ($job->worker_id) {
+                $cashAccount = WorkerCashAccount::where('worker_id', $job->worker_id)->first();
+                if ($cashAccount) {
+                    $workerBalance = (float) $cashAccount->balance;
+                    $workerTotalPaid = (float) ($cashAccount->total_paid ?? 0);
+                    $workerTotalEarned = (float) ($cashAccount->total_earned ?? 0);
+                }
+            }
 
-                $commissionPaid = (float) \App\Models\CarWashPayment::where('car_wash_job_id', $job->id)
-                    ->where('status', 'completed')
-                    ->sum('amount');
+            $commissionPaid = (float) \App\Models\CarWashPayment::where('car_wash_job_id', $job->id)
+                ->where('status', 'completed')
+                ->sum('amount');
 
-                return [
-                    'id' => $job->id,
-                    'serviceId' => $job->service_id,
-                    'workerId' => $job->worker_user_id ?? $job->worker_id,
-                    'customerId' => $job->customer_id,
-                    'customerCarId' => $job->customer_car_id,
-                    'customerName' => $job->customer_name,
-                    'vehicleNo' => $job->vehicle_no,
-                    'mobile' => $job->mobile,
-                    'serviceName' => $job->service_name,
-                    'price' => (float) $job->price,
-                    'additionalPrices' => $job->additional_prices ?? [],
-                    'workerName' => $job->worker_name,
-                    'workerCommission' => $workerCommission,
-                    'commissionAmount' => round($commissionAmount, 2),
-                    'commissionPaid' => round($commissionPaid, 2),
-                    'workerBalance' => $workerBalance !== null ? round($workerBalance, 2) : null,
-                    'workerTotalPaid' => $workerTotalPaid !== null ? round($workerTotalPaid, 2) : null,
-                    'workerTotalEarned' => $workerTotalEarned !== null ? round($workerTotalEarned, 2) : null,
-                    'status' => $job->status,
-                    'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
-                    'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
-                    'durationSeconds' => $job->duration_seconds,
-                ];
-            });
-        
+            return [
+                'id' => $job->id,
+                'serviceId' => $job->service_id,
+                'workerId' => $job->worker_user_id ?? $job->worker_id,
+                'customerId' => $job->customer_id,
+                'customerCarId' => $job->customer_car_id,
+                'customerName' => $job->customer_name,
+                'vehicleNo' => $job->vehicle_no,
+                'mobile' => $job->mobile,
+                'serviceName' => $job->service_name,
+                'price' => (float) $job->price,
+                'additionalPrices' => $job->additional_prices ?? [],
+                'workerName' => $job->worker_name,
+                'workerCommission' => $workerCommission,
+                'commissionAmount' => round($commissionAmount, 2),
+                'commissionPaid' => round($commissionPaid, 2),
+                'workerBalance' => $workerBalance !== null ? round($workerBalance, 2) : null,
+                'workerTotalPaid' => $workerTotalPaid !== null ? round($workerTotalPaid, 2) : null,
+                'workerTotalEarned' => $workerTotalEarned !== null ? round($workerTotalEarned, 2) : null,
+                'status' => $job->status,
+                'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+                'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
+                'durationSeconds' => $job->duration_seconds,
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'jobs' => $jobs
+            'jobs' => $jobs,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
         ]);
     }
 
@@ -484,14 +499,14 @@ class CarWashJobController extends Controller
                     $mobile = trim((string) $request->mobile);
                     $updates['phones'] = $mobile !== '' ? [$mobile] : ($customer->phones ?? []);
                 }
-                if (!empty($updates)) {
+                if (! empty($updates)) {
                     $customer->update($updates);
                 }
             }
         }
 
         // When vehicle not in DB: create new customer + vehicle from name/mobile/vehicle_no
-        if (!$customerId || !$customerCarId) {
+        if (! $customerId || ! $customerCarId) {
             $vehicleNo = $request->filled('vehicle_no') ? trim(strtoupper((string) $request->vehicle_no)) : null;
             $customerName = $request->filled('customer_name') ? trim((string) $request->customer_name) : null;
             $mobile = $request->filled('mobile') ? trim((string) $request->mobile) : null;
@@ -500,7 +515,7 @@ class CarWashJobController extends Controller
                 if ($customerId) {
                     $customer = Customer::find($customerId);
                 }
-                if (!$customer) {
+                if (! $customer) {
                     $customer = Customer::create([
                         'branch_id' => $branchId,
                         'names' => $customerName ? [$customerName] : [],
@@ -516,7 +531,7 @@ class CarWashJobController extends Controller
                 if ($customerCarId) {
                     $car = CustomerCar::where('id', $customerCarId)->where('customer_id', $customerId)->first();
                 }
-                if (!$car) {
+                if (! $car) {
                     $car = CustomerCar::firstOrCreate(
                         [
                             'customer_id' => $customerId,
@@ -564,12 +579,12 @@ class CarWashJobController extends Controller
                 if ($decoded !== false && strlen($decoded) > 0) {
                     $dir = 'CarWash_audio';
                     $fullPath = public_path($dir);
-                    if (!is_dir($fullPath)) {
+                    if (! is_dir($fullPath)) {
                         mkdir($fullPath, 0755, true);
                     }
-                    $filename = time() . '_' . uniqid() . '.' . $extension;
-                    if (file_put_contents($fullPath . DIRECTORY_SEPARATOR . $filename, $decoded) !== false) {
-                        $job->voice_note = $dir . '/' . $filename;
+                    $filename = time().'_'.uniqid().'.'.$extension;
+                    if (file_put_contents($fullPath.DIRECTORY_SEPARATOR.$filename, $decoded) !== false) {
+                        $job->voice_note = $dir.'/'.$filename;
                         $job->save();
                     }
                 }
@@ -589,7 +604,7 @@ class CarWashJobController extends Controller
                 ['job_id' => $job->id],
                 [
                     'amount' => $request->expense_amount,
-                    'description' => $request->expense_description ?? ''
+                    'description' => $request->expense_description ?? '',
                 ]
             );
         }
@@ -617,7 +632,7 @@ class CarWashJobController extends Controller
                     'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
                     'status' => $job->status,
                     'voiceNote' => $job->voice_note ? url($job->voice_note) : null,
-                ]
+                ],
             ]);
         }
 
@@ -632,10 +647,10 @@ class CarWashJobController extends Controller
         $job = CarWashJob::findOrFail($id);
         $user = Auth::user();
 
-        if (!$this->canAccessJobBranch($job, $user)) {
+        if (! $this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to complete this job'
+                'message' => 'You do not have permission to complete this job',
             ], 403);
         }
 
@@ -728,7 +743,7 @@ class CarWashJobController extends Controller
                             'type' => 'credit',
                             'reference_type' => 'car_wash_jobs',
                             'reference_id' => $job->id,
-                            'note' => "Commission {$commissionPct}% on job #{$job->id} - Rs " . number_format($totalJobPrice, 2),
+                            'note' => "Commission {$commissionPct}% on job #{$job->id} - Rs ".number_format($totalJobPrice, 2),
                         ]);
                     } else {
                         $worker = $job->worker;
@@ -745,7 +760,7 @@ class CarWashJobController extends Controller
                             'type' => 'credit',
                             'reference_type' => 'car_wash_jobs',
                             'reference_id' => $job->id,
-                            'note' => "Commission {$commissionPct}% on job #{$job->id} - Rs " . number_format($totalJobPrice, 2),
+                            'note' => "Commission {$commissionPct}% on job #{$job->id} - Rs ".number_format($totalJobPrice, 2),
                         ]);
                     }
                 }
@@ -780,7 +795,7 @@ class CarWashJobController extends Controller
                 'endTime' => $job->end_time->toISOString(),
                 'durationSeconds' => $job->duration_seconds,
                 'notes' => $job->notes,
-            ]
+            ],
         ]);
     }
 
@@ -792,11 +807,11 @@ class CarWashJobController extends Controller
     public function bankAccountsIndex(Request $request)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'User not authenticated',
-                'bankAccounts' => []
+                'bankAccounts' => [],
             ], 401);
         }
 
@@ -810,7 +825,7 @@ class CarWashJobController extends Controller
                 $userIds = [$user->id];
             } else {
                 $branchUserIds = $this->getBankBranchUserIds($branchId, $user);
-                if (!in_array($targetId, $branchUserIds)) {
+                if (! in_array($targetId, $branchUserIds)) {
                     return response()->json(['success' => false, 'message' => 'User not found or access denied.', 'bankAccounts' => []], 403);
                 }
                 $userIds = [$targetId];
@@ -839,11 +854,11 @@ class CarWashJobController extends Controller
         if ($allAccounts->count() > 1) {
             // Multiple accounts: find primary account
             $primaryAccount = $allAccounts->firstWhere('is_primary', true);
-            
+
             // If no primary account is set, use the first account as fallback
             $selectedAccount = $primaryAccount ?: $allAccounts->first();
             $displayAccountId = $selectedAccount->id;
-        } else if ($allAccounts->count() === 1) {
+        } elseif ($allAccounts->count() === 1) {
             // Single account: show that one
             $displayAccountId = $allAccounts->first()->id;
         }
@@ -855,26 +870,26 @@ class CarWashJobController extends Controller
             $title = $a->account_title ?? '';
             $num = $a->account_number ?? '';
             // Build account-level detail: Bank - Title (Number). If title+number empty, use "Bank — Account #id".
-            $label = trim($bankName . ($title ? ' - ' . $title : '') . ($num ? ' (' . $num . ')' : ''));
-            if ($label === '' || (!$title && !$num)) {
-                $label = $bankName . ' — Account #' . $a->id;
+            $label = trim($bankName.($title ? ' - '.$title : '').($num ? ' ('.$num.')' : ''));
+            if ($label === '' || (! $title && ! $num)) {
+                $label = $bankName.' — Account #'.$a->id;
             }
-            
-            // Calculate balance: opening_balance + credits - debits (including all transactions, not just reconciled)
+
+            // Calculate balance: opening_balance + credits - debits (including all transactions, not just tallied)
             $openingBalance = (float) ($a->opening_balance ?? 0);
-            
-            // Get all credits (not just reconciled)
+
+            // Get all credits (not just tallied)
             $credits = $a->bankTransactions()
                 ->where('type', 'credit')
                 ->sum('amount');
-            
-            // Get all debits (not just reconciled)
+
+            // Get all debits (not just tallied)
             $debits = $a->bankTransactions()
                 ->where('type', 'debit')
                 ->sum('amount');
-            
+
             $balance = $openingBalance + (float) $credits - (float) $debits;
-            
+
             return [
                 'id' => $a->id,
                 'bank_id' => $a->bank_id,
@@ -896,9 +911,10 @@ class CarWashJobController extends Controller
      */
     protected function getBankBranchUserIds($branchId, $currentUser)
     {
-        if (!$branchId) {
+        if (! $branchId) {
             return [$currentUser->id];
         }
+
         return \App\Models\User::where(function ($q) use ($branchId) {
             $q->where('branch_id', $branchId)
                 ->orWhereHas('assignedBranches', function ($q2) use ($branchId) {
@@ -916,24 +932,24 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
 
-        if (!$branchId) {
+        if (! $branchId) {
             return response()->json([
                 'success' => false,
                 'message' => 'No branch found for user',
-                'bankAccounts' => []
+                'bankAccounts' => [],
             ], 400);
         }
 
         // Same branch ke doosre users (login user exclude) — dropdown mein sirf inhi ke accounts
-        $branchUserIds = \App\Models\User::where(function($query) use ($branchId) {
+        $branchUserIds = \App\Models\User::where(function ($query) use ($branchId) {
             $query->where('branch_id', $branchId)
-            ->orWhereHas('assignedBranches', function($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
-            });
+                ->orWhereHas('assignedBranches', function ($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
         })
-        ->where('id', '!=', $user->id)
-        ->pluck('id');
-        
+            ->where('id', '!=', $user->id)
+            ->pluck('id');
+
         // Admin users (role = 'admin') bhi allow — unke accounts par transfer ho sake
         $adminUserIds = \App\Models\User::where('role', 'admin')->pluck('id');
         $userIdsForTransfer = $branchUserIds->merge($adminUserIds)->unique()->filter(function ($id) use ($user) {
@@ -953,13 +969,14 @@ class CarWashJobController extends Controller
                 $bankName = $a->bank ? $a->bank->name : 'N/A';
                 $title = $a->account_title ?? '';
                 $num = $a->account_number ?? '';
-                $label = trim($bankName . ($title ? ' - ' . $title : '') . ($num ? ' (' . $num . ')' : ''));
-                if ($label === '' || (!$title && !$num)) {
-                    $label = $bankName . ' — Account #' . $a->id;
+                $label = trim($bankName.($title ? ' - '.$title : '').($num ? ' ('.$num.')' : ''));
+                if ($label === '' || (! $title && ! $num)) {
+                    $label = $bankName.' — Account #'.$a->id;
                 }
                 $ownerName = $a->user ? $a->user->name : '';
                 $isOwn = ($a->user_id == $user->id);
-                $bankLogo = $a->bank && !empty($a->bank->logo) ? $a->bank->logo : null;
+                $bankLogo = $a->bank && ! empty($a->bank->logo) ? $a->bank->logo : null;
+
                 return [
                     'id' => $a->id,
                     'bank_id' => $a->bank_id,
@@ -986,18 +1003,18 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
 
-        if (!$branchId) {
+        if (! $branchId) {
             return response()->json([
                 'success' => false,
                 'message' => 'No branch found for user',
-                'bankAccounts' => []
+                'bankAccounts' => [],
             ], 400);
         }
 
         // Usi branch ke saare users (login + doosre) + admin
-        $branchUserIds = \App\Models\User::where(function($query) use ($branchId) {
+        $branchUserIds = \App\Models\User::where(function ($query) use ($branchId) {
             $query->where('branch_id', $branchId)
-                ->orWhereHas('assignedBranches', function($q) use ($branchId) {
+                ->orWhereHas('assignedBranches', function ($q) use ($branchId) {
                     $q->where('branch_id', $branchId);
                 });
         })->pluck('id');
@@ -1017,12 +1034,13 @@ class CarWashJobController extends Controller
                 $bankName = $a->bank ? $a->bank->name : 'N/A';
                 $title = $a->account_title ?? '';
                 $num = $a->account_number ?? '';
-                $label = trim($bankName . ($title ? ' - ' . $title : '') . ($num ? ' (' . $num . ')' : ''));
-                if ($label === '' || (!$title && !$num)) {
-                    $label = $bankName . ' — Account #' . $a->id;
+                $label = trim($bankName.($title ? ' - '.$title : '').($num ? ' ('.$num.')' : ''));
+                if ($label === '' || (! $title && ! $num)) {
+                    $label = $bankName.' — Account #'.$a->id;
                 }
                 $ownerName = $a->user ? $a->user->name : '';
                 $isOwn = ($a->user_id == $user->id);
+
                 return [
                     'id' => $a->id,
                     'bank_id' => $a->bank_id,
@@ -1052,7 +1070,7 @@ class CarWashJobController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$account) {
+        if (! $account) {
             return response()->json(['success' => false, 'message' => 'Account not found or access denied'], 404);
         }
 
@@ -1083,21 +1101,23 @@ class CarWashJobController extends Controller
         $running = $openingBalance;
         $rows = [];
 
-            $dateFromFormatted = Carbon::parse($dateFrom)->format('d-m-Y');
-            $rows[] = [
-                'id' => null,
-                'date' => $dateFromFormatted,
-                'time' => null,
-                'description' => 'Opening Balance',
-                'fromAccount' => '-',
-                'toAccount' => '-',
-                'debit' => 0,
-                'credit' => 0,
-                'total' => round($running, 2),
-            ];
+        $dateFromFormatted = Carbon::parse($dateFrom)->format('d-m-Y');
+        $rows[] = [
+            'id' => null,
+            'date' => $dateFromFormatted,
+            'time' => null,
+            'description' => 'Opening Balance',
+            'fromAccount' => '-',
+            'toAccount' => '-',
+            'debit' => 0,
+            'credit' => 0,
+            'total' => round($running, 2),
+        ];
 
-        $accountLabel = trim(($account->bank ? $account->bank->name : 'Bank') . ($account->account_title ? ' - ' . $account->account_title : '') . ($account->account_number ? ' (' . $account->account_number . ')' : ''));
-        if ($accountLabel === '') $accountLabel = 'This Account';
+        $accountLabel = trim(($account->bank ? $account->bank->name : 'Bank').($account->account_title ? ' - '.$account->account_title : '').($account->account_number ? ' ('.$account->account_number.')' : ''));
+        if ($accountLabel === '') {
+            $accountLabel = 'This Account';
+        }
 
         foreach ($transactions as $tx) {
             $amount = (float) $tx->amount;
@@ -1131,9 +1151,9 @@ class CarWashJobController extends Controller
             ];
         }
 
-        $label = trim(($account->bank ? $account->bank->name : 'Bank') . ($account->account_title ? ' - ' . $account->account_title : '') . ($account->account_number ? ' (' . $account->account_number . ')' : ''));
+        $label = trim(($account->bank ? $account->bank->name : 'Bank').($account->account_title ? ' - '.$account->account_title : '').($account->account_number ? ' ('.$account->account_number.')' : ''));
         if ($label === '') {
-            $label = 'Bank Account #' . $account->id;
+            $label = 'Bank Account #'.$account->id;
         }
 
         return response()->json([
@@ -1157,7 +1177,7 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $tx = BankTransaction::with('bankAccount')->findOrFail($id);
         $account = $tx->bankAccount;
-        if (!$account || $account->user_id !== $user->id || $account->account_type !== 'bank') {
+        if (! $account || $account->user_id !== $user->id || $account->account_type !== 'bank') {
             return response()->json(['success' => false, 'message' => 'Access denied'], 403);
         }
 
@@ -1186,11 +1206,12 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $tx = BankTransaction::with('bankAccount')->findOrFail($id);
         $account = $tx->bankAccount;
-        if (!$account || $account->user_id !== $user->id || $account->account_type !== 'bank') {
+        if (! $account || $account->user_id !== $user->id || $account->account_type !== 'bank') {
             return response()->json(['success' => false, 'message' => 'Access denied'], 403);
         }
 
         $tx->delete();
+
         return response()->json(['success' => true, 'message' => 'Transaction deleted']);
     }
 
@@ -1202,10 +1223,10 @@ class CarWashJobController extends Controller
         $job = CarWashJob::findOrFail($id);
         $user = Auth::user();
 
-        if (!$this->canAccessJobBranch($job, $user)) {
+        if (! $this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to update this job'
+                'message' => 'You do not have permission to update this job',
             ], 403);
         }
 
@@ -1250,7 +1271,7 @@ class CarWashJobController extends Controller
                     $mobile = trim((string) $request->mobile);
                     $updates['phones'] = $mobile !== '' ? [$mobile] : ($customer->phones ?? []);
                 }
-                if (!empty($updates)) {
+                if (! empty($updates)) {
                     $customer->update($updates);
                 }
             }
@@ -1301,7 +1322,7 @@ class CarWashJobController extends Controller
                     'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
                     'durationSeconds' => $job->duration_seconds,
                     'notes' => $job->notes,
-                ]
+                ],
             ]);
         }
 
@@ -1316,10 +1337,10 @@ class CarWashJobController extends Controller
         $job = CarWashJob::findOrFail($id);
         $user = Auth::user();
 
-        if (!$this->canAccessJobBranch($job, $user)) {
+        if (! $this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to cancel this job'
+                'message' => 'You do not have permission to cancel this job',
             ], 403);
         }
 
@@ -1330,7 +1351,7 @@ class CarWashJobController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Job cancelled successfully'
+            'message' => 'Job cancelled successfully',
         ]);
     }
 
@@ -1342,13 +1363,14 @@ class CarWashJobController extends Controller
         $job = CarWashJob::findOrFail($id);
         $user = Auth::user();
 
-        if (!$this->canAccessJobBranch($job, $user)) {
+        if (! $this->canAccessJobBranch($job, $user)) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'You do not have permission to delete this job'
+                    'message' => 'You do not have permission to delete this job',
                 ], 403);
             }
+
             return redirect()->route('car.wash')->with('error', 'You do not have permission to delete this job');
         }
 
@@ -1358,7 +1380,7 @@ class CarWashJobController extends Controller
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Job deleted successfully'
+                'message' => 'Job deleted successfully',
             ]);
         }
 
@@ -1383,7 +1405,7 @@ class CarWashJobController extends Controller
             'stats' => [
                 'todayRevenue' => (float) $todayRevenue,
                 'todayJobsCount' => $todayJobsCount,
-            ]
+            ],
         ]);
     }
 
@@ -1395,7 +1417,7 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
         $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
-        $branchName = ($user->role === 'admin' && !$branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'All');
+        $branchName = ($user->role === 'admin' && ! $branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'All');
         $userName = $user->name ?? 'Guest';
         $selectedDate = $request->get('date', today()->format('Y-m-d'));
 
@@ -1415,7 +1437,8 @@ class CarWashJobController extends Controller
                 ? ($cc->customer->names[0] ?? '')
                 : '';
             $plate = $cc->plate_number ?? '';
-            return ['value' => $plate, 'label' => $plate . ($name ? ' (' . $name . ')' : '')];
+
+            return ['value' => $plate, 'label' => $plate.($name ? ' ('.$name.')' : '')];
         })->values()->sortBy('value')->values()->all();
 
         // Workers from users table (role = worker) for dropdown on page load
@@ -1424,7 +1447,7 @@ class CarWashJobController extends Controller
             $workersQuery->where('branch_id', $branchId);
         }
         $workers = $workersQuery->get()->map(function ($u) {
-            return ['value' => (string) $u->id, 'label' => $u->name ?? 'User #' . $u->id];
+            return ['value' => (string) $u->id, 'label' => $u->name ?? 'User #'.$u->id];
         })->values()->all();
 
         // Users (branch users) for USER filter dropdown on page load
@@ -1433,7 +1456,7 @@ class CarWashJobController extends Controller
             $usersQuery->where('branch_id', $branchId);
         }
         $reportUsers = $usersQuery->get()->map(function ($u) {
-            return ['value' => (string) $u->id, 'label' => $u->name ?? 'User #' . $u->id];
+            return ['value' => (string) $u->id, 'label' => $u->name ?? 'User #'.$u->id];
         })->values()->all();
 
         // Total distinct vehicles ever given car wash service (for TOTAL VEHICLES card)
@@ -1454,7 +1477,7 @@ class CarWashJobController extends Controller
         if ($branchId !== null) {
             $this->applyBranchFilter($totalDistinctWorkersServicedQuery, 'branch_id', $user);
         }
-        $totalDistinctWorkersServiced = (int) $totalDistinctWorkersServicedQuery->selectRaw("COUNT(DISTINCT COALESCE(worker_user_id, 1000000 + COALESCE(worker_id, 0))) as c")->value('c');
+        $totalDistinctWorkersServiced = (int) $totalDistinctWorkersServicedQuery->selectRaw('COUNT(DISTINCT COALESCE(worker_user_id, 1000000 + COALESCE(worker_id, 0))) as c')->value('c');
 
         // Initial report data: one call with no payment filter so ALL completed jobs for the date are returned
         $emptyReportPayload = [
@@ -1494,7 +1517,7 @@ class CarWashJobController extends Controller
                 ];
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Daily report initial payload failed: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('Daily report initial payload failed: '.$e->getMessage());
         }
 
         // Initial CASH ON HAND = logged-in user's cash account balance (card shows login user by default)
@@ -1528,7 +1551,7 @@ class CarWashJobController extends Controller
         $initialReportRows = [];
         foreach ($reportJobs as $job) {
             $dt = $job->end_time ?: $job->created_at;
-            $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y') . ' time ' . $dt->format('h:i A') : '-';
+            $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y').' time '.$dt->format('h:i A') : '-';
             $vehicle = $job->vehicle_no ?: 'N/A';
             $jobPrice = (float) ($job->price ?? 0);
             $additionalSum = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
@@ -1559,6 +1582,7 @@ class CarWashJobController extends Controller
         $initialCommission = array_sum(array_column($initialReportRows, 'commission'));
 
         $currentUserId = $user->id;
+
         return view('car-wash-daily-report', compact('branchName', 'userName', 'selectedDate', 'customers', 'workers', 'reportUsers', 'totalDistinctVehiclesServiced', 'totalDistinctWorkersServiced', 'initialCashPayload', 'initialBankPayload', 'initialCashOnHand', 'initialBankBalance', 'initialJobExpense', 'initialCommission', 'initialReportRows', 'currentUserId'));
     }
 
@@ -1568,19 +1592,19 @@ class CarWashJobController extends Controller
      */
     public function dailyReportData(Request $request)
     {
-       
+
         try {
             // Support both single date and date range
             $dateFrom = $request->get('date_from') ?: $request->get('date');
             $dateTo = $request->get('date_to') ?: $request->get('date');
 
-            if (!$dateFrom || !$dateTo) {
+            if (! $dateFrom || ! $dateTo) {
                 $request->validate(['date' => 'required|date']);
                 $dateFrom = $dateTo = $request->date;
             } else {
                 $request->validate([
                     'date_from' => 'required|date',
-                    'date_to' => 'required|date'
+                    'date_to' => 'required|date',
                 ]);
             }
 
@@ -1611,571 +1635,590 @@ class CarWashJobController extends Controller
             if ($branchId !== null) {
                 $this->applyBranchFilter($totalDistinctWorkersServicedQuery, 'branch_id', $user);
             }
-            $totalDistinctWorkersServiced = (int) $totalDistinctWorkersServicedQuery->selectRaw("COUNT(DISTINCT COALESCE(worker_user_id, 1000000 + COALESCE(worker_id, 0))) as c")->value('c');
+            $totalDistinctWorkersServiced = (int) $totalDistinctWorkersServicedQuery->selectRaw('COUNT(DISTINCT COALESCE(worker_user_id, 1000000 + COALESCE(worker_id, 0))) as c')->value('c');
 
             // Date filter: use DATE() so timezone does not exclude jobs (DB may store local or UTC)
             $baseQuery = function ($q) use ($user, $dateFrom, $dateTo, $paymentFilter, $branchId) {
-            // Only apply branch filter if user has a branch (otherwise show all jobs so report is visible)
-            if ($branchId !== null) {
-                $this->applyBranchFilter($q, 'branch_id', $user);
-            }
-            $q->where('status', 'completed');
-            $q->whereBetween(\DB::raw('DATE(COALESCE(end_time, created_at))'), [$dateFrom, $dateTo]);
-            if ($paymentFilter === 'bank') {
-                $q->where('payment_method', 'bank');
-            } elseif ($paymentFilter === 'cash') {
-                $q->where(function ($q2) {
-                    $q2->where('payment_method', 'cash')->orWhereNull('payment_method');
-                });
-            }
-        };
-
-        $query = CarWashJob::where($baseQuery)->with(['worker', 'workerUser', 'expense', 'bank', 'bankAccount.bank', 'user', 'customer', 'customerCar']);
-        if ($customerFilter !== null && $customerFilter !== '') {
-            $query->whereHas('customerCar', function ($qb) use ($customerFilter) {
-                $qb->where('plate_number', $customerFilter);
-            });
-        }
-        if ($workerFilter !== null && $workerFilter !== '') {
-            $query->where('worker_user_id', (int) $workerFilter);
-        }
-        if ($userFilter !== null && $userFilter !== '') {
-            $query->where('user_id', (int) $userFilter);
-        }
-
-        $jobs = $query->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->get();
-
-        // Customers: from customers table (CustomerCar + Customer), branch filter
-        $customersQuery = CustomerCar::with('customer')
-            ->whereHas('customer', function ($q) use ($branchId) {
+                // Only apply branch filter if user has a branch (otherwise show all jobs so report is visible)
                 if ($branchId !== null) {
-                    $q->where('branch_id', $branchId);
+                    $this->applyBranchFilter($q, 'branch_id', $user);
                 }
-            })
-            ->whereNotNull('plate_number')
-            ->where('plate_number', '!=', '');
-        $customerCars = $customersQuery->get();
-        $customers = $customerCars->groupBy('plate_number')->map(function ($group) {
-            $cc = $group->first();
-            $name = $cc->customer && is_array($cc->customer->names ?? null) && count($cc->customer->names) > 0
-                ? ($cc->customer->names[0] ?? '')
-                : '';
-            $plate = $cc->plate_number ?? '';
-            return ['value' => $plate, 'label' => $plate . ($name ? ' (' . $name . ')' : '')];
-        })->values()->sortBy('value')->values()->all();
-
-        // Workers: from users table where role = worker, same branch
-        $workersQuery = \App\Models\User::where('role', 'worker')->orderBy('name');
-        if ($branchId !== null) {
-            $workersQuery->where('branch_id', $branchId);
-        }
-        $workers = $workersQuery->get()->map(function ($u) {
-            return ['value' => (string) $u->id, 'label' => $u->name ?? 'User #' . $u->id];
-        })->values()->all();
-
-        // Users: who entered jobs (from jobs in date range) for filter dropdown - query only user IDs to avoid loading all jobs into memory
-        $userIds = CarWashJob::where($baseQuery)->distinct()->pluck('user_id')->filter()->values()->all();
-        $users = collect();
-        if (!empty($userIds)) {
-            $userList = \App\Models\User::whereIn('id', $userIds)->orderBy('name')->get()->keyBy('id');
-            $users = collect($userIds)->map(function ($uid) use ($userList) {
-                $u = $userList->get($uid);
-                return ['value' => (string) $uid, 'label' => $u ? $u->name : 'User #' . $uid];
-            })->values();
-        }
-
-        // Image jaisa: Credit ek row, Debit (expense) alag row. Debit row par credit/worker/commission empty; Credit row par debit empty.
-        $dateCarbon = Carbon::parse($dateFrom, $tz);
-        $previousDate = $dateCarbon->copy()->subDay();
-        $prevStart = Carbon::parse($previousDate->format('Y-m-d').' 00:00:00', $tz)->timezone('UTC');
-        $prevEnd = Carbon::parse($previousDate->format('Y-m-d').' 23:59:59', $tz)->timezone('UTC');
-
-        // Get last transaction time from previous date
-        $lastTransactionQuery = function ($q) use ($user, $prevStart, $prevEnd, $branchId) {
-            if ($branchId !== null) {
-                $this->applyBranchFilter($q, 'branch_id', $user);
-            }
-            $q->where('status', 'completed');
-            $q->whereBetween(\DB::raw('COALESCE(end_time, created_at)'), [$prevStart->toDateTimeString(), $prevEnd->toDateTimeString()]);
-        };
-        $lastTransaction = CarWashJob::where($lastTransactionQuery)
-            ->orderBy('end_time', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->first();
-        
-        $openingTime = '12:00AM';
-        if ($lastTransaction) {
-            $lastTime = $lastTransaction->end_time ?: $lastTransaction->created_at;
-            if ($lastTime) {
-                $openingTime = Carbon::parse($lastTime)->format('h:i A');
-            }
-        }
-
-        // Previous date closing balance = opening balance for selected date (same payment filter)
-        // Cash opening = +cash receipts - job expenses - cash transfers - shop expenses (all up to previousDate)
-        $openingBalanceQuery = function ($q) use ($user, $prevEnd, $paymentFilter, $branchId) {
-            if ($branchId !== null) {
-                $this->applyBranchFilter($q, 'branch_id', $user);
-            }
-            $q->where('status', 'completed');
-            $q->where(\DB::raw('COALESCE(end_time, created_at)'), '<=', $prevEnd->toDateTimeString());
-            if ($paymentFilter === 'bank') {
-                $q->where('payment_method', 'bank');
-            } else {
-                $q->where(function ($q2) {
-                    $q2->where('payment_method', 'cash')->orWhereNull('payment_method');
-                });
-            }
-        };
-        $previousJobs = CarWashJob::where($openingBalanceQuery)->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->with(['worker', 'expense'])->get();
-        $openingBalance = 0;
-        if ($paymentFilter !== 'bank') {
-            // Cash: +receipts - job expenses - transfers - shop expenses
-            foreach ($previousJobs as $job) {
-                $price = round((float) $job->price, 2);
-                $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
-                $openingBalance += $price;  // Cash receipt
-                $openingBalance -= $expenseAmount;  // Job expense (paid from cash)
-            }
-            // Job expenses from bank jobs also reduce cash (paid from cash)
-            $previousBankJobsQuery = CarWashJob::query();
-            if ($branchId !== null) {
-                $this->applyBranchFilter($previousBankJobsQuery, 'branch_id', $user);
-            }
-            $previousBankJobs = $previousBankJobsQuery
-                ->where('status', 'completed')
-                ->where('payment_method', 'bank')
-                ->where(\DB::raw('COALESCE(end_time, created_at)'), '<=', $prevEnd->toDateTimeString())
-                ->with('expense')->get();
-            foreach ($previousBankJobs as $job) {
-                $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
-                $openingBalance -= $expenseAmount;
-            }
-            // Cash transfers up to previous date
-            $prevCashTransfers = CashTransfer::query();
-            $this->applyBranchFilter($prevCashTransfers, 'branch_id', $user);
-            $prevCashTransfers->where('status', 'completed')
-                ->where('created_at', '<=', $previousDate->format('Y-m-d') . ' 23:59:59');
-            $openingBalance -= (float) $prevCashTransfers->sum('amount');
-            // Shop expenses up to previous date
-            $prevShopExpenses = \App\Models\CarWashShopExpense::query();
-            $this->applyBranchFilter($prevShopExpenses, 'branch_id', $user);
-            $prevShopExpenses->where('expense_date', '<=', $previousDate->format('Y-m-d'));
-            $openingBalance -= (float) $prevShopExpenses->sum('amount');
-        } else {
-            // Bank: sum of bank job credits + bank transfers up to previous date
-            foreach ($previousJobs as $job) {
-                $price = round((float) $job->price, 2);
-                $openingBalance += $price;
-            }
-            // Bank transfers (credits) up to previous date
-            $prevBankTransferQuery = \App\Models\BankTransfer::query();
-            if ($branchId) {
-                $prevBankTransferQuery->whereHas('user', function ($q) use ($branchId) {
-                    $q->where('branch_id', $branchId);
-                });
-            } elseif ($user->role !== 'admin') {
-                $prevBankTransferQuery->whereRaw('1 = 0');
-            }
-            $prevBankTransferQuery->where('status', 'approved')
-                ->where(function ($q) use ($previousDate) {
-                    $endOfPrev = $previousDate->format('Y-m-d') . ' 23:59:59';
-                    $q->where('approved_at', '<=', $endOfPrev)
-                        ->orWhere(function ($q2) use ($endOfPrev) {
-                            $q2->whereNull('approved_at')->where('created_at', '<=', $endOfPrev);
-                        });
-                });
-            $openingBalance += (float) $prevBankTransferQuery->sum('amount');
-        }
-        $openingBalance = round($openingBalance, 2);
-        
-        $rows = [];
-        $rows[] = [
-            'dateTime' => $previousDate->format('d/m/y') . ' Time ' . $openingTime,
-            'date' => $previousDate->format('d/m/y'),
-            'startTime' => '-',
-            'endTime' => '-',
-            'totalTime' => '-',
-            'vehicle' => 'Opening',
-            'debit' => 0,
-            'credit' => 0,
-            'gTotal' => 0,
-            'total' => 0,
-            'worker' => '-',
-            'bankName' => '-',
-            'commission' => '-',
-            'isOpening' => true,
-            'openingBalance' => $openingBalance,
-        ];
-        $running = $openingBalance;
-        $totalDebit = 0;
-        $totalCredit = 0;
-        $commissionSum = 0;
-        $vehicleSet = [];
-        $workerSet = [];
-
-        foreach ($jobs as $job) {
-            $commissionPct = 0;
-            if ($job->worker_user_id && $job->workerUser) {
-                $commissionPct = (float) ($job->workerUser->commission ?? 0);
-            } elseif ($job->worker && $job->worker->commission) {
-                $commissionPct = (float) $job->worker->commission;
-            }
-            $jobPrice = (float) ($job->price ?? 0);
-            $additionalSum = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
-            $totalJobPrice = $jobPrice + (float) $additionalSum;
-            $commissionAmount = $commissionPct > 0 ? round(($totalJobPrice * $commissionPct) / 100, 2) : 0;
-            $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
-            $price = round((float) $job->price, 2);
-            // Cash Receipt column mein sirf job payment show hoga, expenses alag
-            // But account mein job payment + expenses dono jayenge
-            $totalWithExpense = $price + $expenseAmount; // For account credit
-            $gTotal = round($price - $expenseAmount - $commissionAmount, 2);
-            $totalDebit += $expenseAmount; // Keep for display in JOB EXPENSE column
-            $totalCredit += $totalWithExpense; // Credit includes both price and expense (for account)
-            $vehicleSet[$job->vehicle_no ?: 'N/A'] = true;
-            $workerSet[$job->worker_name ?: 'N/A'] = true;
-            $commissionSum += $commissionAmount;
-
-            $dt = $job->end_time ?: $job->created_at;
-            $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y') . ' time ' . $dt->format('h:i A') : '-';
-            $vehicle = $job->vehicle_no ?: 'N/A';
-            $customerName = $job->customer_name ?: null;
-            $mobile = $job->mobile ?: null;
-            $userName = $job->user ? $job->user->name : null;
-            
-            // Calculate start time, end time, and duration
-            $startTime = $job->start_time ? Carbon::parse($job->start_time)->format('h:i A') : '-';
-            $endTime = $job->end_time ? Carbon::parse($job->end_time)->format('h:i A') : '-';
-            $totalTime = '-';
-            if ($job->start_time && $job->end_time) {
-                $start = Carbon::parse($job->start_time);
-                $end = Carbon::parse($job->end_time);
-                $diff = $start->diff($end);
-                $hours = $diff->h;
-                $minutes = $diff->i;
-                if ($hours > 0) {
-                    $totalTime = $hours . 'h ' . $minutes . 'm';
-                } else {
-                    $totalTime = $minutes . 'm';
+                $q->where('status', 'completed');
+                $q->whereBetween(\DB::raw('DATE(COALESCE(end_time, created_at))'), [$dateFrom, $dateTo]);
+                if ($paymentFilter === 'bank') {
+                    $q->where('payment_method', 'bank');
+                } elseif ($paymentFilter === 'cash') {
+                    $q->where(function ($q2) {
+                        $q2->where('payment_method', 'cash')->orWhereNull('payment_method');
+                    });
                 }
-            }
-            $dateOnly = $dt ? Carbon::parse($dt)->format('d/m/y') : '-';
-
-            // Row 1: Credit (debit=expense for display, credit=price only for Cash Receipt column, worker, bank, commission, gTotal)
-            // Note: credit field ab sirf price hai (expenses nahi), but account mein totalWithExpense jayega
-            
-            // Bank column: separate fields for bank name, account title, and account number
-            $bankName = '-';
-            $bankNameOnly = null;
-            $bankAccountTitle = null;
-            $bankAccountNumber = null;
-            if ($job->bankAccount) {
-                $b = $job->bankAccount;
-                $bankNameOnly = $b->bank ? $b->bank->name : 'N/A';
-                $bankAccountTitle = $b->account_title ?? '';
-                $bankAccountNumber = $b->account_number ?? '';
-                if ($bankNameOnly && ($bankAccountTitle || $bankAccountNumber)) {
-                    $bankName = $bankNameOnly; // Will be formatted in frontend
-                } else {
-                    $bankName = $bankNameOnly ?: '-';
-                }
-            } elseif ($job->bank) {
-                $bankNameOnly = $job->bank->name;
-                $bankName = $bankNameOnly;
-            }
-            
-            // Step 1: Add receipt to running total
-            // Cash filter: only cash payments add to cash total; bank payments go to bank, not cash
-            // Bank filter: bank payments add to bank total
-            if ($paymentFilter === 'bank') {
-                if ($job->payment_method === 'bank') {
-                    $running += $price; // Bank receipt increases bank total
-                }
-                // Job expenses are paid from cash, not bank - do not subtract from bank running
-            } else {
-                if ($job->payment_method === 'cash' || $job->payment_method === null) {
-                    $running += $price; // Add price to running total (for cash receipt only)
-                }
-                // Step 2: Subtract job expenses from running total (they reduce cash)
-                if ($expenseAmount > 0) {
-                    $running -= $expenseAmount;
-                }
-            }
-            
-            $rows[] = [
-                'dateTime' => $dateTime,
-                'date' => $dateOnly,
-                'startTime' => $startTime,
-                'endTime' => $endTime,
-                'totalTime' => $totalTime,
-                'vehicle' => $vehicle,
-                'customerName' => $customerName,
-                'mobile' => $mobile,
-                'userName' => $userName,
-                'debit' => $expenseAmount, // Show expense in JOB EXPENSE column
-                'credit' => $price, // Cash Receipt column: sirf job payment (expenses alag)
-                'gTotal' => $gTotal,
-                'total' => $running, // Cash Total: Running balance after cash receipt and job expense deduction
-                'worker' => $job->worker_name ?: 'N/A',
-                'bankName' => $bankName,
-                'bankNameOnly' => $bankNameOnly,
-                'bankAccountTitle' => $bankAccountTitle,
-                'bankAccountNumber' => $bankAccountNumber,
-                'commission' => $commissionAmount,
-                'jobId' => $job->id,
-                'isOpening' => false,
-                'paymentMethod' => $job->payment_method ?? 'cash', // so frontend can set paymentType correctly
-            ];
-        }
-
-        // Since expenses are now added to credit, sumGtotal = totalCredit - commissionSum
-        // (totalCredit already includes price + expense)
-        $sumGtotal = round($totalCredit - $commissionSum, 2);
-
-        // Pending commission: total commission from jobs minus paid (completed, non-reversed) per job
-        $jobIds = $jobs->pluck('id')->toArray();
-        $totalCommissionPaid = (float) \App\Models\CarWashPayment::whereIn('car_wash_job_id', $jobIds)
-            ->where('payment_type', 'commission')
-            ->where('status', 'completed')
-            ->sum('amount');
-        $pendingCommission = max(0, round($commissionSum - $totalCommissionPaid, 2));
-
-        // Fetch cash transfers for the date range (only for cash filter)
-        $totalCashTransfer = 0;
-        $cashTransfers = collect([]);
-        if ($paymentFilter !== 'bank') {
-            // Only fetch cash transfers for cash filter
-            $cashTransferQuery = \App\Models\CashTransfer::with(['fromUser', 'toUser']);
-            $this->applyBranchFilter($cashTransferQuery, 'branch_id', $user);
-            $cashTransferQuery->where('status', 'completed')
-                ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
-            $cashTransfers = $cashTransferQuery->orderBy('created_at', 'asc')
-                ->get();
-            $totalCashTransfer = (float) $cashTransfers->sum('amount');
-            
-            // Add cash transfers as separate rows (before shop expenses)
-            foreach ($cashTransfers as $transfer) {
-                $transferDate = $transfer->created_at;
-                $transferDateTime = $transferDate ? Carbon::parse($transferDate)->format('d/m/y') . ' time ' . $transferDate->format('h:i A') : '-';
-                $transferDateOnly = $transferDate ? Carbon::parse($transferDate)->format('d/m/y') : '-';
-                $transferAmount = round((float) $transfer->amount, 2);
-                $fromUserName = $transfer->fromUser ? $transfer->fromUser->name : null;
-                $toUserName = $transfer->toUser ? $transfer->toUser->name : 'Admin';
-                
-                // Subtract cash transfer from running total (they reduce cash)
-                $running -= $transferAmount;
-                
-                $rows[] = [
-                    'dateTime' => $transferDateTime,
-                    'date' => $transferDateOnly,
-                    'startTime' => '-',
-                    'endTime' => '-',
-                    'totalTime' => '-',
-                    'vehicle' => 'Cash Transfer: ' . ($toUserName ?: 'Admin'),
-                    'customerName' => null,
-                    'mobile' => null,
-                    'userName' => $fromUserName,
-                    'debit' => 0,
-                    'credit' => 0,
-                    'cashTransfer' => $transferAmount,
-                    'toUserName' => $toUserName,
-                    'toUserId' => $transfer->to_user_id,
-                    'gTotal' => null,
-                    'total' => $running,
-                    'worker' => '-',
-                    'bankName' => '-',
-                    'bankNameOnly' => null,
-                    'bankAccountTitle' => null,
-                    'bankAccountNumber' => null,
-                    'commission' => '-',
-                    'jobId' => null,
-                    'transferId' => $transfer->id,
-                    'isOpening' => false,
-                    'isCashTransfer' => true,
-                    'notes' => $transfer->note,
-                ];
-            }
-        }
-        
-        // Fetch shop expenses for the date range (only for cash filter)
-        $totalShopExpense = 0;
-        $shopExpenses = collect([]);
-        if ($paymentFilter !== 'bank') {
-            // Only fetch shop expenses for cash filter
-            $shopExpenseQuery = \App\Models\CarWashShopExpense::with('user');
-            $this->applyBranchFilter($shopExpenseQuery, 'branch_id', $user);
-            $shopExpenseQuery->whereBetween('expense_date', [$dateFrom, $dateTo]);
-            $shopExpenses = $shopExpenseQuery->orderBy('expense_date', 'asc')
-                ->orderBy('created_at', 'asc')
-                ->get();
-            $totalShopExpense = (float) $shopExpenses->sum('amount');
-            
-            // Add shop expenses as separate rows
-            foreach ($shopExpenses as $shopExp) {
-                $expDate = $shopExp->expense_date;
-                $expDateTime = $expDate ? Carbon::parse($expDate)->format('d/m/y') . ' time ' . ($shopExp->created_at ? $shopExp->created_at->format('h:i A') : '12:00AM') : '-';
-                $expDateOnly = $expDate ? Carbon::parse($expDate)->format('d/m/y') : '-';
-                $expAmount = round((float) $shopExp->amount, 2);
-                $expUserName = $shopExp->user ? $shopExp->user->name : null;
-                
-                // Step 3: Subtract shop expense from running total (they reduce cash)
-                // SHOP EXPENSE column mein expense amount show hoga
-                // Cash Total = Previous Balance - Shop Expense (after this step)
-                $running -= $expAmount;
-                
-                $rows[] = [
-                    'dateTime' => $expDateTime,
-                    'date' => $expDateOnly,
-                    'startTime' => '-',
-                    'endTime' => '-',
-                    'totalTime' => '-',
-                    'vehicle' => 'Shop Expense: ' . ($shopExp->category ?: 'N/A'),
-                    'customerName' => null,
-                    'mobile' => null,
-                    'userName' => $expUserName,
-                    'debit' => 0, // Job expense nahi hai
-                    'credit' => 0, // Cash receipt nahi hai
-                    'shopExpense' => $expAmount, // Shop expense amount
-                    'gTotal' => null,
-                    'total' => $running,
-                    'worker' => '-',
-                    'bankName' => '-',
-                    'bankNameOnly' => null,
-                    'bankAccountTitle' => null,
-                    'bankAccountNumber' => null,
-                    'commission' => '-',
-                    'jobId' => null,
-                    'isOpening' => false,
-                    'isShopExpense' => true,
-                    'notes' => $shopExp->notes,
-                ];
-            }
-        }
-        
-        // Fetch bank transfers for the date range (only for bank filter)
-        $totalBankTransfer = 0;
-        $bankTransfers = collect([]);
-        if ($paymentFilter === 'bank') {
-            // Only fetch bank transfers for bank filter
-            // BankTransfer doesn't have branch_id, so filter by user's branch
-            $bankTransferQuery = \App\Models\BankTransfer::with('user');
-            if ($branchId) {
-                $bankTransferQuery->whereHas('user', function($q) use ($branchId) {
-                    $q->where('branch_id', $branchId);
-                });
-            } elseif ($user->role !== 'admin') {
-                // Non-admin users without branch should see nothing
-                $bankTransferQuery->whereRaw('1 = 0');
-            }
-            $bankTransferQuery->where('status', 'approved')
-                ->where(function($q) use ($dateFrom, $dateTo) {
-                    $q->whereBetween('approved_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59'])
-                      ->orWhere(function($q2) use ($dateFrom, $dateTo) {
-                          $q2->whereNull('approved_at')
-                             ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
-                      });
-                });
-            $bankTransfers = $bankTransferQuery->orderByRaw('COALESCE(approved_at, created_at) ASC')
-                ->get();
-            $totalBankTransfer = (float) $bankTransfers->sum('amount');
-            
-            // Add bank transfers as separate rows
-            foreach ($bankTransfers as $transfer) {
-                $transferDate = $transfer->approved_at ?: $transfer->created_at;
-                $transferDateTime = $transferDate ? Carbon::parse($transferDate)->format('d/m/y') . ' time ' . Carbon::parse($transferDate)->format('h:i A') : '-';
-                $transferDateOnly = $transferDate ? Carbon::parse($transferDate)->format('d/m/y') : '-';
-                $transferAmount = round((float) $transfer->amount, 2);
-                $userName = $transfer->user ? $transfer->user->name : null;
-                
-                // Bank transfers add to bank total (they increase bank balance)
-                $running += $transferAmount;
-
-                $rows[] = [
-                    'dateTime' => $transferDateTime,
-                    'date' => $transferDateOnly,
-                    'startTime' => '-',
-                    'endTime' => '-',
-                    'totalTime' => '-',
-                    'vehicle' => 'Bank Transfer',
-                    'customerName' => null,
-                    'mobile' => null,
-                    'userName' => $userName,
-                    'debit' => 0,
-                    'credit' => $transferAmount, // Bank credit
-                    'cashTransfer' => 0,
-                    'shopExpense' => 0,
-                    'gTotal' => null,
-                    'total' => $running,
-                    'worker' => '-',
-                    'bankName' => $transfer->bank_name ?? '-',
-                    'bankNameOnly' => $transfer->bank_name ?? null,
-                    'bankAccountTitle' => $transfer->account_title ?? null,
-                    'bankAccountNumber' => $transfer->account_number ?? null,
-                    'commission' => '-',
-                    'jobId' => null,
-                    'transferId' => $transfer->id,
-                    'isOpening' => false,
-                    'isBankTransfer' => true,
-                    'paymentType' => 'bank',
-                    'notes' => null,
-                ];
-            }
-        }
-
-        // Sort all rows by date and time (except opening row which should stay first)
-        $openingRow = null;
-        $otherRows = [];
-        foreach ($rows as $row) {
-            if (isset($row['isOpening']) && $row['isOpening']) {
-                $openingRow = $row;
-            } else {
-                $otherRows[] = $row;
-            }
-        }
-        
-        // Sort other rows by dateTime (parse and compare)
-        usort($otherRows, function($a, $b) {
-            // Parse dateTime string to compare
-            $dateTimeA = $a['dateTime'] ?? '';
-            $dateTimeB = $b['dateTime'] ?? '';
-            
-            if (empty($dateTimeA) && empty($dateTimeB)) return 0;
-            if (empty($dateTimeA)) return 1;
-            if (empty($dateTimeB)) return -1;
-            
-            // Extract date and time from format "d/m/y time h:i A" or "d/m/y Time h:i A"
-            $parseDateTime = function($dtStr) {
-                if (preg_match('/(\d{2}\/\d{2}\/\d{2})\s+(?:time|Time)\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i', $dtStr, $matches)) {
-                    $date = $matches[1];
-                    $hour = (int)$matches[2];
-                    $minute = (int)$matches[3];
-                    $ampm = strtoupper($matches[4]);
-                    
-                    if ($ampm === 'PM' && $hour !== 12) $hour += 12;
-                    if ($ampm === 'AM' && $hour === 12) $hour = 0;
-                    
-                    // Parse date: d/m/y
-                    list($d, $m, $y) = explode('/', $date);
-                    $year = 2000 + (int)$y; // Assuming 20xx
-                    
-                    return Carbon::create($year, $m, $d, $hour, $minute, 0);
-                }
-                return null;
             };
-            
-            $dtA = $parseDateTime($dateTimeA);
-            $dtB = $parseDateTime($dateTimeB);
-            
-            if (!$dtA && !$dtB) return 0;
-            if (!$dtA) return 1;
-            if (!$dtB) return -1;
-            
-            return $dtA->timestamp <=> $dtB->timestamp;
-        });
-        
-        // Reconstruct rows array with opening first, then sorted rows
-        $rows = $openingRow ? [$openingRow, ...$otherRows] : $otherRows;
+
+            $query = CarWashJob::where($baseQuery)->with(['worker', 'workerUser', 'expense', 'bank', 'bankAccount.bank', 'user', 'customer', 'customerCar']);
+            if ($customerFilter !== null && $customerFilter !== '') {
+                $query->whereHas('customerCar', function ($qb) use ($customerFilter) {
+                    $qb->where('plate_number', $customerFilter);
+                });
+            }
+            if ($workerFilter !== null && $workerFilter !== '') {
+                $query->where('worker_user_id', (int) $workerFilter);
+            }
+            if ($userFilter !== null && $userFilter !== '') {
+                $query->where('user_id', (int) $userFilter);
+            }
+
+            $jobs = $query->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->get();
+
+            // Customers: from customers table (CustomerCar + Customer), branch filter
+            $customersQuery = CustomerCar::with('customer')
+                ->whereHas('customer', function ($q) use ($branchId) {
+                    if ($branchId !== null) {
+                        $q->where('branch_id', $branchId);
+                    }
+                })
+                ->whereNotNull('plate_number')
+                ->where('plate_number', '!=', '');
+            $customerCars = $customersQuery->get();
+            $customers = $customerCars->groupBy('plate_number')->map(function ($group) {
+                $cc = $group->first();
+                $name = $cc->customer && is_array($cc->customer->names ?? null) && count($cc->customer->names) > 0
+                    ? ($cc->customer->names[0] ?? '')
+                    : '';
+                $plate = $cc->plate_number ?? '';
+
+                return ['value' => $plate, 'label' => $plate.($name ? ' ('.$name.')' : '')];
+            })->values()->sortBy('value')->values()->all();
+
+            // Workers: from users table where role = worker, same branch
+            $workersQuery = \App\Models\User::where('role', 'worker')->orderBy('name');
+            if ($branchId !== null) {
+                $workersQuery->where('branch_id', $branchId);
+            }
+            $workers = $workersQuery->get()->map(function ($u) {
+                return ['value' => (string) $u->id, 'label' => $u->name ?? 'User #'.$u->id];
+            })->values()->all();
+
+            // Users: who entered jobs (from jobs in date range) for filter dropdown - query only user IDs to avoid loading all jobs into memory
+            $userIds = CarWashJob::where($baseQuery)->distinct()->pluck('user_id')->filter()->values()->all();
+            $users = collect();
+            if (! empty($userIds)) {
+                $userList = \App\Models\User::whereIn('id', $userIds)->orderBy('name')->get()->keyBy('id');
+                $users = collect($userIds)->map(function ($uid) use ($userList) {
+                    $u = $userList->get($uid);
+
+                    return ['value' => (string) $uid, 'label' => $u ? $u->name : 'User #'.$uid];
+                })->values();
+            }
+
+            // Image jaisa: Credit ek row, Debit (expense) alag row. Debit row par credit/worker/commission empty; Credit row par debit empty.
+            $dateCarbon = Carbon::parse($dateFrom, $tz);
+            $previousDate = $dateCarbon->copy()->subDay();
+            $prevStart = Carbon::parse($previousDate->format('Y-m-d').' 00:00:00', $tz)->timezone('UTC');
+            $prevEnd = Carbon::parse($previousDate->format('Y-m-d').' 23:59:59', $tz)->timezone('UTC');
+
+            // Get last transaction time from previous date
+            $lastTransactionQuery = function ($q) use ($user, $prevStart, $prevEnd, $branchId) {
+                if ($branchId !== null) {
+                    $this->applyBranchFilter($q, 'branch_id', $user);
+                }
+                $q->where('status', 'completed');
+                $q->whereBetween(\DB::raw('COALESCE(end_time, created_at)'), [$prevStart->toDateTimeString(), $prevEnd->toDateTimeString()]);
+            };
+            $lastTransaction = CarWashJob::where($lastTransactionQuery)
+                ->orderBy('end_time', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $openingTime = '12:00AM';
+            if ($lastTransaction) {
+                $lastTime = $lastTransaction->end_time ?: $lastTransaction->created_at;
+                if ($lastTime) {
+                    $openingTime = Carbon::parse($lastTime)->format('h:i A');
+                }
+            }
+
+            // Previous date closing balance = opening balance for selected date (same payment filter)
+            // Cash opening = +cash receipts - job expenses - cash transfers - shop expenses (all up to previousDate)
+            $openingBalanceQuery = function ($q) use ($user, $prevEnd, $paymentFilter, $branchId) {
+                if ($branchId !== null) {
+                    $this->applyBranchFilter($q, 'branch_id', $user);
+                }
+                $q->where('status', 'completed');
+                $q->where(\DB::raw('COALESCE(end_time, created_at)'), '<=', $prevEnd->toDateTimeString());
+                if ($paymentFilter === 'bank') {
+                    $q->where('payment_method', 'bank');
+                } else {
+                    $q->where(function ($q2) {
+                        $q2->where('payment_method', 'cash')->orWhereNull('payment_method');
+                    });
+                }
+            };
+            $previousJobs = CarWashJob::where($openingBalanceQuery)->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->with(['worker', 'expense'])->get();
+            $openingBalance = 0;
+            if ($paymentFilter !== 'bank') {
+                // Cash: +receipts - job expenses - transfers - shop expenses
+                foreach ($previousJobs as $job) {
+                    $price = round((float) $job->price, 2);
+                    $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
+                    $openingBalance += $price;  // Cash receipt
+                    $openingBalance -= $expenseAmount;  // Job expense (paid from cash)
+                }
+                // Job expenses from bank jobs also reduce cash (paid from cash)
+                $previousBankJobsQuery = CarWashJob::query();
+                if ($branchId !== null) {
+                    $this->applyBranchFilter($previousBankJobsQuery, 'branch_id', $user);
+                }
+                $previousBankJobs = $previousBankJobsQuery
+                    ->where('status', 'completed')
+                    ->where('payment_method', 'bank')
+                    ->where(\DB::raw('COALESCE(end_time, created_at)'), '<=', $prevEnd->toDateTimeString())
+                    ->with('expense')->get();
+                foreach ($previousBankJobs as $job) {
+                    $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
+                    $openingBalance -= $expenseAmount;
+                }
+                // Cash transfers up to previous date
+                $prevCashTransfers = CashTransfer::query();
+                $this->applyBranchFilter($prevCashTransfers, 'branch_id', $user);
+                $prevCashTransfers->where('status', 'completed')
+                    ->where('created_at', '<=', $previousDate->format('Y-m-d').' 23:59:59');
+                $openingBalance -= (float) $prevCashTransfers->sum('amount');
+                // Shop expenses up to previous date
+                $prevShopExpenses = \App\Models\CarWashShopExpense::query();
+                $this->applyBranchFilter($prevShopExpenses, 'branch_id', $user);
+                $prevShopExpenses->where('expense_date', '<=', $previousDate->format('Y-m-d'));
+                $openingBalance -= (float) $prevShopExpenses->sum('amount');
+            } else {
+                // Bank: sum of bank job credits + bank transfers up to previous date
+                foreach ($previousJobs as $job) {
+                    $price = round((float) $job->price, 2);
+                    $openingBalance += $price;
+                }
+                // Bank transfers (credits) up to previous date
+                $prevBankTransferQuery = \App\Models\BankTransfer::query();
+                if ($branchId) {
+                    $prevBankTransferQuery->whereHas('user', function ($q) use ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    });
+                } elseif ($user->role !== 'admin') {
+                    $prevBankTransferQuery->whereRaw('1 = 0');
+                }
+                $prevBankTransferQuery->where('status', 'approved')
+                    ->where(function ($q) use ($previousDate) {
+                        $endOfPrev = $previousDate->format('Y-m-d').' 23:59:59';
+                        $q->where('approved_at', '<=', $endOfPrev)
+                            ->orWhere(function ($q2) use ($endOfPrev) {
+                                $q2->whereNull('approved_at')->where('created_at', '<=', $endOfPrev);
+                            });
+                    });
+                $openingBalance += (float) $prevBankTransferQuery->sum('amount');
+            }
+            $openingBalance = round($openingBalance, 2);
+
+            $rows = [];
+            $rows[] = [
+                'dateTime' => $previousDate->format('d/m/y').' Time '.$openingTime,
+                'date' => $previousDate->format('d/m/y'),
+                'startTime' => '-',
+                'endTime' => '-',
+                'totalTime' => '-',
+                'vehicle' => 'Opening',
+                'debit' => 0,
+                'credit' => 0,
+                'gTotal' => 0,
+                'total' => 0,
+                'worker' => '-',
+                'bankName' => '-',
+                'commission' => '-',
+                'isOpening' => true,
+                'openingBalance' => $openingBalance,
+            ];
+            $running = $openingBalance;
+            $totalDebit = 0;
+            $totalCredit = 0;
+            $commissionSum = 0;
+            $vehicleSet = [];
+            $workerSet = [];
+
+            foreach ($jobs as $job) {
+                $commissionPct = 0;
+                if ($job->worker_user_id && $job->workerUser) {
+                    $commissionPct = (float) ($job->workerUser->commission ?? 0);
+                } elseif ($job->worker && $job->worker->commission) {
+                    $commissionPct = (float) $job->worker->commission;
+                }
+                $jobPrice = (float) ($job->price ?? 0);
+                $additionalSum = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
+                $totalJobPrice = $jobPrice + (float) $additionalSum;
+                $commissionAmount = $commissionPct > 0 ? round(($totalJobPrice * $commissionPct) / 100, 2) : 0;
+                $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
+                $price = round((float) $job->price, 2);
+                // Cash Receipt column mein sirf job payment show hoga, expenses alag
+                // But account mein job payment + expenses dono jayenge
+                $totalWithExpense = $price + $expenseAmount; // For account credit
+                $gTotal = round($price - $expenseAmount - $commissionAmount, 2);
+                $totalDebit += $expenseAmount; // Keep for display in JOB EXPENSE column
+                $totalCredit += $totalWithExpense; // Credit includes both price and expense (for account)
+                $vehicleSet[$job->vehicle_no ?: 'N/A'] = true;
+                $workerSet[$job->worker_name ?: 'N/A'] = true;
+                $commissionSum += $commissionAmount;
+
+                $dt = $job->end_time ?: $job->created_at;
+                $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y').' time '.$dt->format('h:i A') : '-';
+                $vehicle = $job->vehicle_no ?: 'N/A';
+                $customerName = $job->customer_name ?: null;
+                $mobile = $job->mobile ?: null;
+                $userName = $job->user ? $job->user->name : null;
+
+                // Calculate start time, end time, and duration
+                $startTime = $job->start_time ? Carbon::parse($job->start_time)->format('h:i A') : '-';
+                $endTime = $job->end_time ? Carbon::parse($job->end_time)->format('h:i A') : '-';
+                $totalTime = '-';
+                if ($job->start_time && $job->end_time) {
+                    $start = Carbon::parse($job->start_time);
+                    $end = Carbon::parse($job->end_time);
+                    $diff = $start->diff($end);
+                    $hours = $diff->h;
+                    $minutes = $diff->i;
+                    if ($hours > 0) {
+                        $totalTime = $hours.'h '.$minutes.'m';
+                    } else {
+                        $totalTime = $minutes.'m';
+                    }
+                }
+                $dateOnly = $dt ? Carbon::parse($dt)->format('d/m/y') : '-';
+
+                // Row 1: Credit (debit=expense for display, credit=price only for Cash Receipt column, worker, bank, commission, gTotal)
+                // Note: credit field ab sirf price hai (expenses nahi), but account mein totalWithExpense jayega
+
+                // Bank column: separate fields for bank name, account title, and account number
+                $bankName = '-';
+                $bankNameOnly = null;
+                $bankAccountTitle = null;
+                $bankAccountNumber = null;
+                if ($job->bankAccount) {
+                    $b = $job->bankAccount;
+                    $bankNameOnly = $b->bank ? $b->bank->name : 'N/A';
+                    $bankAccountTitle = $b->account_title ?? '';
+                    $bankAccountNumber = $b->account_number ?? '';
+                    if ($bankNameOnly && ($bankAccountTitle || $bankAccountNumber)) {
+                        $bankName = $bankNameOnly; // Will be formatted in frontend
+                    } else {
+                        $bankName = $bankNameOnly ?: '-';
+                    }
+                } elseif ($job->bank) {
+                    $bankNameOnly = $job->bank->name;
+                    $bankName = $bankNameOnly;
+                }
+
+                // Step 1: Add receipt to running total
+                // Cash filter: only cash payments add to cash total; bank payments go to bank, not cash
+                // Bank filter: bank payments add to bank total
+                if ($paymentFilter === 'bank') {
+                    if ($job->payment_method === 'bank') {
+                        $running += $price; // Bank receipt increases bank total
+                    }
+                    // Job expenses are paid from cash, not bank - do not subtract from bank running
+                } else {
+                    if ($job->payment_method === 'cash' || $job->payment_method === null) {
+                        $running += $price; // Add price to running total (for cash receipt only)
+                    }
+                    // Step 2: Subtract job expenses from running total (they reduce cash)
+                    if ($expenseAmount > 0) {
+                        $running -= $expenseAmount;
+                    }
+                }
+
+                $rows[] = [
+                    'dateTime' => $dateTime,
+                    'date' => $dateOnly,
+                    'startTime' => $startTime,
+                    'endTime' => $endTime,
+                    'totalTime' => $totalTime,
+                    'vehicle' => $vehicle,
+                    'customerName' => $customerName,
+                    'mobile' => $mobile,
+                    'userName' => $userName,
+                    'debit' => $expenseAmount, // Show expense in JOB EXPENSE column
+                    'credit' => $price, // Cash Receipt column: sirf job payment (expenses alag)
+                    'gTotal' => $gTotal,
+                    'total' => $running, // Cash Total: Running balance after cash receipt and job expense deduction
+                    'worker' => $job->worker_name ?: 'N/A',
+                    'bankName' => $bankName,
+                    'bankNameOnly' => $bankNameOnly,
+                    'bankAccountTitle' => $bankAccountTitle,
+                    'bankAccountNumber' => $bankAccountNumber,
+                    'commission' => $commissionAmount,
+                    'jobId' => $job->id,
+                    'isOpening' => false,
+                    'paymentMethod' => $job->payment_method ?? 'cash', // so frontend can set paymentType correctly
+                ];
+            }
+
+            // Since expenses are now added to credit, sumGtotal = totalCredit - commissionSum
+            // (totalCredit already includes price + expense)
+            $sumGtotal = round($totalCredit - $commissionSum, 2);
+
+            // Pending commission: total commission from jobs minus paid (completed, non-reversed) per job
+            $jobIds = $jobs->pluck('id')->toArray();
+            $totalCommissionPaid = (float) \App\Models\CarWashPayment::whereIn('car_wash_job_id', $jobIds)
+                ->where('payment_type', 'commission')
+                ->where('status', 'completed')
+                ->sum('amount');
+            $pendingCommission = max(0, round($commissionSum - $totalCommissionPaid, 2));
+
+            // Fetch cash transfers for the date range (only for cash filter)
+            $totalCashTransfer = 0;
+            $cashTransfers = collect([]);
+            if ($paymentFilter !== 'bank') {
+                // Only fetch cash transfers for cash filter
+                $cashTransferQuery = \App\Models\CashTransfer::with(['fromUser', 'toUser']);
+                $this->applyBranchFilter($cashTransferQuery, 'branch_id', $user);
+                $cashTransferQuery->where('status', 'completed')
+                    ->whereBetween('created_at', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59']);
+                $cashTransfers = $cashTransferQuery->orderBy('created_at', 'asc')
+                    ->get();
+                $totalCashTransfer = (float) $cashTransfers->sum('amount');
+
+                // Add cash transfers as separate rows (before shop expenses)
+                foreach ($cashTransfers as $transfer) {
+                    $transferDate = $transfer->created_at;
+                    $transferDateTime = $transferDate ? Carbon::parse($transferDate)->format('d/m/y').' time '.$transferDate->format('h:i A') : '-';
+                    $transferDateOnly = $transferDate ? Carbon::parse($transferDate)->format('d/m/y') : '-';
+                    $transferAmount = round((float) $transfer->amount, 2);
+                    $fromUserName = $transfer->fromUser ? $transfer->fromUser->name : null;
+                    $toUserName = $transfer->toUser ? $transfer->toUser->name : 'Admin';
+
+                    // Subtract cash transfer from running total (they reduce cash)
+                    $running -= $transferAmount;
+
+                    $rows[] = [
+                        'dateTime' => $transferDateTime,
+                        'date' => $transferDateOnly,
+                        'startTime' => '-',
+                        'endTime' => '-',
+                        'totalTime' => '-',
+                        'vehicle' => 'Cash Transfer: '.($toUserName ?: 'Admin'),
+                        'customerName' => null,
+                        'mobile' => null,
+                        'userName' => $fromUserName,
+                        'debit' => 0,
+                        'credit' => 0,
+                        'cashTransfer' => $transferAmount,
+                        'toUserName' => $toUserName,
+                        'toUserId' => $transfer->to_user_id,
+                        'gTotal' => null,
+                        'total' => $running,
+                        'worker' => '-',
+                        'bankName' => '-',
+                        'bankNameOnly' => null,
+                        'bankAccountTitle' => null,
+                        'bankAccountNumber' => null,
+                        'commission' => '-',
+                        'jobId' => null,
+                        'transferId' => $transfer->id,
+                        'isOpening' => false,
+                        'isCashTransfer' => true,
+                        'notes' => $transfer->note,
+                    ];
+                }
+            }
+
+            // Fetch shop expenses for the date range (only for cash filter)
+            $totalShopExpense = 0;
+            $shopExpenses = collect([]);
+            if ($paymentFilter !== 'bank') {
+                // Only fetch shop expenses for cash filter
+                $shopExpenseQuery = \App\Models\CarWashShopExpense::with('user');
+                $this->applyBranchFilter($shopExpenseQuery, 'branch_id', $user);
+                $shopExpenseQuery->whereBetween('expense_date', [$dateFrom, $dateTo]);
+                $shopExpenses = $shopExpenseQuery->orderBy('expense_date', 'asc')
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                $totalShopExpense = (float) $shopExpenses->sum('amount');
+
+                // Add shop expenses as separate rows
+                foreach ($shopExpenses as $shopExp) {
+                    $expDate = $shopExp->expense_date;
+                    $expDateTime = $expDate ? Carbon::parse($expDate)->format('d/m/y').' time '.($shopExp->created_at ? $shopExp->created_at->format('h:i A') : '12:00AM') : '-';
+                    $expDateOnly = $expDate ? Carbon::parse($expDate)->format('d/m/y') : '-';
+                    $expAmount = round((float) $shopExp->amount, 2);
+                    $expUserName = $shopExp->user ? $shopExp->user->name : null;
+
+                    // Step 3: Subtract shop expense from running total (they reduce cash)
+                    // SHOP EXPENSE column mein expense amount show hoga
+                    // Cash Total = Previous Balance - Shop Expense (after this step)
+                    $running -= $expAmount;
+
+                    $rows[] = [
+                        'dateTime' => $expDateTime,
+                        'date' => $expDateOnly,
+                        'startTime' => '-',
+                        'endTime' => '-',
+                        'totalTime' => '-',
+                        'vehicle' => 'Shop Expense: '.($shopExp->category ?: 'N/A'),
+                        'customerName' => null,
+                        'mobile' => null,
+                        'userName' => $expUserName,
+                        'debit' => 0, // Job expense nahi hai
+                        'credit' => 0, // Cash receipt nahi hai
+                        'shopExpense' => $expAmount, // Shop expense amount
+                        'gTotal' => null,
+                        'total' => $running,
+                        'worker' => '-',
+                        'bankName' => '-',
+                        'bankNameOnly' => null,
+                        'bankAccountTitle' => null,
+                        'bankAccountNumber' => null,
+                        'commission' => '-',
+                        'jobId' => null,
+                        'isOpening' => false,
+                        'isShopExpense' => true,
+                        'notes' => $shopExp->notes,
+                    ];
+                }
+            }
+
+            // Fetch bank transfers for the date range (only for bank filter)
+            $totalBankTransfer = 0;
+            $bankTransfers = collect([]);
+            if ($paymentFilter === 'bank') {
+                // Only fetch bank transfers for bank filter
+                // BankTransfer doesn't have branch_id, so filter by user's branch
+                $bankTransferQuery = \App\Models\BankTransfer::with('user');
+                if ($branchId) {
+                    $bankTransferQuery->whereHas('user', function ($q) use ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    });
+                } elseif ($user->role !== 'admin') {
+                    // Non-admin users without branch should see nothing
+                    $bankTransferQuery->whereRaw('1 = 0');
+                }
+                $bankTransferQuery->where('status', 'approved')
+                    ->where(function ($q) use ($dateFrom, $dateTo) {
+                        $q->whereBetween('approved_at', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59'])
+                            ->orWhere(function ($q2) use ($dateFrom, $dateTo) {
+                                $q2->whereNull('approved_at')
+                                    ->whereBetween('created_at', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59']);
+                            });
+                    });
+                $bankTransfers = $bankTransferQuery->orderByRaw('COALESCE(approved_at, created_at) ASC')
+                    ->get();
+                $totalBankTransfer = (float) $bankTransfers->sum('amount');
+
+                // Add bank transfers as separate rows
+                foreach ($bankTransfers as $transfer) {
+                    $transferDate = $transfer->approved_at ?: $transfer->created_at;
+                    $transferDateTime = $transferDate ? Carbon::parse($transferDate)->format('d/m/y').' time '.Carbon::parse($transferDate)->format('h:i A') : '-';
+                    $transferDateOnly = $transferDate ? Carbon::parse($transferDate)->format('d/m/y') : '-';
+                    $transferAmount = round((float) $transfer->amount, 2);
+                    $userName = $transfer->user ? $transfer->user->name : null;
+
+                    // Bank transfers add to bank total (they increase bank balance)
+                    $running += $transferAmount;
+
+                    $rows[] = [
+                        'dateTime' => $transferDateTime,
+                        'date' => $transferDateOnly,
+                        'startTime' => '-',
+                        'endTime' => '-',
+                        'totalTime' => '-',
+                        'vehicle' => 'Bank Transfer',
+                        'customerName' => null,
+                        'mobile' => null,
+                        'userName' => $userName,
+                        'debit' => 0,
+                        'credit' => $transferAmount, // Bank credit
+                        'cashTransfer' => 0,
+                        'shopExpense' => 0,
+                        'gTotal' => null,
+                        'total' => $running,
+                        'worker' => '-',
+                        'bankName' => $transfer->bank_name ?? '-',
+                        'bankNameOnly' => $transfer->bank_name ?? null,
+                        'bankAccountTitle' => $transfer->account_title ?? null,
+                        'bankAccountNumber' => $transfer->account_number ?? null,
+                        'commission' => '-',
+                        'jobId' => null,
+                        'transferId' => $transfer->id,
+                        'isOpening' => false,
+                        'isBankTransfer' => true,
+                        'paymentType' => 'bank',
+                        'notes' => null,
+                    ];
+                }
+            }
+
+            // Sort all rows by date and time (except opening row which should stay first)
+            $openingRow = null;
+            $otherRows = [];
+            foreach ($rows as $row) {
+                if (isset($row['isOpening']) && $row['isOpening']) {
+                    $openingRow = $row;
+                } else {
+                    $otherRows[] = $row;
+                }
+            }
+
+            // Sort other rows by dateTime (parse and compare)
+            usort($otherRows, function ($a, $b) {
+                // Parse dateTime string to compare
+                $dateTimeA = $a['dateTime'] ?? '';
+                $dateTimeB = $b['dateTime'] ?? '';
+
+                if (empty($dateTimeA) && empty($dateTimeB)) {
+                    return 0;
+                }
+                if (empty($dateTimeA)) {
+                    return 1;
+                }
+                if (empty($dateTimeB)) {
+                    return -1;
+                }
+
+                // Extract date and time from format "d/m/y time h:i A" or "d/m/y Time h:i A"
+                $parseDateTime = function ($dtStr) {
+                    if (preg_match('/(\d{2}\/\d{2}\/\d{2})\s+(?:time|Time)\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i', $dtStr, $matches)) {
+                        $date = $matches[1];
+                        $hour = (int) $matches[2];
+                        $minute = (int) $matches[3];
+                        $ampm = strtoupper($matches[4]);
+
+                        if ($ampm === 'PM' && $hour !== 12) {
+                            $hour += 12;
+                        }
+                        if ($ampm === 'AM' && $hour === 12) {
+                            $hour = 0;
+                        }
+
+                        // Parse date: d/m/y
+                        [$d, $m, $y] = explode('/', $date);
+                        $year = 2000 + (int) $y; // Assuming 20xx
+
+                        return Carbon::create($year, $m, $d, $hour, $minute, 0);
+                    }
+
+                    return null;
+                };
+
+                $dtA = $parseDateTime($dateTimeA);
+                $dtB = $parseDateTime($dateTimeB);
+
+                if (! $dtA && ! $dtB) {
+                    return 0;
+                }
+                if (! $dtA) {
+                    return 1;
+                }
+                if (! $dtB) {
+                    return -1;
+                }
+
+                return $dtA->timestamp <=> $dtB->timestamp;
+            });
+
+            // Reconstruct rows array with opening first, then sorted rows
+            $rows = $openingRow ? [$openingRow, ...$otherRows] : $otherRows;
 
             return response()->json([
                 'success' => true,
@@ -2202,13 +2245,14 @@ class CarWashJobController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Daily report data error: ' . $e->getMessage(), [
+            \Illuminate\Support\Facades\Log::error('Daily report data error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->only(['date_from', 'date_to', 'payment'])
+                'request' => $request->only(['date_from', 'date_to', 'payment']),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Report load failed: ' . $e->getMessage(),
+                'message' => 'Report load failed: '.$e->getMessage(),
                 'rows' => [],
                 'customers' => [],
                 'workers' => [],
@@ -2226,17 +2270,17 @@ class CarWashJobController extends Controller
         // Support both single date and date range
         $dateFrom = $request->get('date_from') ?: $request->get('date');
         $dateTo = $request->get('date_to') ?: $request->get('date');
-        
-        if (!$dateFrom || !$dateTo) {
+
+        if (! $dateFrom || ! $dateTo) {
             $request->validate(['date' => 'required|date']);
             $dateFrom = $dateTo = $request->date;
         } else {
             $request->validate([
                 'date_from' => 'required|date',
-                'date_to' => 'required|date'
+                'date_to' => 'required|date',
             ]);
         }
-        
+
         $customerFilter = $request->get('customer');
         $workerFilter = $request->get('worker');
         $userFilter = $request->get('user');
@@ -2245,7 +2289,7 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
         $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
-        $branchName = ($user->role === 'admin' && !$branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'All');
+        $branchName = ($user->role === 'admin' && ! $branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'All');
 
         $baseClosure = function ($q) use ($user, $dateFrom, $dateTo, $paymentFilter, $branchId) {
             if ($branchId !== null) {
@@ -2278,7 +2322,7 @@ class CarWashJobController extends Controller
 
         $dateCarbon = Carbon::parse($dateFrom);
         $previousDate = $dateCarbon->copy()->subDay();
-        
+
         // Get last transaction time from previous date
         $lastTransactionQuery = function ($q) use ($user, $previousDate, $branchId) {
             if ($branchId !== null) {
@@ -2292,7 +2336,7 @@ class CarWashJobController extends Controller
             ->orderBy('end_time', 'desc')
             ->orderBy('created_at', 'desc')
             ->first();
-        
+
         $openingTime = '12:00AM';
         if ($lastTransaction) {
             $lastTime = $lastTransaction->end_time ?: $lastTransaction->created_at;
@@ -2300,10 +2344,10 @@ class CarWashJobController extends Controller
                 $openingTime = Carbon::parse($lastTime)->format('h:i A');
             }
         }
-        
+
         $rows = [];
         $rows[] = [
-            'dateTime' => $previousDate->format('d/m/y') . ' Time ' . $openingTime,
+            'dateTime' => $previousDate->format('d/m/y').' Time '.$openingTime,
             'vehicle' => 'Opening',
             'debit' => 0,
             'credit' => 0,
@@ -2345,7 +2389,7 @@ class CarWashJobController extends Controller
             $commissionSum += $commissionAmount;
 
             $dt = $job->end_time ?: $job->created_at;
-            $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y') . ' time ' . $dt->format('h:i A') : '-';
+            $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y').' time '.$dt->format('h:i A') : '-';
             $vehicle = $job->vehicle_no ?: 'N/A';
             $expenseItems = ($job->expense && is_array($job->expense->expense_items ?? null)) ? $job->expense->expense_items : [];
 
@@ -2358,8 +2402,8 @@ class CarWashJobController extends Controller
                 $bn = $b->bank ? $b->bank->name : 'N/A';
                 $t = $b->account_title ?? '';
                 $n = $b->account_number ?? '';
-                $label = trim($bn . ($t ? ' - ' . $t : '') . ($n ? ' (' . $n . ')' : ''));
-                $bankName = ($label === '' || (!$t && !$n)) ? ($bn . ' — #' . $b->id) : $label;
+                $label = trim($bn.($t ? ' - '.$t : '').($n ? ' ('.$n.')' : ''));
+                $bankName = ($label === '' || (! $t && ! $n)) ? ($bn.' — #'.$b->id) : $label;
             } elseif ($job->bank) {
                 $bankName = $job->bank->name;
             }
@@ -2367,7 +2411,7 @@ class CarWashJobController extends Controller
             if ($expenseAmount > 0) {
                 $running -= $expenseAmount;
             }
-            
+
             $rows[] = [
                 'dateTime' => $dateTime,
                 'vehicle' => $vehicle,
@@ -2395,7 +2439,7 @@ class CarWashJobController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
         $totalShopExpense = (float) $shopExpenses->sum('amount');
-        
+
         // Deduct shop expenses from running total (they reduce cash)
         // Shop expenses should be deducted from user's account balance
         $running -= $totalShopExpense;
@@ -2430,16 +2474,16 @@ class CarWashJobController extends Controller
         $currentDate = $currentDateTime->format('d-M-y'); // e.g., 27-Jan-26
         $dateFromFormatted = Carbon::parse($dateFrom)->format('d-M-y');
         $dateToFormatted = Carbon::parse($dateTo)->format('d-M-y');
-        $dateForFilename = $dateFrom === $dateTo 
-            ? $dateFromFormatted . '-' . $currentTime 
-            : $dateFromFormatted . '_to_' . $dateToFormatted . '-' . $currentTime;
-        
+        $dateForFilename = $dateFrom === $dateTo
+            ? $dateFromFormatted.'-'.$currentTime
+            : $dateFromFormatted.'_to_'.$dateToFormatted.'-'.$currentTime;
+
         // Check if inline display is requested (for WhatsApp links)
         $inline = $request->get('inline', false);
         if ($inline) {
-            return $pdf->stream('elite-car-wash-daily-Report-' . $dateForFilename . '.pdf');
+            return $pdf->stream('elite-car-wash-daily-Report-'.$dateForFilename.'.pdf');
         }
-        
-        return $pdf->download('elite-car-wash-daily-Report-' . $dateForFilename . '.pdf');
+
+        return $pdf->download('elite-car-wash-daily-Report-'.$dateForFilename.'.pdf');
     }
 }

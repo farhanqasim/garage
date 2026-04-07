@@ -43,6 +43,15 @@
         color: white;
         box-shadow: 0 4px 12px #fe962e;
     }
+    /* Service details list - highlight */
+    #serviceDetailsDisplayList {
+        background: linear-gradient(135deg, #fef9e7 0%, #fef3cd 100%) !important;
+        border: 1px solid #f0c674 !important;
+        border-left: 4px solid #e8a317 !important;
+        padding: 0.6rem 0.75rem !important;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px rgba(232, 163, 23, 0.15);
+    }
     /* Add Vehicle modal: modal width = input width on every screen */
     #itemVehicleAddModalEdit .modal-dialog {
         width: 100%;
@@ -416,7 +425,7 @@
                                 </div>
                                 <!-- Product Name -->
                                 <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="itemname">Product Name: <span class="text-danger">*</span></label>
+                                    <label for="itemname">Product Name:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control name-select searchable-select @error('p_id') is-invalid @enderror"
@@ -454,6 +463,8 @@
                                                     @foreach ($Categories as $category)
                                                     <option value="{{ $category->id }}"
                                                         data-scrap-measurement="{{ $category->scrap_measurement ?? 'weight' }}"
+                                                        data-scrap-weight-label="{{ $category->scrap_weight_label ?? 'KG' }}"
+                                                        data-scrap-count-label="{{ $category->scrap_count_label ?? 'count' }}"
                                                         data-image="{{ $category->image ? asset($category->image) : '' }}"
                                                         {{ ($item->category_id ?? old('category_id')) == $category->id ? 'selected' : '' }}>
                                                         {{ $category->name }}
@@ -470,9 +481,6 @@
                                                 </button>
                                             </div>
                                             @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                        <div id="categoryImageDisplay" class="flex-shrink-0" style="display:none;">
-                                            <img id="categoryImageImg" src="" alt="Category" class="rounded border" style="width:60px;height:60px;object-fit:cover;">
                                         </div>
                                     </div>
                                 </div>
@@ -512,7 +520,63 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                    <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                <!-- Technology - visible for Battery only -->
+                                <div class="col-md-4 mt-3" id="technology_field_wrapper_edit" x-show="selectedType === 'battery'">
+                                    <label for="technology_select">Technology:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control technology-select searchable-select @error('technology') is-invalid @enderror"
+                                            name="technology" id="technology_select">
+                                            <option value="">Select</option>
+                                            @foreach($technologies as $tech)
+                                            <option value="{{ $tech->id }}" {{ old('technology', $item->technology) == $tech->id ? 'selected' : '' }}>
+                                                {{ $tech->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit"
+                                            data-title="Edit Technology"
+                                            data-fetch-route="{{ route('show.technology', ':id') }}"
+                                            data-update-route="{{ route('update.technology', ':id') }}"
+                                            data-delete-route="{{ route('destory.technology', ':id') }}"
+                                            data-target-select=".technology-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+                                    @error('technology')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <!-- Series - visible for Battery and Oil -->
+                                <div class="col-md-4 mt-3" id="series_field_wrapper_edit" x-show="selectedType === 'battery' || selectedType === 'oil'">
+                                    <label for="series_select">Series:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control series-select searchable-select @error('series_id') is-invalid @enderror"
+                                            name="series_id" id="series_select">
+                                            <option value="">Select</option>
+                                            @foreach($series as $ser)
+                                            <option value="{{ $ser->id }}" {{ old('series_id', $item->series_id) == $ser->id ? 'selected' : '' }}>
+                                                {{ $ser->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit"
+                                            data-title="Edit Series"
+                                            data-fetch-route="{{ route('show.series', ':id') }}"
+                                            data-update-route="{{ route('update.series', ':id') }}"
+                                            data-delete-route="{{ route('destory.series', ':id') }}"
+                                            data-target-select=".series-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+                                    @error('series_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="company_parts">Company: <span class="text-danger">*</span></label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -563,389 +627,6 @@
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <!-- Weight & Unit (combined): Product Name style – input-group with Edit & Clear icon buttons -->
-                                <div class="col-md-6 mt-3 weight-unit-block" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="weight" class="text-center fw-bold d-block mb-1" style="font-weight: 900 !important;">WEIGHT &amp; UNIT</label>
-                                    <div class="input-group inputswidth">
-                                        <div class="d-flex align-items-center border rounded flex-grow-1" style="min-width: 120px;">
-                                            <input type="number" step="0.01"
-                                                class="form-control border-0 @error('weight_for_delivery') is-invalid @enderror" style="max-width: 90px;"
-                                                name="weight_for_delivery" id="weight" value="{{ $item->weight_for_delivery ?? old('weight_for_delivery') }}" placeholder="Weight" />
-                                            <span class="px-2 text-muted d-none" id="weight_unit_separator"> </span>
-                                            <span id="weight_unit_display" class="d-none align-middle px-2 text-nowrap fw-medium bg-light rounded" style="min-width: 2.5rem;"></span>
-                                            <select class="form-control form-select border-0 d-none" id="weight_unit_select" style="max-width: 200px; min-width: 120px; font-weight: 600;" title="Select unit">
-                                                <option value="">— Select unit —</option>
-                                                <optgroup label="Metric">
-                                                    <option value="mg">Milligram (mg)</option>
-                                                    <option value="g">Gram (g)</option>
-                                                    <option value="kg">Kilogram (kg)</option>
-                                                    <option value="ml">MilliLiter (ml)</option>
-                                                    <option value="quintal">Quintal (100 kg)</option>
-                                                    <option value="tonne">Metric Ton / Tonne (t)</option>
-                                                </optgroup>
-                                                <optgroup label="Imperial / Other">
-                                                    <option value="oz">Ounce (oz)</option>
-                                                    <option value="lb">Pound (lb)</option>
-                                                    <option value="stone">Stone</option>
-                                                    <option value="ton_us">Ton (US)</option>
-                                                    <option value="ton_uk">Ton (UK)</option>
-                                                </optgroup>
-                                            </select>
-                                            <input type="text" class="form-control border-0 d-none" id="weight_unit_edit_input" placeholder="Or type / rename unit" style="max-width: 100px;" title="Type to rename unit" />
-                                        </div>
-                                        <button type="button" id="weight_unit_edit_btn" class="btn btn-secondary d-none" title="Edit unit"><i data-feather="edit"></i></button>
-                                        <button type="button" id="weight_unit_delete_btn" class="btn btn-outline-secondary d-none" title="Remove weight &amp; unit"><i data-feather="x"></i></button>
-                                    </div>
-                                    <input type="hidden" name="weight_unit" id="weight_unit" value="{{ old('weight_unit', $item->weight_unit ?? '') }}" />
-                                    <span id="weight_unit_actions" class="d-flex align-items-center gap-1 flex-wrap mt-1">
-                                        <button type="button" id="weight_unit_add_btn" class="btn btn-sm btn-success d-none">Add</button>
-                                        <button type="button" id="weight_unit_add_new_btn" class="btn btn-sm btn-outline-success d-none" title="Add new unit (e.g. Kilograms, Bag)"><i data-feather="plus" style="width:14px;height:14px;"></i> Add unit</button>
-                                        <button type="button" id="weight_unit_update_btn" class="btn btn-sm btn-primary d-none">Update</button>
-                                        <button type="button" id="weight_unit_cancel_btn" class="btn btn-sm btn-outline-secondary d-none">Cancel</button>
-                                    </span>
-                                    @error('weight_for_delivery') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                                <script>
-                                (function() {
-                                    var VALUE_TO_SHORT = { mg:'MG', g:'G', kg:'KG', ml:'ML', quintal:'Q', tonne:'T', oz:'OZ', lb:'LB', stone:'ST', ton_us:'T-US', ton_uk:'T-UK' };
-                                    function shortForValue(v) { return (v && VALUE_TO_SHORT[v]) ? VALUE_TO_SHORT[v] : (v || ''); }
-                                    function run() {
-                                    var weightInput = document.getElementById('weight');
-                                    var weightUnitHidden = document.getElementById('weight_unit');
-                                    var weightUnitDisplay = document.getElementById('weight_unit_display');
-                                    var weightUnitSelect = document.getElementById('weight_unit_select');
-                                    var weightUnitEditInput = document.getElementById('weight_unit_edit_input');
-                                    var separator = document.getElementById('weight_unit_separator');
-                                    var actionsWrap = document.getElementById('weight_unit_actions');
-                                    var addBtn = document.getElementById('weight_unit_add_btn');
-                                    var editBtn = document.getElementById('weight_unit_edit_btn');
-                                    var updateBtn = document.getElementById('weight_unit_update_btn');
-                                    var cancelBtn = document.getElementById('weight_unit_cancel_btn');
-                                    var deleteBtn = document.getElementById('weight_unit_delete_btn');
-                                    if (!weightInput || !weightUnitHidden) return;
-                                    var selectedUnit = (weightUnitHidden.value || '').trim();
-                                    var isEditingUnit = false;
-                                    function setStoredUnit(val) {
-                                        selectedUnit = (val || '').trim();
-                                        weightUnitHidden.value = selectedUnit;
-                                    }
-                                    var addNewUnitBtn = document.getElementById('weight_unit_add_new_btn');
-                                    function showDisplay() {
-                                        weightUnitDisplay.classList.remove('d-none');
-                                        weightUnitSelect.classList.add('d-none');
-                                        weightUnitEditInput.classList.add('d-none');
-                                        if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
-                                        if (separator) separator.classList.remove('d-none');
-                                        weightUnitDisplay.textContent = shortForValue(selectedUnit.toLowerCase()) || shortForValue(selectedUnit) || selectedUnit;
-                                    }
-                                    function showSelect() {
-                                        weightUnitDisplay.classList.add('d-none');
-                                        weightUnitSelect.classList.remove('d-none');
-                                        weightUnitEditInput.classList.remove('d-none');
-                                        if (weightUnitEditInput) {
-                                            weightUnitEditInput.placeholder = 'Or type / rename unit';
-                                            weightUnitEditInput.value = shortForValue(selectedUnit) || selectedUnit || '';
-                                        }
-                                        if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                        if (separator) separator.classList.remove('d-none');
-                                    }
-                                    function hideUnitArea() {
-                                        weightUnitDisplay.classList.add('d-none');
-                                        weightUnitSelect.classList.add('d-none');
-                                        weightUnitEditInput.classList.add('d-none');
-                                        if (separator) separator.classList.add('d-none');
-                                    }
-                                    function updateButtons() {
-                                        if (isEditingUnit) {
-                                            addBtn.classList.add('d-none'); editBtn.classList.add('d-none');
-                                            if (deleteBtn) deleteBtn.classList.add('d-none');
-                                            if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                            updateBtn.classList.remove('d-none'); cancelBtn.classList.remove('d-none');
-                                        } else {
-                                            updateBtn.classList.add('d-none'); cancelBtn.classList.add('d-none');
-                                            if (selectedUnit) {
-                                                addBtn.classList.add('d-none');
-                                                editBtn.classList.remove('d-none');
-                                                if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                                if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
-                                            } else {
-                                                editBtn.classList.add('d-none');
-                                                if (deleteBtn) deleteBtn.classList.add('d-none');
-                                                addBtn.classList.remove('d-none');
-                                                if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
-                                            }
-                                        }
-                                    }
-                                    var lookupUrl = '{{ route("items.weight.unit.lookup") }}';
-                                    var debounceTimer;
-                                    weightInput.addEventListener('input', function() {
-                                        clearTimeout(debounceTimer);
-                                        var val = (weightInput.value || '').trim();
-                                        if (val === '') {
-                                            setStoredUnit('');
-                                            hideUnitArea();
-                                            weightUnitSelect.value = '';
-                                            addBtn.classList.add('d-none');
-                                            editBtn.classList.add('d-none');
-                                            if (deleteBtn) deleteBtn.classList.add('d-none');
-                                            actionsWrap.classList.add('d-none');
-                                            return;
-                                        }
-                                        actionsWrap.classList.remove('d-none');
-                                        if (selectedUnit) { showDisplay(); updateButtons(); return; }
-                                        showSelect();
-                                        addBtn.classList.remove('d-none');
-                                        editBtn.classList.add('d-none');
-                                        debounceTimer = setTimeout(function() {
-                                            fetch(lookupUrl + '?weight=' + encodeURIComponent(val))
-                                                .then(function(r) { return r.json(); })
-                                                .then(function(data) {
-                                                    var matches = (data && data.matches) ? data.matches : [];
-                                                    if (matches.length > 0 && !selectedUnit) {
-                                                        var u = matches[0].unit;
-                                                        setStoredUnit(u);
-                                                        if (VALUE_TO_SHORT[u]) weightUnitSelect.value = u; else weightUnitSelect.value = '';
-                                                        showDisplay();
-                                                        editBtn.classList.remove('d-none');
-                                                        addBtn.classList.add('d-none');
-                                                    } else if (!selectedUnit) {
-                                                        showSelect();
-                                                        addBtn.classList.remove('d-none');
-                                                        editBtn.classList.add('d-none');
-                                                    }
-                                                })
-                                                .catch(function() {
-                                                    if (!selectedUnit) { showSelect(); addBtn.classList.remove('d-none'); editBtn.classList.add('d-none'); }
-                                                });
-                                        }, 300);
-                                    });
-                                    addBtn.addEventListener('click', function() { showSelect(); weightUnitSelect.focus(); });
-                                    function getSelectedOptionText() {
-                                        var opt = weightUnitSelect.options[weightUnitSelect.selectedIndex];
-                                        return opt ? (opt.textContent || opt.text || '').trim() : '';
-                                    }
-                                    weightUnitSelect.addEventListener('change', function() {
-                                        var v = (weightUnitSelect.value || '').trim();
-                                        if (v) {
-                                            var fullName = getSelectedOptionText();
-                                            if (weightUnitEditInput) weightUnitEditInput.value = fullName || shortForValue(v) || v;
-                                            setStoredUnit(fullName || v);
-                                            weightUnitHidden.value = fullName || v;
-                                            showDisplay();
-                                            if (isEditingUnit) { isEditingUnit = false; updateButtons(); }
-                                            editBtn.classList.remove('d-none');
-                                            addBtn.classList.add('d-none');
-                                            if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                        }
-                                    });
-                                    updateBtn.addEventListener('click', function() {
-                                        var customVal = (weightUnitEditInput && weightUnitEditInput.value) ? (weightUnitEditInput.value || '').trim() : '';
-                                        var v = customVal !== '' ? customVal : getSelectedOptionText() || (weightUnitSelect.value || '').trim();
-                                        if (v) { setStoredUnit(v); weightUnitHidden.value = v; }
-                                        isEditingUnit = false;
-                                        showDisplay();
-                                        updateButtons();
-                                    });
-                                    cancelBtn.addEventListener('click', function() {
-                                        isEditingUnit = false;
-                                        showDisplay();
-                                        updateButtons();
-                                    });
-                                    if (deleteBtn) deleteBtn.addEventListener('click', function() {
-                                        setStoredUnit('');
-                                        weightUnitHidden.value = '';
-                                        weightInput.value = '';
-                                        weightUnitSelect.value = '';
-                                        hideUnitArea();
-                                        addBtn.classList.add('d-none');
-                                        editBtn.classList.add('d-none');
-                                        deleteBtn.classList.add('d-none');
-                                        updateBtn.classList.add('d-none');
-                                        cancelBtn.classList.add('d-none');
-                                        actionsWrap.classList.add('d-none');
-                                    });
-                                    var addNewModal = document.getElementById('weight-unit-add-new-modal');
-                                    var newNameInput = document.getElementById('weight_unit_new_name');
-                                    var newNameError = document.getElementById('weight_unit_new_name_error');
-                                    var addNewModalBtn = document.getElementById('weight_unit_add_new_modal_btn');
-                                    function ensureCustomOptgroup(selectEl) {
-                                        if (!selectEl) return null;
-                                        var existing = selectEl.querySelector('optgroup[label="Custom"]');
-                                        if (existing) return existing;
-                                        var og = document.createElement('optgroup');
-                                        og.label = 'Custom';
-                                        selectEl.appendChild(og);
-                                        return og;
-                                    }
-                                    function addOptionToWeightUnitSelects(name) {
-                                        var s1 = weightUnitSelect;
-                                        var s2 = document.getElementById('weight_unit_modal_unit');
-                                        [s1, s2].forEach(function(sel) {
-                                            if (!sel) return;
-                                            var opt = sel.querySelector('option[value="' + name.replace(/"/g, '&quot;') + '"]');
-                                            if (opt) return;
-                                            var og = ensureCustomOptgroup(sel);
-                                            if (!og) return;
-                                            var o = document.createElement('option');
-                                            o.value = name;
-                                            o.textContent = name;
-                                            og.appendChild(o);
-                                        });
-                                    }
-                                    if (addNewUnitBtn) addNewUnitBtn.addEventListener('click', function() {
-                                        if (newNameInput) { newNameInput.value = ''; newNameInput.classList.remove('is-invalid'); }
-                                        if (newNameError) newNameError.textContent = '';
-                                        if (addNewModal && typeof bootstrap !== 'undefined') {
-                                            var m = bootstrap.Modal.getOrCreateInstance(addNewModal);
-                                            m.show();
-                                            setTimeout(function() { if (newNameInput) newNameInput.focus(); }, 300);
-                                        }
-                                    });
-                                    if (addNewModalBtn && newNameInput) addNewModalBtn.addEventListener('click', function() {
-                                        var name = (newNameInput.value || '').trim();
-                                        if (!name) {
-                                            newNameInput.classList.add('is-invalid');
-                                            if (newNameError) newNameError.textContent = 'Please enter a unit name.';
-                                            return;
-                                        }
-                                        newNameInput.classList.remove('is-invalid');
-                                        if (newNameError) newNameError.textContent = '';
-                                        addOptionToWeightUnitSelects(name);
-                                        weightUnitSelect.value = name;
-                                        setStoredUnit(name);
-                                        weightUnitHidden.value = name;
-                                        showDisplay();
-                                        if (isEditingUnit) { isEditingUnit = false; updateButtons(); }
-                                        else { editBtn.classList.remove('d-none'); addBtn.classList.add('d-none'); if (deleteBtn) deleteBtn.classList.remove('d-none'); updateButtons(); }
-                                        if (addNewModal && typeof bootstrap !== 'undefined') { var m = bootstrap.Modal.getInstance(addNewModal); if (m) m.hide(); }
-                                        newNameInput.value = '';
-                                    });
-                                    if (weightUnitHidden.value) {
-                                        selectedUnit = (weightUnitHidden.value || '').trim();
-                                        var w = (weightInput.value || '').trim();
-                                        if (w) {
-                                            actionsWrap.classList.remove('d-none');
-                                            showDisplay();
-                                            editBtn.classList.remove('d-none');
-                                            if (deleteBtn) deleteBtn.classList.remove('d-none');
-                                        }
-                                    }
-                                    if (weightInput.value && (weightInput.value + '').trim() !== '') {
-                                        weightInput.dispatchEvent(new Event('input', { bubbles: true }));
-                                    }
-                                    var modalUnitSelect = document.getElementById('weight_unit_modal_unit');
-                                    var weightUnitModal = document.getElementById('weight-unit-edit-modal');
-                                    var modalWeightInput = document.getElementById('weight_unit_modal_weight');
-                                    var modalUnitCustomInput = document.getElementById('weight_unit_modal_unit_custom');
-                                    var modalUpdateBtn = document.getElementById('weight_unit_modal_update');
-                                    var modalDeleteBtn = document.getElementById('weight_unit_modal_delete');
-                                    function getModalUnitValue() {
-                                        if (!modalUnitSelect) return '';
-                                        var v = (modalUnitSelect.value || '').trim();
-                                        if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
-                                        return v;
-                                    }
-                                    function getModalUnitDisplayValue() {
-                                        if (!modalUnitSelect) return '';
-                                        var v = (modalUnitSelect.value || '').trim();
-                                        if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
-                                        var opt = modalUnitSelect.options[modalUnitSelect.selectedIndex];
-                                        return opt ? (opt.textContent || opt.text || '').trim() || v : v;
-                                    }
-                                    function setModalUnitFromValue(unitStr) {
-                                        if (!modalUnitSelect) return;
-                                        var u = (unitStr || '').trim();
-                                        if (!u) {
-                                            modalUnitSelect.value = '';
-                                            if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                            return;
-                                        }
-                                        var byVal = modalUnitSelect.querySelector('option[value="' + u.replace(/"/g, '&quot;') + '"]') || modalUnitSelect.querySelector('option[value="' + u.toLowerCase().replace(/"/g, '&quot;') + '"]');
-                                        if (byVal) {
-                                            modalUnitSelect.value = byVal.value;
-                                            if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                            return;
-                                        }
-                                        var opts = modalUnitSelect.querySelectorAll('option[value]');
-                                        for (var i = 0; i < opts.length; i++) {
-                                            if ((opts[i].textContent || opts[i].text || '').trim() === u) {
-                                                modalUnitSelect.value = opts[i].value;
-                                                if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
-                                                return;
-                                            }
-                                        }
-                                        modalUnitSelect.value = '__custom__';
-                                        if (modalUnitCustomInput) { modalUnitCustomInput.value = u; modalUnitCustomInput.style.display = 'block'; }
-                                    }
-                                    function openWeightUnitModal() {
-                                        if (modalWeightInput) modalWeightInput.value = (weightInput.value || '').trim();
-                                        setModalUnitFromValue(selectedUnit);
-                                        if (weightUnitModal && typeof bootstrap !== 'undefined') {
-                                            var m = bootstrap.Modal.getOrCreateInstance(weightUnitModal);
-                                            m.show();
-                                            setTimeout(function() { if (modalWeightInput) modalWeightInput.focus(); }, 300);
-                                        }
-                                    }
-                                    if (modalUnitSelect && modalUnitCustomInput) {
-                                        modalUnitSelect.addEventListener('change', function() {
-                                            modalUnitCustomInput.style.display = modalUnitSelect.value === '__custom__' ? 'block' : 'none';
-                                            if (modalUnitSelect.value !== '__custom__') modalUnitCustomInput.value = '';
-                                        });
-                                    }
-                                    function setDropdownByUnit(unitStr) {
-                                        if (!unitStr) return;
-                                        var u = (unitStr || '').trim();
-                                        var byVal = weightUnitSelect.querySelector('option[value="' + u + '"]') || weightUnitSelect.querySelector('option[value="' + u.toLowerCase() + '"]');
-                                        if (byVal) { weightUnitSelect.value = byVal.value; return; }
-                                        var opts = weightUnitSelect.querySelectorAll('option[value]');
-                                        for (var i = 0; i < opts.length; i++) {
-                                            if ((opts[i].textContent || opts[i].text || '').trim() === u) {
-                                                weightUnitSelect.value = opts[i].value;
-                                                return;
-                                            }
-                                        }
-                                    }
-                                    editBtn.addEventListener('click', function() {
-                                        openWeightUnitModal();
-                                    });
-                                    function closeWeightUnitModal() {
-                                        if (weightUnitModal && typeof bootstrap !== 'undefined') {
-                                            var m = bootstrap.Modal.getInstance(weightUnitModal);
-                                            if (m) m.hide();
-                                        }
-                                    }
-                                    if (modalUpdateBtn) modalUpdateBtn.addEventListener('click', function() {
-                                        var w = (modalWeightInput && modalWeightInput.value !== undefined) ? (modalWeightInput.value || '').trim() : '';
-                                        var u = getModalUnitDisplayValue();
-                                        if (w !== '') weightInput.value = w;
-                                        if (u) { setStoredUnit(u); weightUnitHidden.value = u; }
-                                        showDisplay();
-                                        updateButtons();
-                                        closeWeightUnitModal();
-                                    });
-                                    if (modalDeleteBtn) modalDeleteBtn.addEventListener('click', function() {
-                                        setStoredUnit('');
-                                        weightUnitHidden.value = '';
-                                        weightInput.value = '';
-                                        weightUnitSelect.value = '';
-                                        hideUnitArea();
-                                        addBtn.classList.add('d-none');
-                                        editBtn.classList.add('d-none');
-                                        if (deleteBtn) deleteBtn.classList.add('d-none');
-                                        updateBtn.classList.add('d-none');
-                                        cancelBtn.classList.add('d-none');
-                                        actionsWrap.classList.add('d-none');
-                                        closeWeightUnitModal();
-                                    });
-                                    }
-                                    if (document.readyState === 'loading') {
-                                        document.addEventListener('DOMContentLoaded', run);
-                                    } else {
-                                        run();
-                                    }
-                                })();
-                                </script>
 
                             </div>
                         </div>
@@ -1320,17 +1001,17 @@
                                     <div class="card border-0 shadow-sm">
                                         <div class="card-header bg-light py-2">
                                             <h6 class="mb-0 fw-bold"><i class="ti ti-scale me-1"></i> Scrap by Weight</h6>
-                                            <small class="text-muted">Weight in KG, rate per KG. Total updates automatically.</small>
+                                            <small class="text-muted" id="scrap_weight_help_edit">Weight in KG, rate per KG. Total updates automatically.</small>
                                         </div>
                                         <div class="card-body">
                                             <div class="row g-3">
                                                 <div class="col-md-4">
-                                                    <label for="scrap_weight_kg_edit" class="form-label fw-bold">Weight (KG) <span class="text-danger">*</span></label>
+                                                    <label for="scrap_weight_kg_edit" class="form-label fw-bold" id="scrap_weight_label_edit">Weight (KG) <span class="text-danger">*</span></label>
                                                     <input type="number" step="0.01" min="0" class="form-control scrap-weight-input-edit"
                                                         name="scrap_weight_kg" id="scrap_weight_kg_edit" value="{{ old('scrap_weight_kg', $item->weight_for_delivery) }}" placeholder="0.00">
                                                 </div>
                                                 <div class="col-md-4">
-                                                    <label for="scrap_rate_per_kg_edit" class="form-label fw-bold">Rate per KG</label>
+                                                    <label for="scrap_rate_per_kg_edit" class="form-label fw-bold" id="scrap_rate_per_unit_label_edit">Rate per KG</label>
                                                     <input type="number" step="0.01" min="0" class="form-control scrap-rate-input-edit"
                                                         name="scrap_rate_per_kg" id="scrap_rate_per_kg_edit" value="{{ old('scrap_rate_per_kg', $item->price_per_unit) }}" placeholder="0.00">
                                                 </div>
@@ -1348,17 +1029,17 @@
                                     <div class="card border-0 shadow-sm">
                                         <div class="card-header bg-light py-2">
                                             <h6 class="mb-0 fw-bold"><i class="ti ti-number me-1"></i> Scrap by Quantity</h6>
-                                            <small class="text-muted">تعداد، ریٹ، کل قیمت — Quantity, rate per unit. Total updates automatically.</small>
+                                            <small class="text-muted" id="scrap_quantity_help_edit">Quantity, rate per unit. Total updates automatically.</small>
                                         </div>
                                         <div class="card-body">
                                             <div class="row g-3">
                                                 <div class="col-md-4">
-                                                    <label for="scrap_quantity_edit" class="form-label fw-bold">Quantity (تعداد) <span class="text-danger">*</span></label>
+                                                    <label for="scrap_quantity_edit" class="form-label fw-bold" id="scrap_quantity_label_edit">Quantity (count) <span class="text-danger">*</span></label>
                                                     <input type="number" step="1" min="0" class="form-control scrap-quantity-input-edit"
                                                         name="scrap_quantity" id="scrap_quantity_edit" value="{{ old('scrap_quantity', $item->on_hand) }}" placeholder="0">
                                                 </div>
                                                 <div class="col-md-4">
-                                                    <label for="scrap_rate_count_edit" class="form-label fw-bold">Rate per Unit</label>
+                                                    <label for="scrap_rate_count_edit" class="form-label fw-bold" id="scrap_rate_count_label_edit">Rate per Unit</label>
                                                     <input type="number" step="0.01" min="0" class="form-control scrap-rate-count-input-edit"
                                                         name="scrap_rate_count" id="scrap_rate_count_edit" value="{{ old('scrap_rate_count', $item->price_per_unit) }}" placeholder="0.00">
                                                 </div>
@@ -1372,6 +1053,50 @@
                                     </div>
                                 </div>
                                 <input type="hidden" name="scrap_measurement" id="scrap_measurement_input_edit" value="{{ old('scrap_measurement', $item->category && $item->category->scrap_measurement ? $item->category->scrap_measurement : 'weight') }}">
+                                <!-- Dimensions (optional) -->
+                                <div class="col-12 mb-3">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light py-2">
+                                            <h6 class="mb-0 fw-bold"><i class="ti ti-ruler-2 me-1"></i> Dimensions</h6>
+                                            <small class="text-muted">Optional. Enter physical size for scrap items.</small>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3 align-items-end">
+                                                <div class="col-md-2">
+                                                    <label for="scrap_dim_width_edit" class="form-label fw-bold">Width</label>
+                                                    <input type="number" step="0.01" min="0" class="form-control"
+                                                        name="scrap_dim_width" id="scrap_dim_width_edit"
+                                                        value="{{ old('scrap_dim_width', $item->scrap_dim_width) }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label for="scrap_dim_height_edit" class="form-label fw-bold">Height</label>
+                                                    <input type="number" step="0.01" min="0" class="form-control"
+                                                        name="scrap_dim_height" id="scrap_dim_height_edit"
+                                                        value="{{ old('scrap_dim_height', $item->scrap_dim_height) }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label for="scrap_dim_length_edit" class="form-label fw-bold">Length</label>
+                                                    <input type="number" step="0.01" min="0" class="form-control"
+                                                        name="scrap_dim_length" id="scrap_dim_length_edit"
+                                                        value="{{ old('scrap_dim_length', $item->scrap_dim_length) }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label for="scrap_dim_depth_edit" class="form-label fw-bold">Depth</label>
+                                                    <input type="number" step="0.01" min="0" class="form-control"
+                                                        name="scrap_dim_depth" id="scrap_dim_depth_edit"
+                                                        value="{{ old('scrap_dim_depth', $item->scrap_dim_depth) }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="scrap_dim_unit_edit" class="form-label fw-bold">Unit</label>
+                                                    <select class="form-control" name="scrap_dim_unit" id="scrap_dim_unit_edit">
+                                                        <option value="cm" {{ old('scrap_dim_unit', $item->scrap_dim_unit ?? 'inch') === 'cm' ? 'selected' : '' }}>cm</option>
+                                                        <option value="inch" {{ old('scrap_dim_unit', $item->scrap_dim_unit ?? 'inch') === 'inch' ? 'selected' : '' }}>inch</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                            <div class="col-md-4">
                             <label for="battery_size">Battery Size:</label>
                             <input type="text" class="form-control @error('battery_size') is-invalid @enderror"
@@ -1438,7 +1163,7 @@
                             <div class="row mt-4">
                                 <!-- Unit Management & Price Calculation Section -->
                                 <div class="col-12 mt-4"
-                                    x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'filters' || selectedType === 'breakpad'">
                                     <div class="card border-0 shadow-sm">
                                         <div class="card-header bg-light">
                                             <h5 class="mb-0 fw-bold">Unit Management & Price Calculation</h5>
@@ -1678,18 +1403,6 @@
                                     </select>
                                     @error('m_stock') <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
-                                </div>
-
-                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="on_hand" class="text-center fw-bold d-block" style="font-weight: 900 !important;">OPENING STOCK:</label>
-                                    <select class="form-control searchable-select @error('on_hand') is-invalid @enderror"
-                                        name="on_hand" id="on_hand">
-                                        <option value="">Select Opening Stock</option>
-                                        @for($i = 1; $i <= 1000; $i++)
-                                            <option value="{{ $i }}" {{ old('on_hand', $item->on_hand ?? '') == $i ? 'selected' : '' }}>{{ $i }}</option>
-                                        @endfor
-                                    </select>
-                                    @error('on_hand') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
                                 <div class="col-md-4 mt-3 d-none">
@@ -1992,7 +1705,7 @@
                 </thead>
                 <tbody id="latestItemsTableBody">
                     @forelse ($latestItems as $item)
-                    <tr>
+                    <tr data-item-id="{{ $item->id }}">
 
                         <td>
                             @php
@@ -2017,13 +1730,12 @@
                                         $ampDisplay = $a !== '' ? (preg_match('/\d*\s*AH$/i', $a) ? $a : $a . 'AH') : '-';
                                         $c = $item->cca_item ? trim((string)($item->cca_item->name ?? '')) : '';
                                         $ccaDisplay = $c !== '' ? (preg_match('/\d*\s*CCA$/i', $c) ? $c : $c . 'CCA') : '-';
+                                        $specsLine = trim(implode(' ', array_filter([$voltDisplay, $plateDisplay, $ampDisplay, $ccaDisplay], fn($x) => $x !== '-')));
+                                        if ($specsLine === '') { $specsLine = '-'; }
                                     @endphp
-                                    <div>{{ $item->company_item->name ?? '-' }}</div>
-                                    <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
-                                    <div>{{ $voltDisplay }}</div>
-                                    <div>{{ $plateDisplay }}</div>
-                                    <div>{{ $ampDisplay }}</div>
-                                    <div>{{ $ccaDisplay }}</div>
+                                    <div>{{ $item->company_item?->name ?? '-' }}</div>
+                                    <div class="fw-semibold">{{ $item->product_item?->name ?? $item->partnumber_item?->name ?? '-' }}</div>
+                                    <div>{{ $specsLine }}</div>
                                 @else
                                     <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
                                     @if($item->product_item)
@@ -2033,11 +1745,20 @@
                                     <div> {{ $item->company_item->name ?? '-' }}</div>
                                     <div> {{ $item->quality_item->name ?? '-' }}</div>
                                 @endif
+                                <div class="mt-1">
+                                    <span class="badge js-item-status-badge {{ $item->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $item->is_active ? 'Active' : 'Inactive' }}</span>
+                                </div>
                             </div>
                         </td>
                         <td>
                             @php
-                                $branchName = $item->item_user ? ($item->item_user->branch?->branch_name ?? $item->item_user->assignedBranches->first()?->branch_name ?? '-') : '-';
+                                $branchName = '-';
+                                if ($item->item_user) {
+                                    $u = $item->item_user;
+                                    $branchName = $u->branch?->branch_name
+                                        ?? $u->assignedBranches()->first()?->branch_name
+                                        ?? '-';
+                                }
                             @endphp
                             <div class="small text-muted">{{ $branchName }}</div>
                             <div>{{ $item->item_user->name ?? '-' }}</div>
@@ -2057,6 +1778,15 @@
                                     <li>
                                         <a class="dropdown-item" href="{{ route('item.edit',$item->id) }}">
                                             <i data-feather="edit" class="me-1"></i> Edit
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="javascript:void(0)" class="dropdown-item js-item-toggle-active" data-item-id="{{ $item->id }}" data-is-active="{{ $item->is_active ? 1 : 0 }}">
+                                            @if($item->is_active)
+                                                <i data-feather="toggle-right" class="me-1"></i> Deactivate
+                                            @else
+                                                <i data-feather="toggle-left" class="me-1"></i> Activate
+                                            @endif
                                         </a>
                                     </li>
                                     <li>
@@ -2447,11 +2177,8 @@
                     <div class="mb-3">
                         <label class="form-label">Model <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <select id="itemVehicleModelEdit" class="form-control form-select item-vehicle-model-edit searchable-select" name="car_model_name" required>
-                                <option value="">— Select —</option>
-                                @foreach ($carModels as $m)
-                                <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                @endforeach
+                            <select id="itemVehicleModelEdit" class="form-control form-select item-vehicle-model-edit searchable-select" name="car_model_name" required disabled>
+                                <option value="">— Select make first —</option>
                             </select>
                             <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Model" data-fetch-route="{{ route('show.car.model', ':id') }}" data-update-route="{{ route('update.car.model', ':id') }}" data-delete-route="{{ route('destory.car.model', ':id') }}" data-target-select=".item-vehicle-model-edit" title="Edit Model"><i data-feather="edit" class="feather-16"></i></button>
                         </div>
@@ -2640,7 +2367,26 @@
             </div>
         </div>
     </div>
-    <!-- Weight & Unit Edit Modal (Edit Product style) -->
+    <!-- Edit unit only modal (update/delete unit from card) -->
+    <div class="modal fade" id="weight-unit-edit-unit-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title">Edit unit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Unit name</label>
+                    <input type="text" class="form-control" id="weight_unit_edit_modal_input" placeholder="e.g. KG, box" maxlength="100">
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-danger btn-sm" id="weight_unit_edit_modal_delete">Delete</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="weight_unit_edit_modal_update">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Weight and Measurement Edit Modal -->
     <div class="modal fade" id="weight-unit-edit-modal" tabindex="-1" aria-labelledby="weight-unit-modal-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
@@ -2650,7 +2396,7 @@
                             <i class="ti ti-edit" style="font-size: 20px;"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <h4 class="mb-0 fw-bold" id="weight-unit-modal-title" style="color: white; font-size: 20px;">Edit Weight &amp; Unit</h4>
+                            <h4 class="mb-0 fw-bold" id="weight-unit-modal-title" style="color: white; font-size: 20px;">Edit Weight and Measurement</h4>
                             <small class="text-white-50" style="font-size: 12px;">Update the details below</small>
                         </div>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8;"></button>
@@ -2672,7 +2418,7 @@
                                 <option value="mg">Milligram (mg)</option>
                                 <option value="g">Gram (g)</option>
                                 <option value="kg">Kilogram (kg)</option>
-                                <option value="ml">MilliLiter (ml)</option>
+                                <option value="ml">Millilitre (ml)</option>
                                 <option value="quintal">Quintal (100 kg)</option>
                                 <option value="tonne">Metric Ton / Tonne (t)</option>
                             </optgroup>
@@ -2736,7 +2482,7 @@
                         </div>
                         <div class="form-group mt-4" id="image-field" style="display: none;">
                             <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
-                                <i class="ti ti-photo me-2 text-primary"></i>Image
+                                <i class="ti ti-photo me-2 text-primary"></i>Image <span class="text-danger">*</span>
                             </label>
                             <div class="d-flex align-items-start gap-3">
                                 <div class="flex-grow-1">
@@ -2747,7 +2493,7 @@
                                            accept="image/*"
                                            style="border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px; font-size: 14px;">
                                     <small class="text-muted d-block mt-2">
-                                        <i class="ti ti-info-circle me-1"></i>Supported formats: JPG, PNG, GIF (Max 2MB)
+                                        <i class="ti ti-info-circle me-1"></i>Supported formats: JPG, PNG, GIF (Max 2MB). Image is required.
                                     </small>
                                 </div>
                                 <div class="text-center">
@@ -2762,14 +2508,38 @@
                             </div>
                         </div>
                         <div class="form-group mt-4" id="scrap-measurement-field" style="display: none;">
-                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
+                            <label class="form-label fw-semibold mb-3" style="color: #495057; font-size: 14px;">
                                 <i class="ti ti-scale me-2 text-primary"></i>Scrap measurement
                             </label>
-                            <select class="form-select form-select-lg" name="scrap_measurement" id="universal-scrap-measurement" style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <option value="weight">By weight (KG)</option>
-                                <option value="count">By quantity (count)</option>
-                            </select>
-                            <small class="text-muted d-block mt-2">Items in this category will use weight (KG) or quantity when added as scrap.</small>
+                            <p class="text-muted small mb-3">Choose how items in this category are measured when added as scrap. <strong>You can change the unit names</strong> below (e.g. change &quot;KG&quot; to &quot;Pounds&quot; or &quot;Kilograms&quot;, &quot;count&quot; to &quot;pieces&quot; or &quot;units&quot;) — these names will appear wherever this category is used.</p>
+                            <input type="hidden" name="scrap_measurement" id="universal-scrap-measurement" value="weight">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card border-2 scrap-option-card h-100 border-primary" id="scrap-option-weight" data-value="weight" style="cursor: pointer; border-radius: 10px; transition: all 0.2s;">
+                                        <div class="card-body p-3">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input scrap-measurement-radio" type="radio" name="scrap_measurement_radio" id="scrap-radio-weight" value="weight" checked>
+                                                <label class="form-check-label fw-semibold" for="scrap-radio-weight">By weight</label>
+                                            </div>
+                                            <label for="universal-scrap-weight-label" class="form-label small text-muted mb-1">Unit name — you can change this</label>
+                                            <input type="text" class="form-control form-control-sm" name="scrap_weight_label" id="universal-scrap-weight-label" value="KG" placeholder="e.g. KG, Kilograms, Pounds, Ton" maxlength="100" style="border-radius: 6px;" title="Edit to use a different name (e.g. Pounds instead of KG)">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-2 scrap-option-card h-100 border-secondary" id="scrap-option-count" data-value="count" style="cursor: pointer; border-radius: 10px; transition: all 0.2s;">
+                                        <div class="card-body p-3">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input scrap-measurement-radio" type="radio" name="scrap_measurement_radio" id="scrap-radio-count" value="count">
+                                                <label class="form-check-label fw-semibold" for="scrap-radio-count">By quantity</label>
+                                            </div>
+                                            <label for="universal-scrap-count-label" class="form-label small text-muted mb-1">Unit name — you can change this</label>
+                                            <input type="text" class="form-control form-control-sm" name="scrap_count_label" id="universal-scrap-count-label" value="count" placeholder="e.g. count, pieces, units" maxlength="100" style="border-radius: 6px;" title="Edit to use a different name (e.g. pieces instead of count)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-2"><i class="ti ti-info-circle me-1"></i>Items in this category will use the selected measurement and the unit names you entered above (you can change &quot;KG&quot;, &quot;count&quot;, etc. anytime when editing this category).</small>
                         </div>
                     </div>
                     <div class="modal-footer" style="padding: 20px 30px; background: #f8f9fa; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
@@ -4671,11 +4441,13 @@ function md5(string) {
                 $('#universal-delete-btn').addClass('d-none');
                 $('#universal-save-btn').text('Save');
                 
-                // Show/hide image field
+                // Show/hide image field; when shown, image is mandatory
                 if (hasImage || title === 'Add Category' || title === 'Add Brand') {
                     $('#image-field').removeClass('d-none').show();
+                    $('#universal-image').prop('required', true);
                 } else {
                     $('#image-field').hide();
+                    $('#universal-image').prop('required', false);
                 }
                 
                 // Auto-fill name from dropdown "Add" search term: read directly from clicked button first
@@ -4759,19 +4531,30 @@ function md5(string) {
                     $('#universal-name').val(res.name).removeClass('is-invalid');
                     $('#universal-name-error').text('');
                     
-                    // Scrap measurement for category edit
-                    if (fetchRoute.indexOf('category') !== -1 && res.scrap_measurement != null) {
-                        $('#universal-scrap-measurement').val(res.scrap_measurement || 'weight');
+                    // Scrap measurement and editable labels for category edit
+                    if (fetchRoute.indexOf('category') !== -1) {
+                        var sm = (res.scrap_measurement || 'weight').toLowerCase();
+                        $('#universal-scrap-measurement').val(sm);
+                        $('.scrap-measurement-radio').prop('checked', false);
+                        $('#scrap-radio-weight, #scrap-radio-count').filter('[value="' + sm + '"]').prop('checked', true);
+                        $('#universal-scrap-weight-label').val((res.scrap_weight_label || 'KG').trim() || 'KG');
+                        $('#universal-scrap-count-label').val((res.scrap_count_label || 'count').trim() || 'count');
+                        $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+                        $('#scrap-option-' + sm).removeClass('border-secondary').addClass('border-primary');
                     }
                     
-                    // Image preview (edit mode)
+                    // Image preview (edit mode); image required only when no existing image
                     if (hasImage && res.image) {
                         $('#image-field').removeClass('d-none').show();
+                        $('#universal-image').prop('required', false);
                         $('#universal-image-preview')
                             .attr('src', '/' + res.image)
                             .show();
                         $('#universal-image-placeholder').hide();
                     } else {
+                        if (hasImage || title.includes('Category') || title.includes('Brand')) {
+                            $('#universal-image').prop('required', true);
+                        }
                         $('#universal-image-preview').hide();
                         $('#universal-image-placeholder').show();
                     }
@@ -4829,6 +4612,17 @@ function md5(string) {
                 return false;
             }
             
+            // Validate image when image field is visible and required
+            if ($('#image-field').is(':visible') && $('#universal-image').prop('required')) {
+                const fileInput = $('#universal-image')[0];
+                if (!fileInput || !fileInput.files || !fileInput.files.length) {
+                    $('#universal-image').addClass('is-invalid').focus();
+                    toastr.warning('Please attach an image.');
+                    return false;
+                }
+                $('#universal-image').removeClass('is-invalid');
+            }
+            
             const formData = new FormData(this);
             if (currentEditId) {
                 formData.append('_method', 'PUT');
@@ -4872,7 +4666,10 @@ function md5(string) {
                     $select.find(`option[value="${res.id}"]`).remove();
                     $select.append(option).val(res.id).trigger('change');
                     if (res.scrap_measurement != null) {
-                        $select.find(`option[value="${res.id}"]`).attr('data-scrap-measurement', res.scrap_measurement || 'weight');
+                        var $opt = $select.find(`option[value="${res.id}"]`);
+                        $opt.attr('data-scrap-measurement', res.scrap_measurement || 'weight');
+                        if (res.scrap_weight_label != null) $opt.attr('data-scrap-weight-label', res.scrap_weight_label);
+                        if (res.scrap_count_label != null) $opt.attr('data-scrap-count-label', res.scrap_count_label);
                     }
                     $('#universal-add-modal').modal('hide');
                     $('#universal-form')[0].reset();
@@ -4886,7 +4683,13 @@ function md5(string) {
                 },
                 error: function(xhr) {
                     console.error('AJAX error', xhr);
-                    const response = xhr.responseJSON;
+                    let response = xhr.responseJSON;
+                    if (!response && xhr.responseText) {
+                        try {
+                            var parsed = JSON.parse(xhr.responseText);
+                            if (parsed && typeof parsed === 'object') response = parsed;
+                        } catch (e) {}
+                    }
                     if (response && response.errors) {
                         if (response.errors.name) {
                             $('#universal-name').addClass('is-invalid');
@@ -4898,7 +4701,7 @@ function md5(string) {
                     } else if (response && response.message) {
                         toastr.error(response.message);
                     } else {
-                        toastr.error('An error occurred. Please try again.');
+                        toastr.error(xhr.status === 500 ? 'Something went wrong. Please try again.' : 'An error occurred. Please try again.');
                     }
                 }
             });
@@ -4976,17 +4779,39 @@ function md5(string) {
             });
         });
         
-        // Show/hide Scrap measurement when modal is shown (category add/edit)
+        // Show Scrap measurement only for Services category (no other category type)
         $('#universal-add-modal').on('shown.bs.modal', function() {
             var action = ($('#universal-form').attr('action') || '').toLowerCase();
-            if (action.indexOf('category') !== -1) {
+            var categoryType = ($('#universal-type').val() || '').toLowerCase();
+            if (action.indexOf('category') !== -1 && categoryType === 'services') {
                 $('#scrap-measurement-field').show();
                 if (!currentEditId) {
                     $('#universal-scrap-measurement').val('weight');
+                    $('#scrap-radio-weight').prop('checked', true);
+                    $('#scrap-radio-count').prop('checked', false);
+                    $('#universal-scrap-weight-label').val('KG');
+                    $('#universal-scrap-count-label').val('count');
+                    $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+                    $('#scrap-option-weight').removeClass('border-secondary').addClass('border-primary');
                 }
             } else {
                 $('#scrap-measurement-field').hide();
             }
+        });
+        // Scrap measurement: sync radio + card selection and hidden input
+        $(document).on('change', '.scrap-measurement-radio', function() {
+            var v = $(this).val();
+            $('#universal-scrap-measurement').val(v);
+            $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+            $('#scrap-option-' + v).removeClass('border-secondary').addClass('border-primary');
+        });
+        $(document).on('click', '.scrap-option-card', function() {
+            var v = $(this).data('value');
+            $('#universal-scrap-measurement').val(v);
+            $('.scrap-measurement-radio').prop('checked', false);
+            $('#scrap-radio-' + v).prop('checked', true);
+            $('.scrap-option-card').removeClass('border-primary').addClass('border-secondary');
+            $(this).removeClass('border-secondary').addClass('border-primary');
         });
         
         // Reset modal on close
@@ -5026,9 +4851,9 @@ function md5(string) {
                     $list.html('<span class="text-muted">No details added yet. Click Add Detail to add.</span>');
                 } else {
                     const html = raw.map(function(d, i) {
-                        const t = (d.text || d.label || d || '');
+                        const t = (d.text || d.label || d || '').trim();
                         const p = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
-                        const item = p ? t + ' <span class="badge bg-success ms-1">' + p + '</span>' : t;
+                        const item = p ? t + ' <span class="badge bg-success rounded-pill ms-1">' + p + '</span>' : t;
                         return '<div class="py-1">' + (i + 1) + '. ' + item + '</div>';
                     }).join('');
                     $list.html(html);
@@ -5100,20 +4925,45 @@ function md5(string) {
         $('#serviceDetailsModalSave').on('click', function() {
             const id = $('#service_details_modal_id').val();
             if (!id) return;
+            // Include any pending "Add new detail" row (user may not have clicked Add)
+            const newText = $('#service_detail_new_input').val().trim();
+            if (newText) {
+                const newPrice = $('#service_detail_new_price').val().trim();
+                serviceDetailsTempEdit.push({ text: newText, price: newPrice ? newPrice : '' });
+                $('#service_detail_new_input').val('');
+                $('#service_detail_new_price').val('');
+                renderServiceDetailsListEdit();
+            }
             $.ajax({
                 url: '{{ url("update/service") }}/' + id,
                 method: 'POST',
-                data: {
+                contentType: 'application/json',
+                data: JSON.stringify({
                     _token: $('input[name="_token"]').val(),
                     _method: 'PUT',
                     name: $('#Services_scrap option:selected').text(),
                     details: serviceDetailsTempEdit
-                },
+                }),
                 success: function(res) {
                     $('#serviceDetailsModal').modal('hide');
-                    loadServiceDetailsDisplayEdit(id);
+                    // Update main form display from response so list shows immediately
+                    const $box = $('#serviceDetailsDisplay');
+                    const $list = $('#serviceDetailsDisplayList');
+                    const raw = (res && Array.isArray(res.details)) ? res.details : [];
+                    if (raw.length === 0) {
+                        $list.html('<span class="text-muted">No details added yet. Click Add Detail to add.</span>');
+                    } else {
+                        const html = raw.map(function(d, i) {
+                            const t = (d.text || d.label || d || '').trim();
+                            const p = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
+                            const item = p ? t + ' <span class="badge bg-success rounded-pill ms-1">' + p + '</span>' : t;
+                            return '<div class="py-1">' + (i + 1) + '. ' + item + '</div>';
+                        }).join('');
+                        $list.html(html);
+                    }
+                    $box.show();
                     if (typeof playSaveSound === 'function') playSaveSound();
-                    toastr.success('Service details saved successfully');
+                    toastr.success(res && res.message ? res.message : 'Service details saved successfully');
                 },
                 error: function(xhr) {
                     const res = xhr.responseJSON;
@@ -5121,36 +4971,6 @@ function md5(string) {
                 }
             });
         });
-
-        // Category image display
-        function updateCategoryImageDisplayEdit() {
-            const $catSelect = $('#category_parts');
-            const catId = $catSelect.val();
-            const $opt = $catSelect.find('option:selected');
-            const imgSrc = $opt.length ? ($opt.data('image') || $opt.attr('data-image') || '') : '';
-            const $box = $('#categoryImageDisplay');
-            const $img = $('#categoryImageImg');
-            if (imgSrc) {
-                $img.attr('src', imgSrc).attr('alt', $opt.text());
-                $box.show();
-            } else if (catId) {
-                $.get('{{ url("show/category") }}/' + catId, function(res) {
-                    const raw = res.image ? String(res.image) : '';
-                    const src = raw ? (raw.startsWith('http') ? raw : '{{ url("/") }}/' + raw.replace(/^\/+/, '')) : '';
-                    if (src) {
-                        $opt.attr('data-image', src);
-                        $img.attr('src', src).attr('alt', res.name);
-                        $box.show();
-                    } else {
-                        $box.hide();
-                    }
-                }).fail(function() { $box.hide(); });
-            } else {
-                $box.hide();
-            }
-        }
-        $(document).on('change', '#category_parts', updateCategoryImageDisplayEdit);
-        updateCategoryImageDisplayEdit();
 
         // Edit button color: blue when select has value, gray when empty
         function updateEditButtonColors() {
@@ -5252,6 +5072,41 @@ function md5(string) {
                 }
             }, 500);
         }, 100);
+
+        function normalizeCategoryName(value) {
+            return String(value == null ? '' : value)
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toUpperCase();
+        }
+
+        function isPetrolEngineOilCategory($categorySelect) {
+            if (!$categorySelect || !$categorySelect.length) return false;
+            var selectedText = '';
+            try { selectedText = $categorySelect.find('option:selected').text() || ''; } catch (e) { selectedText = ''; }
+            return normalizeCategoryName(selectedText) === 'PETROL ENGINE OIL';
+        }
+
+        function toggleSeriesByCategoryEdit() {
+            var $categorySelect = $('#category_parts');
+            if (!$categorySelect.length) return;
+            var hideForPetrolOil = isPetrolEngineOilCategory($categorySelect);
+            var itemType = (($('input[name="type"]').val() || '') + '').toLowerCase();
+            var $seriesWrap = $('#series_field_wrapper_edit');
+            var $seriesSelect = $('#series_select');
+
+            $seriesWrap.toggle(!hideForPetrolOil);
+
+            if (hideForPetrolOil) {
+                $seriesSelect.val('').trigger('change.select2').prop('required', false).prop('disabled', true).removeClass('is-invalid');
+            } else {
+                var shouldRequireSeries = (itemType === 'battery');
+                $seriesSelect.prop('disabled', false).prop('required', shouldRequireSeries);
+            }
+        }
+
+        $(document).on('change', '#category_parts', toggleSeriesByCategoryEdit);
+        setTimeout(toggleSeriesByCategoryEdit, 0);
         // Don't use jQuery fallback - let Alpine.js handle the selection
         // Alpine.js will properly set selectedType from the initial value
         
@@ -5261,6 +5116,9 @@ function md5(string) {
         
         // Generic function to check and show "Add New" button for any dropdown
         function checkAndShowAddNewButtonForDropdown(selectId, buttonConfig) {
+            if (selectId === 'itemVehicleModelEdit' && !$('#itemVehicleMakeEdit').val()) {
+                return;
+            }
             const $openSelect2 = $('.select2-container--open');
             if ($openSelect2.length) {
                 const $select = $('#' + selectId);
@@ -5289,6 +5147,7 @@ function md5(string) {
                         let $addNewBtnInDropdown = $resultsContainer.find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]');
                         
                         if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
+                            const addLabel = buttonConfig.addNewLabel ? buttonConfig.addNewLabel : 'Add';
                             const buttonHtml = `
                                 <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
                                     <button type="button" class="btn btn-success btn-sm w-100 add-new-dropdown-btn open-universal-modal" 
@@ -5300,7 +5159,7 @@ function md5(string) {
                                             ${buttonConfig.hasImage ? 'data-has-image="1"' : ''}
                                             style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
                                         <i data-feather="plus" class="feather-plus me-1"></i>
-                                        Add "<span class="dropdown-search-term fw-bold">${searchVal}</span>"
+                                        ${addLabel}: "<span class="dropdown-search-term fw-bold">${searchVal}</span>"
                                     </button>
                                 </div>
                             `;
@@ -5330,7 +5189,7 @@ function md5(string) {
         }
         
         // Auto focus and Add New button for dropdowns (includes vehicle modal dropdowns)
-        $(document).on('select2:opening', '#name, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #itemVehicleMakeEdit, #itemVehicleModelEdit, #itemVehicleYearFromEdit, #itemVehicleYearToEdit, #itemVehicleEngineEdit, #itemVehicleCountryEdit', function(e) {
+        $(document).on('select2:opening', '#name, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #series_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #itemVehicleMakeEdit, #itemVehicleModelEdit, #itemVehicleYearFromEdit, #itemVehicleYearToEdit, #itemVehicleEngineEdit, #itemVehicleCountryEdit', function(e) {
             const selectId = $(this).attr('id');
             requestAnimationFrame(function() {
                 requestAnimationFrame(function() {
@@ -5343,7 +5202,7 @@ function md5(string) {
             });
         });
         
-        $(document).on('select2:open', '#name, #part_number_id, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #itemVehicleMakeEdit, #itemVehicleModelEdit, #itemVehicleYearFromEdit, #itemVehicleYearToEdit, #itemVehicleEngineEdit, #itemVehicleCountryEdit', function(e) {
+        $(document).on('select2:open', '#name, #part_number_id, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #series_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #itemVehicleMakeEdit, #itemVehicleModelEdit, #itemVehicleYearFromEdit, #itemVehicleYearToEdit, #itemVehicleEngineEdit, #itemVehicleCountryEdit', function(e) {
             const $select = $(this);
             const selectId = $select.attr('id');
             if (!selectId) return;
@@ -5364,7 +5223,7 @@ function md5(string) {
             }
             
             // Auto focus for all dropdowns (including vehicle modal)
-            const focusSelectIds = 'name,part_number_id,category,company_parts,quality,quality_filters,quality_breakpad,technology_select,grade_select,mileage_oil,Level_select,plates_scrap,amperes_select,volt_select,cca_select,minus_pole_direction_select,Warrenty_select,made_in_select,Services_scrap,itemVehicleMakeEdit,itemVehicleModelEdit,itemVehicleYearFromEdit,itemVehicleYearToEdit,itemVehicleEngineEdit,itemVehicleCountryEdit';
+            const focusSelectIds = 'name,part_number_id,category,company_parts,quality,quality_filters,quality_breakpad,technology_select,series_select,grade_select,mileage_oil,Level_select,plates_scrap,amperes_select,volt_select,cca_select,minus_pole_direction_select,Warrenty_select,made_in_select,Services_scrap,itemVehicleMakeEdit,itemVehicleModelEdit,itemVehicleYearFromEdit,itemVehicleYearToEdit,itemVehicleEngineEdit,itemVehicleCountryEdit';
             if (focusSelectIds.split(',').indexOf(selectId) !== -1) {
                 requestAnimationFrame(focusSearchInput);
                 setTimeout(focusSearchInput, 0);
@@ -5425,6 +5284,11 @@ function md5(string) {
                         route: '{{ route("post.technology") }}',
                         targetSelect: '.technology-select'
                     },
+                    'series_select': {
+                        title: 'Add Series',
+                        route: '{{ route("post.series") }}',
+                        targetSelect: '.series-select'
+                    },
                     'grade_select': {
                         title: 'Add Grade',
                         route: '{{ route("post.grade") }}',
@@ -5483,12 +5347,14 @@ function md5(string) {
                     'itemVehicleMakeEdit': {
                         title: 'Add Make',
                         route: '{{ route("post.car.manufacturer") }}',
-                        targetSelect: '.item-vehicle-manufacturer-edit'
+                        targetSelect: '.item-vehicle-manufacturer-edit',
+                        addNewLabel: 'Add New Make'
                     },
                     'itemVehicleModelEdit': {
                         title: 'Add Model',
                         route: '{{ route("post.car.model") }}',
-                        targetSelect: '.item-vehicle-model-edit'
+                        targetSelect: '.item-vehicle-model-edit',
+                        addNewLabel: 'Add New Model'
                     },
                     'itemVehicleEngineEdit': {
                         title: 'Add Engine CC',
@@ -5716,23 +5582,26 @@ function md5(string) {
         const defaultImageUrl = baseUrl + '/assets/img/media/default.png';
 
         items.forEach(function(item) {
+            const activeBadge = item.is_active
+                ? '<span class="badge js-item-status-badge bg-success">Active</span>'
+                : '<span class="badge js-item-status-badge bg-secondary">Inactive</span>';
             const csrfToken = $('input[name="_token"]').val();
             const rawImg = (item.image && String(item.image).trim()) ? item.image : '';
             const imageSrc = rawImg
                 ? (rawImg.startsWith('http://') || rawImg.startsWith('https://') ? rawImg : baseUrl + (rawImg.startsWith('/') ? rawImg : '/' + rawImg))
                 : defaultImageUrl;
 
-            // Build item details - for battery: Company, Product, Volt, Plate, Ampere, CCA line wise
+            // Build item details - for battery: Line1=Company, Line2=Product, Line3=Specs (12V 31PL 38AH 380CCA)
             let itemDetails;
             if ((item.type || '') === 'battery') {
+                const specs = [item.volt_name, item.plate_name, item.amphors_name, item.cca_name].filter(function(x) { return x && String(x).trim() && x !== '-'; });
+                const specsLine = specs.length ? specs.join(' ') : '-';
                 itemDetails = `
                 <div class="small">
                     <div>${item.company_name || '-'}</div>
                     <div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>
-                    <div>${item.volt_name || '-'}</div>
-                    <div>${item.plate_name || '-'}</div>
-                    <div>${item.amphors_name || '-'}</div>
-                    <div>${item.cca_name || '-'}</div>
+                    <div>${specsLine}</div>
+                    <div class="mt-1">${activeBadge}</div>
                 </div>
             `;
             } else {
@@ -5745,12 +5614,13 @@ function md5(string) {
                     <div>${item.category_name || '-'}</div>
                     <div>${item.company_name || '-'}</div>
                     <div>${item.quality_name || '-'}</div>
+                    <div class="mt-1">${activeBadge}</div>
                 </div>
             `;
             }
 
             const row = `
-                <tr>
+                <tr data-item-id="${item.id}">
                     <td>
                         <img src="${imageSrc}" width="70" height="70"
                             class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
@@ -5779,6 +5649,11 @@ function md5(string) {
                                 <li>
                                     <a class="dropdown-item" href="${item.edit_url}">
                                         <i data-feather="edit" class="me-1"></i> Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0)" class="dropdown-item js-item-toggle-active" data-item-id="${item.id}" data-is-active="${item.is_active ? 1 : 0}">
+                                        ${item.is_active ? '<i data-feather="toggle-right" class="me-1"></i> Deactivate' : '<i data-feather="toggle-left" class="me-1"></i> Activate'}
                                     </a>
                                 </li>
                                 <li>
@@ -5857,12 +5732,27 @@ function md5(string) {
             if ((typeInput || '').toLowerCase() !== 'scrap') return;
             var sel = this.options[this.selectedIndex];
             var m = (sel && sel.getAttribute('data-scrap-measurement')) ? sel.getAttribute('data-scrap-measurement').toLowerCase() : 'weight';
+            var wLabel = (sel && sel.getAttribute('data-scrap-weight-label')) ? String(sel.getAttribute('data-scrap-weight-label')).trim() : 'KG';
+            var cLabel = (sel && sel.getAttribute('data-scrap-count-label')) ? String(sel.getAttribute('data-scrap-count-label')).trim() : 'count';
+            if (!wLabel) wLabel = 'KG';
+            if (!cLabel) cLabel = 'count';
             try {
                 var alpine = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
                 if (alpine) { alpine.scrapMeasurement = m; }
             } catch (e) {}
             $('#scrap_measurement_input_edit').val(m);
+            $('#scrap_weight_label_edit').html('Weight (' + wLabel + ') <span class="text-danger">*</span>');
+            $('#scrap_rate_per_unit_label_edit').text('Rate per ' + wLabel);
+            $('#scrap_quantity_label_edit').html('Quantity (' + cLabel + ') <span class="text-danger">*</span>');
+            $('#scrap_rate_count_label_edit').text('Rate per ' + cLabel);
+            $('#scrap_weight_help_edit').text('Weight in ' + wLabel + ', rate per ' + wLabel + '. Total updates automatically.');
+            $('#scrap_quantity_help_edit').text('Quantity (' + cLabel + '), rate per unit. Total updates automatically.');
         });
+        // On load, apply scrap labels from selected category if type is scrap
+        var $catSelect = $('#category_parts');
+        if ($catSelect.length && $catSelect.val()) {
+            $catSelect.trigger('change');
+        }
     });
 
     // Load items by type on page load if type is already selected
@@ -5949,12 +5839,23 @@ function md5(string) {
         if (qualityTypes.indexOf(itemType) !== -1) {
             if (!($('#quality_common').val() || '').trim()) { errMsgEdit.push('Quality'); $('#quality_common').addClass('is-invalid'); } else { $('#quality_common').removeClass('is-invalid'); }
         }
-        if (itemType && itemType !== '') {
+        // Series is required only for battery.
+        if (itemType === 'battery') {
+            if (!($('#series_select').val() || '').trim()) {
+                errMsgEdit.push('Series');
+                $('#series_select').addClass('is-invalid');
+            } else {
+                $('#series_select').removeClass('is-invalid');
+            }
+        }
+        // Unit is required only for types where unit management is applicable.
+        // Scrap items do NOT require Unit (scrap uses scrap_weight/scrap_quantity logic).
+        if (itemType && itemType !== '' && itemType !== 'scrap' && itemType !== 'services') {
             if (!($('#unit_parts').val() || '').trim()) { errMsgEdit.push('Unit'); $('#unit_parts').addClass('is-invalid'); } else { $('#unit_parts').removeClass('is-invalid'); }
         }
         if (errMsgEdit.length > 0) {
             if (typeof toastr !== 'undefined') toastr.error('Please select: ' + errMsgEdit.join(', ') + '.');
-            $('#category_parts, #company_parts, #quality_common, #unit_parts').one('change', function() { $(this).removeClass('is-invalid'); });
+            $('#category_parts, #company_parts, #quality_common, #unit_parts, #series_select').one('change', function() { $(this).removeClass('is-invalid'); });
             return;
         }
 
@@ -6016,9 +5917,16 @@ function md5(string) {
         $form.find('input[type="hidden"][name="quality_id"]').remove();
         if (qualityVal) $form.append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
 
-        var techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
+        var techVal = '';
+        if (itemType === 'battery') {
+            techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
+        }
         $form.find('input[type="hidden"][name="technology"]').remove();
         if (techVal) $form.append('<input type="hidden" name="technology" value="' + techVal + '">');
+
+        var seriesVal = $('#series_select').val() || '';
+        $form.find('input[type="hidden"][name="series_id"]').remove();
+        if (seriesVal) $form.append('<input type="hidden" name="series_id" value="' + seriesVal + '">');
 
         var formData = new FormData($form[0]);
         formData.set('_method', 'PUT');
@@ -6634,6 +6542,69 @@ function md5(string) {
 
     // Associated Vehicles (same as create/new) - Initialize from item's vehical_ids
     if ($('#openItemVehicleModalEdit').length && $('#itemVehicleAddModalEdit').length) {
+        var ITEM_VEHICLE_MODELS_URL_EDIT = '{{ route("vehicle.master.models") }}';
+        function itemVehicleEscOptEdit(val) {
+            return String(val == null ? '' : val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+        function itemVehicleLoadModelsForMakeEdit($modal, makeId, selectModelId, done) {
+            var $model = $modal.find('#itemVehicleModelEdit');
+            if ($model.hasClass('select2-hidden-accessible')) {
+                try { $model.select2('destroy'); } catch (e) {}
+            }
+            var mk = makeId ? String(makeId) : '';
+            if (!mk) {
+                $model.html('<option value="">— Select make first —</option>').prop('disabled', true);
+                if ($.fn.select2) {
+                    $model.select2({ placeholder: '— Select make first —', allowClear: true, width: '100%', minimumResultsForSearch: 0, dropdownParent: $modal });
+                }
+                if (done) done();
+                return;
+            }
+            var params = { manufacturer_id: mk };
+            if (selectModelId) {
+                params.include_model_ids = String(selectModelId);
+            }
+            $.get(ITEM_VEHICLE_MODELS_URL_EDIT, params, function(res) {
+                var h = '<option value="">— Select model —</option>';
+                if (res && res.success && res.models) {
+                    res.models.forEach(function(m) {
+                        h += '<option value="' + m.id + '">' + itemVehicleEscOptEdit(m.name) + '</option>';
+                    });
+                }
+                $model.html(h).prop('disabled', false);
+                if (selectModelId) {
+                    $model.val(String(selectModelId));
+                }
+                if ($.fn.select2) {
+                    $model.select2({ placeholder: '— Select model —', allowClear: true, width: '100%', minimumResultsForSearch: 0, dropdownParent: $modal });
+                }
+                if (done) done();
+            }).fail(function() {
+                $model.html('<option value="">— Could not load models —</option>').prop('disabled', false);
+                if ($.fn.select2) {
+                    $model.select2({ placeholder: '— Could not load models —', allowClear: true, width: '100%', minimumResultsForSearch: 0, dropdownParent: $modal });
+                }
+                if (done) done();
+            });
+        }
+        function itemVehicleInitVehicleSelect2Edit($modal) {
+            var vehicleSelectorsStr = '.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit';
+            $modal.find(vehicleSelectorsStr).each(function() {
+                var $sel = $(this);
+                if (!$.fn.select2) return;
+                if ($sel.hasClass('select2-hidden-accessible')) {
+                    try { $sel.select2('destroy'); } catch (err) {}
+                }
+                $sel.select2({
+                    placeholder: $sel.find('option:first').text(),
+                    allowClear: true,
+                    width: '100%',
+                    minimumResultsForSearch: 0,
+                    dropdownParent: $modal
+                });
+            });
+        }
+
         let itemVehicleIdsEdit = @json($editingItem->vehical_ids ?? []);
         let itemVehicleDetailsEdit = @json(($editingItem->vehical_items() ?? collect())->mapWithKeys(function($v) {
             $make = optional($v->manutacturer_vehical)->name ?? '-';
@@ -6684,25 +6655,10 @@ function md5(string) {
                 $('#itemVehiclePartNumberEdit').val(outsidePart);
                 $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row').not(':first').remove();
                 $('#itemVehicleYearRangeWarningEdit').text('').hide();
+                $('#itemVehicleAddModalEdit').find('#itemVehicleModelEdit').html('<option value="">— Select make first —</option>').prop('disabled', true);
             }
-            // Init Select2 on vehicle modal dropdowns (exclude year - multiple rows) (in case they weren’t in DOM or need refresh)
             var $modal = $('#itemVehicleAddModalEdit');
-            var vehicleSelectors = '.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit';
-            $modal.find(vehicleSelectors).each(function() {
-                var $sel = $(this);
-                if ($.fn.select2) {
-                    if ($sel.hasClass('select2-hidden-accessible')) {
-                        try { $sel.select2('destroy'); } catch (err) {}
-                    }
-                    $sel.select2({
-                        placeholder: $sel.find('option:first').text(),
-                        allowClear: true,
-                        width: '100%',
-                        minimumResultsForSearch: 0,
-                        dropdownParent: $modal
-                    });
-                }
-            });
+            itemVehicleInitVehicleSelect2Edit($modal);
         });
         var itemVehicleExistingRangesParsedEdit = [];
         function updateItemVehicleExistingRangesHintEdit() {
@@ -6710,7 +6666,7 @@ function md5(string) {
             var makeText = ($('#itemVehicleMakeEdit option:selected').text() || '').trim();
             var modelText = ($('#itemVehicleModelEdit option:selected').text() || '').trim();
             itemVehicleExistingRangesParsedEdit = [];
-            if (!makeText || !modelText || makeText === '— Select —' || modelText === '— Select —') {
+            if (!makeText || !modelText || makeText === '— Select —' || makeText === '— Select make —' || modelText === '— Select —' || modelText === '— Select make first —' || modelText === '— Select model —') {
                 $hint.hide().empty();
                 return;
             }
@@ -6745,19 +6701,30 @@ function md5(string) {
                 $hint.hide().empty();
             }
         }
-        $('#itemVehicleAddModalEdit').on('change', '#itemVehicleMakeEdit, #itemVehicleModelEdit', function() {
+        $('#itemVehicleAddModalEdit').on('change', '#itemVehicleMakeEdit', function() {
+            if ($(this).data('itemVehicleSkipReload')) return;
+            var mk = $(this).val();
+            itemVehicleLoadModelsForMakeEdit($('#itemVehicleAddModalEdit'), mk, null, function() {
+                updateItemVehicleExistingRangesHintEdit();
+            });
+        });
+        $('#itemVehicleAddModalEdit').on('change', '#itemVehicleModelEdit', function() {
             updateItemVehicleExistingRangesHintEdit();
         });
         $('#itemVehicleAddModalEdit').on('shown.bs.modal', function() {
             var $modal = $('#itemVehicleAddModalEdit');
             if (editingVehicleId && itemVehicleFullDetailsEdit[editingVehicleId]) {
                 var data = itemVehicleFullDetailsEdit[editingVehicleId];
-                $modal.find('#itemVehicleMakeEdit').val(data.car_manufacturer || '').trigger('change');
-                $modal.find('#itemVehicleModelEdit').val(data.car_model_name || '').trigger('change');
-                $modal.find('.item-vehicle-year-from-edit').first().val(data.year_from || '').trigger('change');
-                $modal.find('.item-vehicle-year-to-edit').first().val(data.year_to || '').trigger('change');
-                $modal.find('#itemVehicleEngineEdit').val(data.engine_cc || '').trigger('change');
-                $modal.find('#itemVehicleCountryEdit').val(data.car_manufactured_country || '').trigger('change');
+                var $make = $modal.find('#itemVehicleMakeEdit');
+                $make.data('itemVehicleSkipReload', true);
+                $make.val(data.car_manufacturer || '').trigger('change');
+                itemVehicleLoadModelsForMakeEdit($modal, data.car_manufacturer || '', data.car_model_name || '', function() {
+                    $make.removeData('itemVehicleSkipReload');
+                    $modal.find('.item-vehicle-year-from-edit').first().val(data.year_from || '').trigger('change');
+                    $modal.find('.item-vehicle-year-to-edit').first().val(data.year_to || '').trigger('change');
+                    $modal.find('#itemVehicleEngineEdit').val(data.engine_cc || '').trigger('change');
+                    $modal.find('#itemVehicleCountryEdit').val(data.car_manufactured_country || '').trigger('change');
+                });
             }
             setTimeout(function() { updateItemVehicleExistingRangesHintEdit(); }, 100);
             $modal.find('.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit').off('select2:open.vehicleFocus').on('select2:open.vehicleFocus', function() {
@@ -7110,4 +7077,5 @@ function md5(string) {
         updateItemVehiclesDisplayEdit();
     }
 </script>
+@include('admin.item.partials.item-active-toggle-script')
 @endpush

@@ -192,6 +192,7 @@
                             }
                             
                             $statusBadge = $sale->status == 'completed' ? 'success' : ($sale->status == 'pending' ? 'warning' : 'secondary');
+
                         @endphp
                         <tr>
                             <td>
@@ -226,6 +227,14 @@
                                     <li>
                                         <a href="{{ route('sales.show', $sale->id) }}" class="dropdown-item"><i data-feather="eye"
                                                 class="info-img"></i>Sale Detail</a>
+                                    </li>
+                                    <li>
+                                        <a href="{{ route('sales.print', ['id' => $sale->id, 'return' => 'list']) }}" target="_blank" rel="noopener" class="dropdown-item" onclick="if(this.dataset.opened){event.preventDefault();return false;}this.dataset.opened='1';setTimeout(function(el){el.dataset.opened='';},6000,this);"><i data-feather="printer"
+                                                class="info-img"></i>Print invoice (thermal)</a>
+                                    </li>
+                                    <li>
+                                        <a href="javascript:void(0);" class="dropdown-item js-thermal-print-sale" data-sale-id="{{ $sale->id }}"><i data-feather="bluetooth"
+                                                class="info-img"></i>Bluetooth Print</a>
                                     </li>
                                     @endcan
                                     @can('update_sales')
@@ -269,9 +278,13 @@
                     </tbody>
                 </table>
             </div>
+            <div class="d-flex justify-content-center mt-3">
+                {{ $sales->appends(request()->query())->links() }}
+            </div>
         </div>
     </div>
 </div>
+
 <!-- Add Customer -->
 <div class="modal fade" id="add_customer">
     <div class="modal-dialog modal-dialog-centered">
@@ -951,5 +964,49 @@ $(document).ready(function() {
 </script>
 
 @endsection
+
+@push('scripts')
+@include('admin.sales.partials.thermal-print-client')
+<script>
+$(function () {
+    $(document).on('click', '.js-thermal-print-sale', async function (e) {
+        e.preventDefault();
+        var saleId = $(this).data('sale-id');
+        if (!saleId) return;
+        if (this.dataset.opened === '1') return;
+        this.dataset.opened = '1';
+        var el = this;
+        setTimeout(function () { el.dataset.opened = ''; }, 6000);
+        try {
+            var settings = (typeof window.getThermalPrintSettings === 'function')
+                ? window.getThermalPrintSettings()
+                : { type: 'serial', serialBaudRate: 9600, paperSize: '80', autoCut: true, duplicateCount: 1 };
+            var printResult = await window.runThermalPrintBySettings(saleId, settings);
+            if (typeof Swal !== 'undefined' && printResult && !printResult.fallback) {
+                var okText = printResult.upgradedFromBle
+                    ? 'Receipt sent via COM (Bluetooth serial) port.'
+                    : 'Receipt sent to printer.';
+                Swal.fire({ icon: 'success', title: 'Printed', text: okText });
+            }
+        } catch (err) {
+            var msg = (err && err.message) ? err.message : 'Printing failed.';
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Print Failed',
+                    text: msg,
+                    confirmButtonText: 'Open Invoice'
+                }).then(function () {
+                    window.open(window.replaceSaleId(window.__SALE_PRINT_VIEW_TEMPLATE__, saleId), '_blank', 'noopener');
+                });
+            } else {
+                alert(msg);
+            }
+        }
+    });
+});
+</script>
+@endpush
+
 
 

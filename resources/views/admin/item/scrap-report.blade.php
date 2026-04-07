@@ -77,6 +77,8 @@
                             <th>#</th>
                             <th>Product Name</th>
                             <th>Category</th>
+                            <th>Battery Size</th>
+                            <th>Dimensions</th>
                             <th class="text-end">Weight (KG) / Qty</th>
                             <th class="text-end">Rate</th>
                             <th class="text-end">Total Price</th>
@@ -95,6 +97,18 @@
                                     @endif
                                 </td>
                                 <td>{{ $item->category ? $item->category->name : '—' }}</td>
+                                <td>{{ $item->battery_size ?? '—' }}</td>
+                                <td>
+                                    @php
+                                        $unit = $item->scrap_dim_unit ?: 'cm';
+                                        $hasDims = ($item->scrap_dim_width !== null || $item->scrap_dim_height !== null || $item->scrap_dim_length !== null || $item->scrap_dim_depth !== null);
+                                        $w = $item->scrap_dim_width !== null ? number_format((float)$item->scrap_dim_width, 2) : '-';
+                                        $ht = $item->scrap_dim_height !== null ? number_format((float)$item->scrap_dim_height, 2) : '-';
+                                        $l = $item->scrap_dim_length !== null ? number_format((float)$item->scrap_dim_length, 2) : '-';
+                                        $d = $item->scrap_dim_depth !== null ? number_format((float)$item->scrap_dim_depth, 2) : '-';
+                                    @endphp
+                                    {{ $hasDims ? ($w . ' x ' . $ht . ' x ' . $l . ' x ' . $d . ' ' . $unit) : '—' }}
+                                </td>
                                 <td class="text-end">
                                     @if($item->category && $item->category->scrap_measurement === 'count')
                                         {{ number_format((float)($item->on_hand ?? 0), 0) }} <span class="text-muted">(Qty)</span>
@@ -112,7 +126,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-5">
+                                <td colspan="9" class="text-center text-muted py-5">
                                     No scrap items found. <a href="{{ route('all.items.create.new') }}?type=scrap">Add a scrap item</a>.
                                 </td>
                             </tr>

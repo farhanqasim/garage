@@ -7,10 +7,9 @@ use App\Models\User;
 use App\Models\WebAuthnCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 
 class WebAuthnController extends Controller
 {
@@ -45,11 +44,11 @@ class WebAuthnController extends Controller
      */
     public function getRegisterOptionsForProfile(Request $request)
     {
-        if (!$request->wantsJson() && !$request->expectsJson()) {
+        if (! $request->wantsJson() && ! $request->expectsJson()) {
             $request->headers->set('Accept', 'application/json');
         }
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
         $challenge = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(random_bytes(32)));
@@ -75,9 +74,12 @@ class WebAuthnController extends Controller
             'attestation' => 'none',
             'authenticatorSelection' => [
                 'userVerification' => 'preferred',
+                'residentKey' => 'preferred',
                 'requireResidentKey' => false,
+                'authenticatorAttachment' => 'platform',
             ],
         ];
+
         return response()->json(['success' => true, 'options' => $options]);
     }
 
@@ -88,10 +90,10 @@ class WebAuthnController extends Controller
     public function getLoginOptions(Request $request)
     {
         // Ensure JSON response even on errors
-        if (!$request->wantsJson() && !$request->expectsJson()) {
+        if (! $request->wantsJson() && ! $request->expectsJson()) {
             $request->headers->set('Accept', 'application/json');
         }
-        
+
         try {
             $request->validate([
                 'email' => 'required|email',
@@ -101,27 +103,27 @@ class WebAuthnController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Email and password are required',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         }
 
         $email = $request->input('email');
         $password = $request->input('password');
-        
+
         $user = User::where('email', $email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid email or password'
+                'message' => 'Invalid email or password',
             ], 401);
         }
 
         // Verify password first
-        if (!Hash::check($password, $user->password)) {
+        if (! Hash::check($password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid email or password'
+                'message' => 'Invalid email or password',
             ], 401);
         }
 
@@ -132,12 +134,12 @@ class WebAuthnController extends Controller
         if ($credentials->isEmpty()) {
             // Generate challenge for registration
             $challenge = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(random_bytes(32)));
-            
+
             // Store challenge in session for registration
             Session::put('webauthn_register_challenge', $challenge);
             Session::put('webauthn_register_user_id', $user->id);
             Session::put('webauthn_register_timestamp', now()->timestamp);
-            
+
             // Return registration options
             return response()->json([
                 'success' => true,
@@ -160,10 +162,10 @@ class WebAuthnController extends Controller
                     'timeout' => 60000,
                     'attestation' => 'none',
                     'authenticatorSelection' => [
-                        // Don't restrict to platform only - allow both platform (fingerprint) and cross-platform (security keys)
-                        // Browser will prefer platform authenticator if available
                         'userVerification' => 'preferred',
+                        'residentKey' => 'preferred',
                         'requireResidentKey' => false,
+                        'authenticatorAttachment' => 'platform',
                     ],
                 ],
             ]);
@@ -207,10 +209,10 @@ class WebAuthnController extends Controller
     public function verifyLogin(Request $request)
     {
         // Ensure JSON response even on errors
-        if (!$request->wantsJson() && !$request->expectsJson()) {
+        if (! $request->wantsJson() && ! $request->expectsJson()) {
             $request->headers->set('Accept', 'application/json');
         }
-        
+
         try {
             $request->validate([
                 'credential' => 'required|array',
@@ -225,7 +227,7 @@ class WebAuthnController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credential data',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         }
 
@@ -248,25 +250,28 @@ class WebAuthnController extends Controller
             // Flow 1: login options were fetched with email+password
             if ($timestamp && (now()->timestamp - $timestamp) > 300) {
                 Session::forget(['webauthn_login_challenge', 'webauthn_login_user_id', 'webauthn_login_timestamp']);
+
                 return response()->json(['success' => false, 'message' => 'Challenge expired'], 400);
             }
         } elseif ($conditionalChallenge) {
             // Flow 2: conditional UI (fingerprint / passkey only) – find user by credential_id
             if ($conditionalTimestamp && (now()->timestamp - $conditionalTimestamp) > 300) {
                 Session::forget(['webauthn_conditional_challenge', 'webauthn_conditional_timestamp']);
+
                 return response()->json(['success' => false, 'message' => 'Challenge expired'], 400);
             }
             $storedChallenge = $conditionalChallenge;
             $webauthnCredential = WebAuthnCredential::where('credential_id', $credentialId)->first();
-            if (!$webauthnCredential) {
+            if (! $webauthnCredential) {
                 Log::warning('WebAuthn conditional login: credential not found', ['credential_id_length' => strlen($credentialId)]);
+
                 return response()->json(['success' => false, 'message' => 'Passkey not found. Please register fingerprint from Profile first (user/profile).'], 404);
             }
             $userId = $webauthnCredential->user_id;
         } else {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid or expired challenge'
+                'message' => 'Invalid or expired challenge',
             ], 400);
         }
 
@@ -275,10 +280,10 @@ class WebAuthnController extends Controller
             ->where('user_id', $userId)
             ->first();
 
-        if (!$webauthnCredential) {
+        if (! $webauthnCredential) {
             return response()->json([
                 'success' => false,
-                'message' => 'Credential not found'
+                'message' => 'Credential not found',
             ], 404);
         }
 
@@ -292,29 +297,29 @@ class WebAuthnController extends Controller
             $clientDataJSONBase64 .= str_repeat('=', 4 - $padding);
         }
         $clientDataJSON = base64_decode($clientDataJSONBase64, true);
-        if (!$clientDataJSON) {
+        if (! $clientDataJSON) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid client data'
+                'message' => 'Invalid client data',
             ], 400);
         }
 
         $clientData = json_decode($clientDataJSON, true);
-        if (!$clientData) {
+        if (! $clientData) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid client data JSON'
+                'message' => 'Invalid client data JSON',
             ], 400);
         }
 
         // Verify challenge matches (both are base64url encoded)
         // Compare base64url strings directly (they should match exactly)
         $receivedChallengeBase64url = $clientData['challenge'] ?? '';
-        
+
         // Normalize both challenges by removing padding and comparing
         $receivedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $receivedChallengeBase64url), '=');
         $expectedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $storedChallenge), '=');
-        
+
         // Also try comparing the raw base64url strings
         if ($receivedChallengeBase64url !== $storedChallenge && $receivedChallengeNormalized !== $expectedChallengeNormalized) {
             // Log for debugging
@@ -322,12 +327,12 @@ class WebAuthnController extends Controller
                 'expected' => $storedChallenge,
                 'received' => $receivedChallengeBase64url,
                 'expected_normalized' => $expectedChallengeNormalized,
-                'received_normalized' => $receivedChallengeNormalized
+                'received_normalized' => $receivedChallengeNormalized,
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Challenge mismatch'
+                'message' => 'Challenge mismatch',
             ], 400);
         }
 
@@ -335,7 +340,7 @@ class WebAuthnController extends Controller
         if (($clientData['type'] ?? '') !== 'webauthn.get') {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid authentication type'
+                'message' => 'Invalid authentication type',
             ], 400);
         }
 
@@ -345,7 +350,7 @@ class WebAuthnController extends Controller
         if ($origin !== $expectedOrigin) {
             Log::warning('WebAuthn origin mismatch', [
                 'expected' => $expectedOrigin,
-                'received' => $origin
+                'received' => $origin,
             ]);
             // In production, you might want to be stricter
         }
@@ -362,12 +367,12 @@ class WebAuthnController extends Controller
         if ($authenticatorData && strlen($authenticatorData) >= 37) {
             // Extract counter from authenticator data (bytes 33-36)
             $counter = unpack('N', substr($authenticatorData, 33, 4))[1];
-            
+
             // Verify counter is increasing (replay attack prevention)
             if ($counter <= $webauthnCredential->counter) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Replay attack detected'
+                    'message' => 'Replay attack detected',
                 ], 400);
             }
 
@@ -382,10 +387,10 @@ class WebAuthnController extends Controller
 
         // Log the user in
         $user = User::find($userId);
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
-                'message' => 'User not found'
+                'message' => 'User not found',
             ], 404);
         }
 
@@ -399,12 +404,12 @@ class WebAuthnController extends Controller
                     ->where('status', 'active')
                     ->first();
             }
-            
+
             if ($branch) {
                 Session::put([
                     'selected_branch_id' => $branch->id,
                     'selected_branch_name' => $branch->branch_name,
-                    'selected_branch_code' => $branch->branch_code
+                    'selected_branch_code' => $branch->branch_code,
                 ]);
             }
         }
@@ -415,7 +420,7 @@ class WebAuthnController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Authentication successful',
-            'redirect' => $redirectUrl
+            'redirect' => $redirectUrl,
         ]);
     }
 
@@ -429,6 +434,7 @@ class WebAuthnController extends Controller
         // or the browser will not find the credential (origin is 127.0.0.1, rpId must match).
         $currentHost = request()->getHost();
         $currentHost = preg_replace('/:\d+$/', '', $currentHost);
+
         return $currentHost ?: 'localhost';
     }
 
@@ -441,14 +447,14 @@ class WebAuthnController extends Controller
         $parsed = parse_url($url);
         $scheme = $parsed['scheme'] ?? 'https';
         $host = $parsed['host'] ?? request()->getHost();
-        $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
-        
+        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
+
         // For local development, allow http
         if (app()->environment('local')) {
             $scheme = request()->getScheme();
         }
-        
-        return $scheme . '://' . $host . $port;
+
+        return $scheme.'://'.$host.$port;
     }
 
     /**
@@ -457,10 +463,10 @@ class WebAuthnController extends Controller
     public function verifyRegister(Request $request)
     {
         // Ensure JSON response even on errors
-        if (!$request->wantsJson() && !$request->expectsJson()) {
+        if (! $request->wantsJson() && ! $request->expectsJson()) {
             $request->headers->set('Accept', 'application/json');
         }
-        
+
         try {
             $request->validate([
                 'credential' => 'required|array',
@@ -474,7 +480,7 @@ class WebAuthnController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credential data',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         }
 
@@ -483,19 +489,20 @@ class WebAuthnController extends Controller
         $userId = Session::get('webauthn_register_user_id');
         $timestamp = Session::get('webauthn_register_timestamp');
 
-        if (!$storedChallenge || !$userId) {
+        if (! $storedChallenge || ! $userId) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid or expired registration challenge'
+                'message' => 'Invalid or expired registration challenge',
             ], 400);
         }
 
         // Check challenge expiration (5 minutes)
         if ($timestamp && (now()->timestamp - $timestamp) > 300) {
             Session::forget(['webauthn_register_challenge', 'webauthn_register_user_id', 'webauthn_register_timestamp']);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Registration challenge expired'
+                'message' => 'Registration challenge expired',
             ], 400);
         }
 
@@ -509,30 +516,30 @@ class WebAuthnController extends Controller
             $clientDataJSONBase64 .= str_repeat('=', 4 - $padding);
         }
         $clientDataJSON = base64_decode($clientDataJSONBase64, true);
-        
-        if (!$clientDataJSON) {
+
+        if (! $clientDataJSON) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid client data'
+                'message' => 'Invalid client data',
             ], 400);
         }
 
         $clientData = json_decode($clientDataJSON, true);
-        if (!$clientData) {
+        if (! $clientData) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid client data JSON'
+                'message' => 'Invalid client data JSON',
             ], 400);
         }
 
         // Verify challenge matches (both are base64url encoded)
         // Compare base64url strings directly (they should match exactly)
         $receivedChallengeBase64url = $clientData['challenge'] ?? '';
-        
+
         // Normalize both challenges by removing padding and comparing
         $receivedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $receivedChallengeBase64url), '=');
         $expectedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $storedChallenge), '=');
-        
+
         // Also try comparing the raw base64url strings
         if ($receivedChallengeBase64url !== $storedChallenge && $receivedChallengeNormalized !== $expectedChallengeNormalized) {
             // Log for debugging
@@ -540,12 +547,12 @@ class WebAuthnController extends Controller
                 'expected' => $storedChallenge,
                 'received' => $receivedChallengeBase64url,
                 'expected_normalized' => $expectedChallengeNormalized,
-                'received_normalized' => $receivedChallengeNormalized
+                'received_normalized' => $receivedChallengeNormalized,
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Challenge mismatch'
+                'message' => 'Challenge mismatch',
             ], 400);
         }
 
@@ -553,7 +560,7 @@ class WebAuthnController extends Controller
         if (($clientData['type'] ?? '') !== 'webauthn.create') {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid registration type'
+                'message' => 'Invalid registration type',
             ], 400);
         }
 
@@ -562,14 +569,14 @@ class WebAuthnController extends Controller
         if ($existingCredential) {
             return response()->json([
                 'success' => false,
-                'message' => 'This credential is already registered'
+                'message' => 'This credential is already registered',
             ], 400);
         }
 
         // Extract public key from attestation object (simplified - in production use proper library)
         // For now, we'll store the raw attestation object
         $attestationObject = $credential['response']['attestationObject'];
-        
+
         // Save the credential
         $webauthnCredential = WebAuthnCredential::create([
             'user_id' => $userId,
@@ -590,7 +597,7 @@ class WebAuthnController extends Controller
         $user = User::find($userId);
         if ($user) {
             Auth::login($user, $request->has('remember'));
-            
+
             // Handle branch selection if needed
             if ($user->role === 'user') {
                 $branch = null;
@@ -599,12 +606,12 @@ class WebAuthnController extends Controller
                         ->where('status', 'active')
                         ->first();
                 }
-                
+
                 if ($branch) {
                     Session::put([
                         'selected_branch_id' => $branch->id,
                         'selected_branch_name' => $branch->branch_name,
-                        'selected_branch_code' => $branch->branch_code
+                        'selected_branch_code' => $branch->branch_code,
                     ]);
                 }
             }
@@ -613,7 +620,7 @@ class WebAuthnController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Fingerprint registered successfully! You are now logged in.',
-            'redirect' => '/home'
+            'redirect' => '/home',
         ]);
     }
 }

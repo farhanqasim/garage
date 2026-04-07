@@ -110,7 +110,7 @@
                                 <div class="text-center p-3 bg-light rounded">
                                     <h6 class="text-muted mb-2">Total Transactions</h6>
                                     <h4 class="mb-0">{{ $totalTransactions }}</h4>
-                                    <small class="text-muted">{{ $reconciledTransactions }} Reconciled</small>
+                                    <small class="text-muted">{{ $reconciledTransactions }} Tallied</small>
                                 </div>
                             </div>
                         </div>
@@ -133,7 +133,7 @@
                                         <th>Description</th>
                                         <th>Type</th>
                                         <th>Amount</th>
-                                        <th>Reconciled</th>
+                                        <th>Tallied</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -208,11 +208,11 @@
                             <p class="text-muted mb-0">{{ $totalTransactions }}</p>
                         </div>
                         <div class="mb-3">
-                            <strong>Reconciled Transactions:</strong>
+                            <strong>Tallied Transactions:</strong>
                             <p class="text-muted mb-0">{{ $reconciledTransactions }}</p>
                         </div>
                         <div class="mb-3">
-                            <strong>Unreconciled Transactions:</strong>
+                            <strong>Untallied Transactions:</strong>
                             <p class="text-muted mb-0">{{ $totalTransactions - $reconciledTransactions }}</p>
                         </div>
                     </div>

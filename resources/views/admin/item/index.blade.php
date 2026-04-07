@@ -114,7 +114,7 @@
                                 $permMapA = ['parts'=>'add_parts','filters'=>'add_filters','breakpad'=>'add_break_pad','oil'=>'add_oil','battery'=>'add_battery','scrap'=>'add_scrap','services'=>'add_services'];
                                 $addPerm = $permMapA[$t] ?? 'add_items';
                             @endphp
-                            <tr data-type="{{ $item->type }}">
+                            <tr data-item-id="{{ $item->id }}" data-type="{{ $item->type }}">
                                 <td>
                                     @can($deletePerm)
                                     <input type="checkbox" name="ids[]" value="{{ $item->id }}" style="width: 20px; height:20px"   class="item-checkbox form-check">
@@ -149,36 +149,42 @@
                                                 $ccaDisplay = $c !== '' ? (preg_match('/\d*\s*CCA$/i', $c) ? $c : $c . 'CCA') : '-';
                                             @endphp
                                             <div>{{ $item->company_item->name ?? '-' }}</div>
-                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            <div class="item-list-primary-title">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
                                             <div>{{ $voltDisplay }} {{ $plateDisplay }} {{ $ampDisplay }} {{ $ccaDisplay }}</div>
                                         @elseif(($item->type ?? '') === 'parts')
-                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
-                                            @if($item->partnumber_item)<div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>@endif
+                                            <div class="item-list-primary-title">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            @if(trim((string)($item->product_item->name ?? '')) !== '')
+                                            <div class="text-muted">{{ $item->product_item->name }}</div>
+                                            @endif
                                             <div>{{ $item->category->name ?? '-' }}</div>
                                             <div>{{ $item->company_item->name ?? '-' }}</div>
                                             <div>{{ $item->quality_item->name ?? '-' }}</div>
                                         @elseif(in_array($item->type ?? '', ['filters', 'breakpad']))
-                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
-                                            @if($item->partnumber_item)<div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>@endif
+                                            <div class="item-list-primary-title">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            @if(trim((string)($item->product_item->name ?? '')) !== '')
+                                            <div class="text-muted">{{ $item->product_item->name }}</div>
+                                            @endif
                                             <div>{{ $item->category->name ?? '-' }}</div>
                                             <div>{{ $item->company_item->name ?? '-' }}</div>
                                             <div>{{ $item->quality_item->name ?? '-' }}</div>
                                         @elseif(($item->type ?? '') === 'oil')
-                                            <div class="fw-semibold">{{ $item->product_item->name ?? '-' }}</div>
+                                            <div class="item-list-primary-title">{{ $item->product_item->name ?? '-' }}</div>
                                             <div>{{ $item->category->name ?? '-' }}</div>
                                             <div>{{ $item->company_item->name ?? '-' }}</div>
                                             <div>{{ $item->quality_item->name ?? '-' }}</div>
                                         @elseif(($item->type ?? '') === 'scrap')
-                                            <div class="fw-semibold">{{ $item->product_item->name ?? '-' }}</div>
+                                            <div class="item-list-primary-title">{{ $item->product_item->name ?? '-' }}</div>
                                             <div>{{ $item->category->name ?? '-' }}</div>
                                             <div>{{ $item->company_item->name ?? '-' }}</div>
                                             <div>{{ $item->level_item->name ?? '-' }}</div>
                                         @elseif(($item->type ?? '') === 'services')
-                                            <div class="fw-semibold">{{ $item->product_item->name ?? '-' }}</div>
+                                            <div class="item-list-primary-title">{{ $item->product_item->name ?? '-' }}</div>
                                             <div>{{ $item->services_item->name ?? '-' }}</div>
                                         @else
-                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
-                                            @if($item->partnumber_item)<div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>@endif
+                                            <div class="item-list-primary-title">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            @if(trim((string)($item->product_item->name ?? '')) !== '')
+                                            <div class="text-muted">{{ $item->product_item->name }}</div>
+                                            @endif
                                             <div>{{ $item->category->name ?? '-' }}</div>
                                             <div>{{ $item->company_item->name ?? '-' }}</div>
                                         @endif
@@ -203,11 +209,20 @@
                                                     <i data-feather="edit" class="me-1"></i> Edit
                                                 </a>
                                             </li>
+                                            <li>
+                                                <a href="javascript:void(0)" class="dropdown-item mt-2 js-item-toggle-active" data-item-id="{{ $item->id }}" data-is-active="{{ $item->is_active ? 1 : 0 }}">
+                                                    @if($item->is_active)
+                                                        <i data-feather="toggle-right" class="me-1"></i> Deactivate
+                                                    @else
+                                                        <i data-feather="toggle-left" class="me-1"></i> Activate
+                                                    @endif
+                                                </a>
+                                            </li>
                                             @endcan
                                             @can($deletePerm)
                                             <li>
                                                 <a href="javascript:void(0)"
-                                                    onclick="confirmDelete('delete-form-{{ $item->id }}')"
+                                                    onclick="confirmItemDelete('delete-form-{{ $item->id }}', {{ $item->id }})"
                                                     class="dropdown-item mt-2">
                                                     <i data-feather="trash-2" class="feather-trash-2"></i>  Delete
                                                 </a>
@@ -258,8 +273,8 @@
                                   <img src="{{ asset($item->barcode_image)}}" alt="" onerror="this.onerror=null; this.src='{{ asset('assets/img/barcode/barcode1.png') }}';" />
                                   @endif
                                 </td>
-                                <td>
-                                    <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-danger' }}">
+                                <td class="js-item-status-cell">
+                                    <span class="badge js-item-status-badge {{ $item->is_active ? 'bg-success' : 'bg-secondary' }}">
                                         {{ $item->is_active ? 'Active' : 'Inactive' }}
                                     </span>
                                 </td>
@@ -273,6 +288,9 @@
                         </tbody>
                     </table>
                 </form>
+                <div class="d-flex justify-content-center mt-3">
+                    {{ $items->appends(request()->query())->links() }}
+                </div>
                 <!-- All delete forms container - will be populated dynamically -->
                 <div id="deleteFormsContainer" style="display: none;">
                     @foreach ($items as $item)
@@ -474,10 +492,110 @@
     #typeFilterDropdown {
         cursor: pointer;
     }
+    /* Item Details column: main title (part # / product) — bolder + slightly larger */
+    #searchableTable .item-list-primary-title {
+        font-size: 1.075rem;
+        font-weight: 700;
+        line-height: 1.35;
+        letter-spacing: 0.02em;
+        color: var(--bs-heading-color, #1e293b);
+    }
 </style>
 
 <!-- Scripts -->
 <script>
+    async function confirmItemDelete(formId, itemId) {
+        try {
+            const url = '{{ route("items.can_delete", ":id") }}'.replace(':id', itemId);
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!res.ok) {
+                throw new Error('Server returned HTTP ' + res.status);
+            }
+
+            const data = await res.json();
+            if (data && data.can_delete === false) {
+                const usedIn = data.used_in && typeof data.used_in === 'object' ? data.used_in : {};
+                const usedInBits = Object.entries(usedIn).filter(([_, v]) => (parseInt(v, 10) || 0) > 0)
+                    .map(([k, v]) => k.replace(/_/g, ' ') + ': ' + v)
+                    .slice(0, 6);
+                const usedInLine = usedInBits.length ? '<div class="small text-muted mt-2">' + usedInBits.join(' | ') + '</div>' : '';
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cannot delete',
+                    html: '<div>' + (data.message || 'This item cannot be deleted because it is already used in transactions.') + '</div>' + usedInLine
+                });
+                return;
+            }
+        } catch (e) {
+            // If we cannot verify usage safely, block deletion for safety.
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Unable to verify item usage. Deletion has been blocked for safety.'
+            });
+            return;
+        }
+        confirmDelete(formId);
+    }
+
+    // Safety net: block delete on server-checked usage, even if user bypasses UI.
+    document.addEventListener('submit', async function(e) {
+        const form = e.target;
+        if (!form || !(form instanceof HTMLFormElement)) return;
+        if (!form.id || !form.id.startsWith('delete-form-')) return;
+        if (form.dataset.allowUsageDelete === '1') return;
+
+        const itemIdStr = form.id.replace('delete-form-', '');
+        const itemId = parseInt(itemIdStr, 10);
+        if (!itemId) return;
+
+        e.preventDefault();
+        try {
+            const url = '{{ route("items.can_delete", ":id") }}'.replace(':id', itemId);
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!res.ok) {
+                throw new Error('HTTP ' + res.status);
+            }
+            const data = await res.json();
+            if (data && data.can_delete === false) {
+                const usedIn = data.used_in && typeof data.used_in === 'object' ? data.used_in : {};
+                const usedInBits = Object.entries(usedIn).filter(([_, v]) => (parseInt(v, 10) || 0) > 0)
+                    .map(([k, v]) => k.replace(/_/g, ' ') + ': ' + v)
+                    .slice(0, 6);
+                const usedInLine = usedInBits.length ? '<div class="small text-muted mt-2">' + usedInBits.join(' | ') + '</div>' : '';
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cannot delete',
+                    html: '<div>' + (data.message || 'This item cannot be deleted because it is already used in transactions.') + '</div>' + usedInLine
+                });
+                return;
+            }
+
+            // Allowed -> allow submission
+            form.dataset.allowUsageDelete = '1';
+            form.submit();
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Unable to verify item usage. Deletion has been blocked for safety.'
+            });
+        }
+    }, true);
+
     document.addEventListener('DOMContentLoaded', function () {
         let currentType = 'all'; // Track current selected type
         
@@ -591,22 +709,25 @@
                 // Item details by type
                 let itemDetailsHtml = '';
                 if ((item.type || '') === 'battery') {
-                    itemDetailsHtml = `<div class="small"><div>${item.company_name || '-'}</div><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div><div>${item.volt_name || '-'} ${item.plate_name || '-'} ${item.amphors_name || '-'} ${item.cca_name || '-'}</div></div>`;
+                    itemDetailsHtml = `<div class="small"><div>${item.company_name || '-'}</div><div class="item-list-primary-title">${item.product_name || item.part_number || '-'}</div><div>${item.volt_name || '-'} ${item.plate_name || '-'} ${item.amphors_name || '-'} ${item.cca_name || '-'}</div></div>`;
                 } else if ((item.type || '') === 'parts') {
-                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>${item.part_number ? `<div class="text-muted">${item.part_number}</div>` : ''}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
+                    const mutedLineP = (item.product_name && String(item.product_name).trim()) ? `<div class="text-muted">${item.product_name}</div>` : '';
+                    itemDetailsHtml = `<div class="small"><div class="item-list-primary-title">${item.product_name || item.part_number || '-'}</div>${mutedLineP}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
                 } else if ((item.type || '') === 'filters' || (item.type || '') === 'breakpad') {
-                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>${item.part_number ? `<div class="text-muted">${item.part_number}</div>` : ''}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
+                    const mutedLineFb = (item.product_name && String(item.product_name).trim()) ? `<div class="text-muted">${item.product_name}</div>` : '';
+                    itemDetailsHtml = `<div class="small"><div class="item-list-primary-title">${item.product_name || item.part_number || '-'}</div>${mutedLineFb}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
                 } else if ((item.type || '') === 'oil') {
-                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || '-'}</div><div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
+                    itemDetailsHtml = `<div class="small"><div class="item-list-primary-title">${item.product_name || '-'}</div><div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
                 } else if ((item.type || '') === 'scrap') {
-                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || '-'}</div><div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.level_name || '-'}</div></div>`;
+                    itemDetailsHtml = `<div class="small"><div class="item-list-primary-title">${item.product_name || '-'}</div><div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.level_name || '-'}</div></div>`;
                 } else if ((item.type || '') === 'services') {
-                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || '-'}</div><div>${item.services_name || '-'}</div></div>`;
+                    itemDetailsHtml = `<div class="small"><div class="item-list-primary-title">${item.product_name || '-'}</div><div>${item.services_name || '-'}</div></div>`;
                 } else {
-                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>${item.part_number ? `<div class="text-muted">${item.part_number}</div>` : ''}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div></div>`;
+                    const mutedLineEl = (item.product_name && String(item.product_name).trim()) ? `<div class="text-muted">${item.product_name}</div>` : '';
+                    itemDetailsHtml = `<div class="small"><div class="item-list-primary-title">${item.product_name || item.part_number || '-'}</div>${mutedLineEl}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div></div>`;
                 }
                 tbodyHtml += `
-                    <tr data-type="${item.type}">
+                    <tr data-item-id="${item.id}" data-type="${item.type}">
                         <td>
                             <input type="checkbox" name="ids[]" value="${item.id}" style="width: 20px; height:20px" class="item-checkbox form-check">
                         </td>
@@ -638,8 +759,13 @@
                                         </a>
                                     </li>
                                     <li>
+                                        <a href="javascript:void(0)" class="dropdown-item mt-2 js-item-toggle-active" data-item-id="${item.id}" data-is-active="${item.is_active ? 1 : 0}">
+                                            ${item.is_active ? '<i data-feather="toggle-right" class="me-1"></i> Deactivate' : '<i data-feather="toggle-left" class="me-1"></i> Activate'}
+                                        </a>
+                                    </li>
+                                    <li>
                                         <a href="javascript:void(0)"
-                                            onclick="confirmDelete('delete-form-${item.id}')"
+                                            onclick="confirmItemDelete('delete-form-${item.id}', ${item.id})"
                                             class="dropdown-item mt-2">
                                             <i data-feather="trash-2" class="feather-trash-2"></i> Delete
                                         </a>
@@ -671,8 +797,8 @@
                             <span class="badge bg-secondary">${item.bar_code || '-'}</span><br><br>
                             ${item.barcode_image ? `<img src="/${item.barcode_image}" alt="" />` : ''}
                         </td>
-                        <td>
-                            <span class="badge ${item.is_active ? 'bg-success' : 'bg-danger'}">
+                        <td class="js-item-status-cell">
+                            <span class="badge js-item-status-badge ${item.is_active ? 'bg-success' : 'bg-secondary'}">
                                 ${item.is_active ? 'Active' : 'Inactive'}
                             </span>
                         </td>
@@ -984,22 +1110,118 @@
                 });
                 return;
             }
-            
-            Swal.fire({
-                title: 'Are you sure?',
-                text: `You are about to delete ${selected.length} item(s). This action cannot be undone!`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, delete them!',
-                cancelButtonText: 'Cancel',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    playDeleteSound();
-                    document.getElementById('bulkDeleteForm').submit();
+
+            const selectedIds = selected.map(chk => chk.value);
+            const checkUrlForId = (itemId) => '{{ route("items.can_delete", ":id") }}'.replace(':id', itemId);
+
+            // Verify deletion eligibility before showing final confirmation.
+            Promise.all(selectedIds.map(id =>
+                fetch(checkUrlForId(id), {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+            )).then(results => {
+                const blocked = results
+                    .map((r, idx) => ({ id: selectedIds[idx], can_delete: r.can_delete, message: r.message, used_in: r.used_in }))
+                    .filter(x => x.can_delete === false);
+
+                if (blocked.length > 0) {
+                    const blockedLines = blocked.slice(0, 6).map(b => {
+                        return `<div class="small text-muted">#${b.id}: ${b.message || 'This item cannot be deleted because it is already used in transactions.'}</div>`;
+                    }).join('');
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cannot delete used items',
+                        html: blockedLines + (blocked.length > 6 ? `<div class="small text-muted mt-2">... and ${blocked.length - 6} more</div>` : '')
+                    });
+                    return;
                 }
+
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: `You are about to delete ${selected.length} item(s). This action cannot be undone!`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete them!',
+                    cancelButtonText: 'Cancel',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        playDeleteSound();
+                        const bulkDeleteUrl = '{{ route("all.items.bulkDelete") }}';
+                        const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
+                        const csrfToken = csrfTokenEl ? csrfTokenEl.getAttribute('content') : '';
+
+                        fetch(bulkDeleteUrl, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken
+                            },
+                            body: JSON.stringify({ ids: selectedIds })
+                        })
+                        .then(async (res) => {
+                            if (!res.ok) {
+                                // Try to parse message; otherwise fall back.
+                                const txt = await res.text().catch(() => '');
+                                throw new Error(txt || ('HTTP ' + res.status));
+                            }
+                            return res.json();
+                        })
+                        .then((data) => {
+                            const blockedItems = Array.isArray(data.blocked_items) ? data.blocked_items : [];
+                            if (blockedItems.length > 0) {
+                                const blockedLines = blockedItems.slice(0, 10).map(b => {
+                                    const usedInBits = b.used_in && typeof b.used_in === 'object'
+                                        ? Object.entries(b.used_in)
+                                            .filter(([_, v]) => (parseInt(v, 10) || 0) > 0)
+                                            .map(([k, v]) => k.replace(/_/g, ' ') + ': ' + v)
+                                            .slice(0, 3)
+                                            .join(', ')
+                                        : '';
+                                    return `<div class="small text-muted">#${b.id}: ${b.message || 'Used in transactions.'}${usedInBits ? ' (' + usedInBits + ')' : ''}</div>`;
+                                }).join('');
+
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Cannot delete used items',
+                                    html: blockedLines + (blockedItems.length > 10 ? `<div class="small text-muted mt-2">... and ${blockedItems.length - 10} more</div>` : '')
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: data.success ? 'success' : 'warning',
+                                    title: data.success ? 'Deleted' : 'Not deleted',
+                                    text: data.message || 'Operation completed.'
+                                });
+                            }
+
+                            // Refresh to reflect updated item status.
+                            setTimeout(function() { location.reload(); }, 500);
+                        })
+                        .catch((err) => {
+                            console.error('Bulk delete failed:', err);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Unable to verify item usage. Deletion has been blocked for safety.'
+                            });
+                        });
+                    }
+                });
+            }).catch(() => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Unable to verify item usage. Deletion has been blocked for safety.'
+                });
             });
         });
         
@@ -1233,7 +1455,20 @@ function generateServiceHistory(itemId) {
 })();
 </script>
 
+@if (session('error'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cannot delete',
+                    text: @json(session('error'))
+                });
+            }
+        });
+    </script>
+@endif
 
-
+@include('admin.item.partials.item-active-toggle-script')
 
 @endsection

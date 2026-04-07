@@ -2,10 +2,15 @@
 @section('title', __('Payments List'))
 @section('content')
     <div class="content">
-        <div class="page-header">
+        <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-2">
             <div class="page-title">
                 <h2 class="fw-bold">Payments</h2>
             </div>
+            @canany(['view_cash_accounts', 'view_bank_transactions', 'view_bank_accounts'])
+            <a href="{{ route('admin.reports.cash-ledger') }}" class="btn btn-success">
+                <i class="ti ti-cash me-1"></i> Cash Ledger Report
+            </a>
+            @endcanany
         </div>
 
         @if(session('success'))

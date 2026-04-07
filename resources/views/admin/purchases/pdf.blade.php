@@ -303,6 +303,19 @@
                                     @if($item->bar_code)
                                         <small class="text-muted">Barcode: {{ $item->bar_code }}</small>
                                     @endif
+                                    @php
+                                        $pdfVoiceUrl = null;
+                                        if ($item && ! empty(trim((string) ($item->voice_path ?? '')))) {
+                                            $vp = trim((string) $item->voice_path);
+                                            $pdfVoiceUrl = preg_match('#^https?://#i', $vp) ? $vp : asset(ltrim($vp, '/'));
+                                        }
+                                    @endphp
+                                    @if($pdfVoiceUrl)
+                                        <p class="mb-0 mt-1" style="font-size: 7px; word-break: break-all;">
+                                            <span style="color:#666;">Voice:</span>
+                                            <a href="{{ $pdfVoiceUrl }}" style="color:#0d6efd;">Open / play in browser</a>
+                                        </p>
+                                    @endif
                                 </td>
                                 <td class="text-end">{{ number_format($purchaseItem->quantity, 2) }} {{ $purchaseItem->unit ?? 'pcs' }}</td>
                                 <td class="text-end">Rs {{ number_format($purchaseItem->rate, 2) }}</td>
@@ -372,6 +385,20 @@
                     </td>
                 </tr>
             </table>
+            @endif
+            @php
+                $rentPaidPdf = (float) ($purchase->rent_paid ?? 0);
+                $chargeRentPdf = \Illuminate\Support\Facades\Schema::hasColumn('purchases', 'charge_rent_to_supplier')
+                    ? (bool) $purchase->charge_rent_to_supplier
+                    : true;
+            @endphp
+            @if($rentPaidPdf > 0)
+            <p style="text-align: center; font-size: 8px; margin: 4px 0; color: #9a3412;">
+                <strong>Rent paid:</strong> Rs {{ number_format($rentPaidPdf, 2) }}
+                @if(!$chargeRentPdf)
+                    <span style="color:#64748b;"> (internal — not on supplier bill)</span>
+                @endif
+            </p>
             @endif
             <p class="fs-12" style="text-align: center; margin-top: 5px;">
                 Amount in Words: <span class="text-dark">

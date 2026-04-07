@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\BankTransaction;
 use App\Models\BankAccount;
+use App\Models\BankTransaction;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 
@@ -27,8 +27,8 @@ class BankTransactionController extends Controller
         }
 
         $transactions = $query->orderBy('transaction_date', 'desc')
-                             ->orderBy('created_at', 'desc')
-                             ->paginate(15);
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
 
         $bankAccounts = BankAccount::where('status', true)->orderBy('account_title')->get();
 
@@ -38,6 +38,7 @@ class BankTransactionController extends Controller
     public function create()
     {
         $bankAccounts = BankAccount::where('status', true)->orderBy('account_title')->get();
+
         return view('admin.bank-transactions.create', compact('bankAccounts'));
     }
 
@@ -68,6 +69,7 @@ class BankTransactionController extends Controller
     public function show(BankTransaction $bankTransaction)
     {
         $bankTransaction->load(['bankAccount', 'matchedPayment', 'reconciledBy']);
+
         return view('admin.bank-transactions.show', compact('bankTransaction'));
     }
 
@@ -75,6 +77,7 @@ class BankTransactionController extends Controller
     {
         $bankAccounts = BankAccount::where('status', true)->orderBy('account_title')->get();
         $payments = Payment::where('status', 'paid')->orderBy('payment_date', 'desc')->get();
+
         return view('admin.bank-transactions.edit', compact('bankTransaction', 'bankAccounts', 'payments'));
     }
 
@@ -121,7 +124,7 @@ class BankTransactionController extends Controller
         ]);
 
         return redirect()->back()
-            ->with('success', 'Transaction marked as reconciled!');
+            ->with('success', 'Transaction marked as tallied!');
     }
 
     public function unreconcile(BankTransaction $bankTransaction)
@@ -133,6 +136,6 @@ class BankTransactionController extends Controller
         ]);
 
         return redirect()->back()
-            ->with('success', 'Transaction marked as unreconciled!');
+            ->with('success', 'Transaction marked as untallied!');
     }
 }

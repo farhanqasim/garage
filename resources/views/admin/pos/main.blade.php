@@ -16,7 +16,7 @@
 
   <title>@yield('title') | {{env('APP_NAME')}}</title>
    <link rel="icon" href="{{ setting_value('favicon', asset('assets/img/favicon.png')) }}" type="image/x-icon"/>
-  <script src="{{asset('assets/js/theme-script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/theme-script.js')}}" type="text/javascript"></script>
   <!-- Apple Touch Icon -->
   <link rel="apple-touch-icon" sizes="180x180" href="{{asset('assets/img/apple-touch-icon.png')}}">
   {{-- <!-- Bootstrap CSS --> --}}
@@ -2820,38 +2820,37 @@ label{
   <script src="{{asset('assets/js/feather.min.js')}}" ></script>
 
   <!-- Slimscroll JS -->
-  <script src="{{asset('assets/js/jquery.slimscroll.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/jquery.slimscroll.min.js')}}" type="text/javascript"></script>
 
-	<script src="{{ asset('assets/js/jquery.dataTables.min.js') }}" type="a29272631196a62b967d88a8-text/javascript"></script>
-<script src="{{ asset('assets/js/dataTables.bootstrap5.min.js') }}" type="a29272631196a62b967d88a8-text/javascript"></script>
+	<script src="{{ asset('assets/js/jquery.dataTables.min.js') }}" type="text/javascript"></script>
+<script src="{{ asset('assets/js/dataTables.bootstrap5.min.js') }}" type="text/javascript"></script>
   <!-- Bootstrap Core JS -->
-  <script src="{{asset('assets/js/bootstrap.bundle.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/bootstrap.bundle.min.js')}}" type="text/javascript"></script>
 
   <!-- ApexChart JS -->
-  <script src="{{asset('assets/plugins/apexchart/apexcharts.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  <script src="{{asset('assets/plugins/apexchart/chart-data.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/apexchart/apexcharts.min.js')}}" type="text/javascript"></script>
+  <script src="{{asset('assets/plugins/apexchart/chart-data.js')}}" type="text/javascript"></script>
 
   <!-- Chart JS -->
-  <script src="{{asset('assets/plugins/chartjs/chart.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  <script src="{{asset('assets/plugins/chartjs/chart-data.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/chartjs/chart.min.js')}}" type="text/javascript"></script>
+  <script src="{{asset('assets/plugins/chartjs/chart-data.js')}}" type="text/javascript"></script>
 
   <!-- Daterangepikcer JS -->
-  <script src="{{asset('assets/js/moment.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  	<script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}" type="a29272631196a62b967d88a8-text/javascript"></script>
-  <script src="{{asset('assets/plugins/daterangepicker/daterangepicker.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/moment.min.js')}}" type="text/javascript"></script>
+  	<script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}" type="text/javascript"></script>
+  <script src="{{asset('assets/plugins/daterangepicker/daterangepicker.js')}}" type="text/javascript"></script>
 
   <!-- Select2 JS -->
-  <script src="{{asset('assets/plugins/select2/js/select2.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/select2/js/select2.min.js')}}" type="text/javascript"></script>
 
   <!-- Color Picker JS -->
-  <script src="{{asset('assets/plugins/%40simonwep/pickr/pickr.es5.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/%40simonwep/pickr/pickr.es5.min.js')}}" type="text/javascript"></script>
 <script src="{{ asset('assets/js/custom-select2.js') }}" ></script>
   <!-- Custom JS -->
-  <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  <script src="{{asset('assets/js/script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="text/javascript"></script>
+  <script src="{{asset('assets/js/script.js')}}" type="text/javascript"></script>
 
-  @php $posHost = request()->getHost(); @endphp
-  @if ($posHost && !in_array($posHost, ['localhost', '127.0.0.1']))
+  @if (request()->getHost() && ! is_first_party_lan_host())
   <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer></script>
  	<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3ca157e612a14eccbb30cf6db6691c29","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
   @endif

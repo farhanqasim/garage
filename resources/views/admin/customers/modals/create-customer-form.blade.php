@@ -4,8 +4,8 @@
         <div class="row g-3 p-3">
             @php
                 $user = auth()->user();
-                $userBranchId = $user->branch_id ?? $user->assignedBranches()->first()?->id ?? null;
-                $isBranchUser = (bool) $userBranchId && $user->role !== 'admin';
+                $userBranchId = $user ? ($user->branch_id ?? $user->assignedBranches()->first()?->id ?? null) : null;
+                $isBranchUser = $user && (bool) $userBranchId && $user->role !== 'admin';
                 $selectedBranchId = old('branch_id', session('selected_branch_id') ?? $userBranchId);
             @endphp
             <!-- Branch: admin sees all, branch user sees only their branch (pre-selected) -->
@@ -90,6 +90,19 @@
             </div>
 
             <!-- Other Fields -->
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Customer Type</label>
+                @php
+                    $customerType = old('customer_type', 'retail');
+                @endphp
+                <div class="btn-group w-100" role="group" aria-label="Customer Type">
+                    <input type="radio" class="btn-check" name="customer_type" id="customer_type_retail" value="retail" {{ $customerType === 'retail' ? 'checked' : '' }}>
+                    <label class="btn btn-outline-primary" for="customer_type_retail">Retail</label>
+
+                    <input type="radio" class="btn-check" name="customer_type" id="customer_type_wholesaler" value="wholesaler" {{ $customerType === 'wholesaler' ? 'checked' : '' }}>
+                    <label class="btn btn-outline-primary" for="customer_type_wholesaler">Wholesaler</label>
+                </div>
+            </div>
             <div class="col-md-6">
                 <label for="company" class="form-label">Company</label>
                 <input type="text" name="company" value="{{ old('company') }}" class="form-control">
